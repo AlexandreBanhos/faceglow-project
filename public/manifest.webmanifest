@@ -1,0 +1,16 @@
+{
+  "name": "FaceGlow",
+  "short_name": "FaceGlow",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf6f1",
+  "theme_color": "#ef8fb8",
+  "icons": [
+    {
+      "src": "/logo-faceglow.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

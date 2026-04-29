@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: faceglow-api
+    runtime: docker
+    plan: free
+    dockerfilePath: backend/SkinAnalysis.Api/Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Supabase__Url
+        sync: false
+      - key: Supabase__JwtAudience
+        value: authenticated
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Database__ApplyProductSeedOnStartup
+        value: false
+      - key: Gemini__ApiKey
+        sync: false
+      - key: Stripe__SecretKey
+        sync: false
+      - key: Stripe__PublishableKey
+        sync: false
+      - key: Stripe__WebhookSecret
+        sync: false
+      - key: Stripe__SuccessUrl
+        sync: false
+      - key: Stripe__CancelUrl
+        sync: false
+      - key: MercadoPago__AccessToken
+        sync: false
+      - key: MercadoPago__UseLiveCredentials
+        value: true
+      - key: MercadoPago__NotificationUrl
+        sync: false
+      - key: Frontend__PremiumUrl
+        sync: false
+      - key: Frontend__PremiumPendingUrl
+        sync: false
+      - key: Frontend__PremiumCancelUrl
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        sync: false
