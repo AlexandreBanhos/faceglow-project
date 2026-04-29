@@ -1,0 +1,48 @@
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking@2025.12.18"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory@2026.1.26"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github@2025.4.8"]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@2.1.4"]
+    },
+    "exa": {
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "supabase": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"],
+      "env": {
+        "BASE_URL": "${SUPABASE_URL}/rest/v1",
+        "API_KEY": "${SUPABASE_ANON_KEY}"
+      }
+    },
+    "backend": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"],
+      "env": {
+        "BASE_URL": "${BACKEND_URL}",
+        "API_KEY": "${BACKEND_API_KEY}"
+      }
+    },
+    "payments": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch"],
+      "env": {
+        "STRIPE_API_KEY": "${STRIPE_SECRET_KEY}",
+        "MERCADOPAGO_API_KEY": "${MERCADOPAGO_ACCESS_TOKEN}"
+      }
+    }
+  }
+}
