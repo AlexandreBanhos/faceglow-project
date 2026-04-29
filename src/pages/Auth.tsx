@@ -1,0 +1,445 @@
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
+import { sendPasswordReset, signInWithEmail, signUpWithEmail, updatePassword } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { AuroraBackdrop, FGGradientText } from "@/components/shared";
+import logoFaceglow from "@/assets/logo-faceglow.svg";
+
+const PASSWORD_RESET_COOLDOWN_KEY = "faceglow-password-reset-next-at";
+const PASSWORD_RESET_COOLDOWN_SECONDS = 60;
+
+const getFriendlyAuthMessage = (error: unknown, fallback: string) => {
+  const raw = typeof error === "string"
+    ? error
+    : error instanceof Error
+      ? error.message
+      : fallback;
+
+  const message = raw.toLowerCase();
+
+  if (message.includes("invalid login credentials") || message.includes("invalid credentials")) {
+    return "E-mail ou senha incorretos. Confira os dados e tente novamente.";
+  }
+
+  if (message.includes("email not confirmed") || message.includes("not confirmed")) {
+    return "Seu e-mail ainda nao foi confirmado. Verifique sua caixa de entrada.";
+  }
+
+  if (message.includes("invalid email") || message.includes("email address") || message.includes("email")) {
+    return "E-mail invalido. Revise o endereco digitado.";
+  }
+
+  if (message.includes("user already registered") || message.includes("already registered")) {
+    return "Este e-mail ja esta cadastrado. Tente entrar ou recuperar sua senha.";
+  }
+
+  if (message.includes("password") && message.includes("weak")) {
+    return "Senha fraca. Use pelo menos 6 caracteres com letras e numeros.";
+  }
+
+  if (message.includes("network") || message.includes("fetch") || message.includes("timeout")) {
+    return "Nao foi possivel conectar agora. Verifique sua internet e tente novamente.";
+  }
+
+  return fallback;
+};
+
+const Auth = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get("mode");
+  const isConfirmedEmail = searchParams.get("confirmed") === "1";
+  const redirectTo = (location.state as { redirectTo?: string } | null)?.redirectTo;
+  const [isRecoveryMode, setIsRecoveryMode] = useState(mode === "reset");
+  const [isLogin, setIsLogin] = useState(mode === "login" && !redirectTo);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  const hashType = useMemo(() => {
+    if (!window.location.hash) {
+      return "";
+    }
+
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    return params.get("type")?.toLowerCase() ?? "";
+  }, []);
+
+  useEffect(() => {
+    const queryType = searchParams.get("type")?.toLowerCase() ?? "";
+    const shouldRecover = mode === "reset" || queryType === "recovery" || hashType === "recovery";
+
+    if (shouldRecover) {
+      setIsRecoveryMode(true);
+      setIsLogin(false);
+    }
+  }, [hashType, mode, searchParams]);
+
+  useEffect(() => {
+    if (!isConfirmedEmail) {
+      return;
+    }
+
+    setIsLogin(true);
+    setIsRecoveryMode(false);
+    setErrorMessage(null);
+    setSuccessMessage("E-mail confirmado com sucesso. Agora voce pode fazer login.");
+
+    // Recuperar redirectTo do localStorage se foi guardado durante signup
+    const savedRedirectTo = localStorage.getItem("faceglow-auth-redirect-to");
+    if (savedRedirectTo) {
+      // Limpar localStorage e navegar para o redirectTo após login bem-sucedido
+      localStorage.removeItem("faceglow-auth-redirect-to");
+      // Será usado no handleSubmit para redirecionar
+    }
+  }, [isConfirmedEmail]);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsRecoveryMode(true);
+        setIsLogin(false);
+        setErrorMessage(null);
+      }
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const readCooldown = () => {
+      const raw = localStorage.getItem(PASSWORD_RESET_COOLDOWN_KEY);
+      const nextAt = raw ? Number(raw) : 0;
+      if (!nextAt || Number.isNaN(nextAt)) {
+        setCooldownSeconds(0);
+        return;
+      }
+
+      const remaining = Math.max(0, Math.ceil((nextAt - Date.now()) / 1000));
+      setCooldownSeconds(remaining);
+    };
+
+    readCooldown();
+    const intervalId = window.setInterval(readCooldown, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const startPasswordResetCooldown = (seconds: number) => {
+    const nextAt = Date.now() + seconds * 1000;
+    localStorage.setItem(PASSWORD_RESET_COOLDOWN_KEY, String(nextAt));
+    setCooldownSeconds(seconds);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const email = form.email.trim();
+    const password = form.password;
+    const name = form.name.trim();
+
+    if (isRecoveryMode) {
+      if (!password || !confirmPassword) {
+        setErrorMessage("Informe e confirme sua nova senha.");
+        return;
+      }
+
+      if (password.length < 6) {
+        setErrorMessage("A senha deve ter pelo menos 6 caracteres.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setErrorMessage("As senhas nao conferem.");
+        return;
+      }
+    }
+
+    if (!isRecoveryMode && (!email || !password || (!isLogin && !name))) {
+      setErrorMessage("Preencha os campos obrigatorios para continuar.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (isRecoveryMode) {
+        const { error } = await updatePassword(password);
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        setSuccessMessage("Senha atualizada com sucesso. Faca login para continuar.");
+        setIsLogin(true);
+        setConfirmPassword("");
+        setForm((current) => ({ ...current, password: "" }));
+        return;
+      }
+
+      if (isLogin) {
+        const { error } = await signInWithEmail(email, password);
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        // Verificar redirect_to: firstly from localStorage (post-email-confirmation), then from state
+        const savedRedirectTo = localStorage.getItem("faceglow-auth-redirect-to");
+        const finalRedirectTo = savedRedirectTo || redirectTo || "/dashboard";
+        
+        if (savedRedirectTo) {
+          localStorage.removeItem("faceglow-auth-redirect-to");
+        }
+
+        navigate(finalRedirectTo, { replace: true });
+      } else {
+        const signupRedirectTo =
+          (import.meta.env.VITE_SUPABASE_EMAIL_REDIRECT_URL as string | undefined)?.trim() ||
+          `${window.location.origin}/email-confirmed`;
+
+        // Guardar redirectTo no localStorage para recuperar após confirmação de email
+        if (redirectTo) {
+          localStorage.setItem("faceglow-auth-redirect-to", redirectTo);
+        }
+
+        const { error } = await signUpWithEmail(email, password, name, signupRedirectTo);
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        navigate("/verify-email", {
+          state: { email, redirectTo: redirectTo || "/analyze" },
+          replace: true,
+        });
+        return;
+      }
+    } catch (error) {
+      const message = getFriendlyAuthMessage(error, "Nao foi possivel autenticar agora. Tente novamente em instantes.");
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (cooldownSeconds > 0) {
+      setErrorMessage(`Aguarde ${cooldownSeconds}s para tentar novamente.`);
+      return;
+    }
+
+    const email = form.email.trim();
+    if (!email) {
+      setErrorMessage("Informe seu e-mail para receber o link de recuperacao.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const redirectTo = `${window.location.origin}/auth?mode=reset`;
+      const { error } = await sendPasswordReset(email, redirectTo);
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      startPasswordResetCooldown(PASSWORD_RESET_COOLDOWN_SECONDS);
+      setSuccessMessage("Enviamos um link para recuperar sua senha. Verifique seu e-mail.");
+    } catch (error) {
+      const message = getFriendlyAuthMessage(error, "Nao foi possivel enviar o e-mail de recuperacao.");
+      const normalized = message.toLowerCase();
+      if (normalized.includes("rate limit") || normalized.includes("too many requests")) {
+        startPasswordResetCooldown(PASSWORD_RESET_COOLDOWN_SECONDS);
+        setErrorMessage("Limite de envios atingido temporariamente. Aguarde 1 minuto e tente novamente.");
+      } else {
+        setErrorMessage(message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="relative w-full min-h-screen overflow-hidden flex flex-col"
+         style={{ background: "var(--grad-aurora)" }}>
+      <AuroraBackdrop tone="warm" />
+
+      <div className="relative z-10 px-6 pt-4 pb-8 flex flex-col">
+        {/* Back Button */}
+        <div className="relative mb-8 flex items-center justify-center min-h-10">
+          <button
+            onClick={() => navigate("/")}
+            className="liquiglass-button w-10 h-10 rounded-xl flex items-center justify-center absolute left-0"
+          >
+            <ArrowLeft size={18} className="text-[var(--fg-ink)]" />
+          </button>
+          
+          <img src={logoFaceglow} alt="FaceGlow" className="h-9 w-auto" />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex-1 max-w-md mx-auto w-full"
+        >
+          <h1 className="text-3xl font-bold text-[var(--fg-ink)] mb-2">
+            {isRecoveryMode ? (
+              <>Defina sua <FGGradientText>nova senha</FGGradientText></>
+            ) : isLogin ? (
+              <>Bem-vinda de <FGGradientText>volta</FGGradientText></>
+            ) : (
+              <>Criar sua <FGGradientText>conta</FGGradientText></>
+            )}
+          </h1>
+          <p className="text-[var(--fg-ink-3)] mb-8 text-base">
+            {isRecoveryMode
+              ? "Digite uma nova senha para sua conta"
+              : isLogin
+              ? "Entre para continuar sua jornada de cuidados com a pele"
+              : "Comece sua jornada personalizada de cuidados"}
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && !isRecoveryMode && (
+              <div className="lg-surface px-4 py-3 rounded-2xl text-sm text-[var(--fg-ink-3)]">
+                Após criar sua conta, confirme o e-mail para liberar o login.
+              </div>
+            )}
+
+            {!isLogin && !isRecoveryMode && (
+              <div className="relative">
+                <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)]" />
+                <input
+                  type="text"
+                  placeholder="Nome completo"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="w-full py-3 pl-12 pr-4 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                           placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
+                />
+              </div>
+            )}
+
+            {!isRecoveryMode && (
+              <div className="relative">
+                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)]" />
+                <input
+                  type="email"
+                  placeholder="E-mail"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="w-full py-3 pl-12 pr-4 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                           placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
+                />
+              </div>
+            )}
+
+            <div className="relative">
+              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)]" />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Senha"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full py-3 pl-12 pr-12 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                         placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)] hover:text-[var(--fg-ink)]"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            {isRecoveryMode && (
+              <div className="relative">
+                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)]" />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirmar senha"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full py-3 pl-12 pr-12 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                           placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)] hover:text-[var(--fg-ink)]"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            )}
+
+            {isLogin && !isRecoveryMode && (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={isSubmitting || cooldownSeconds > 0}
+                className="text-sm text-[var(--fg-ink-2)] font-semibold hover:text-[var(--fg-ink)] 
+                         disabled:opacity-50 transition"
+              >
+                {cooldownSeconds > 0 ? `Tente novamente em ${cooldownSeconds}s` : "Esqueceu a senha?"}
+              </button>
+            )}
+
+            {successMessage && (
+              <div className="lg-surface px-4 py-3 rounded-2xl flex items-start gap-3 border border-green-200/50">
+                <CheckCircle2 size={18} className="text-green-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-[var(--fg-ink)] font-medium leading-relaxed">{successMessage}</p>
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="lg-surface px-4 py-3 rounded-2xl flex items-start gap-3 border border-red-200/50">
+                <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700 font-semibold leading-relaxed">{errorMessage}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="coral-button w-full py-3 rounded-2xl font-bold text-base mt-6 
+                       disabled:opacity-60 transition"
+            >
+              {isSubmitting ? "Aguarde..." : isRecoveryMode ? "Atualizar senha" : isLogin ? "Entrar" : "Criar Conta"}
+            </button>
+          </form>
+
+          {!isRecoveryMode && (
+            <p className="text-center text-[var(--fg-ink-3)] mt-6 text-sm">
+              {isLogin ? "Não tem conta? " : "Já tem uma conta? "}
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-[var(--fg-ink-2)] font-bold hover:text-[var(--fg-ink)] transition"
+              >
+                {isLogin ? "Cadastre-se" : "Entre"}
+              </button>
+            </p>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default Auth;
