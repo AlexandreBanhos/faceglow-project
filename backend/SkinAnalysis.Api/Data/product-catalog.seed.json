@@ -1,0 +1,2853 @@
+﻿[
+    {
+        "Name":  "Actine Darrow Gel de Limpeza",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Classico BR antiacne",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "oleosidade"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Effaclar Concentrado La Roche-Posay",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Dermato raiz",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "oleosidade"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Vichy Normaderm Phytosolution",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controla oleosidade pesada",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "oleosidade"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Bioderma Sebium Gel Moussant",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Limpeza profunda premium",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Avene Cleanance Gel",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Acne + sensibilidade",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "acne"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "CeraVe Acne Control Cleanser",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Acido salicilico + barreira",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "oleosidade"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "Garnier Uniform \u0026 Matte Vitamina C",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Custo-beneficio",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "manchas"
+                     ],
+        "Priority":  92
+    },
+    {
+        "Name":  "Nivea Acne Control Gel",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Acessivel e eficiente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa"
+                      ],
+        "UseCases":  [
+                         "acne"
+                     ],
+        "Priority":  91
+    },
+    {
+        "Name":  "CeraVe Gel de Limpeza",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Queridinho global",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Bioderma Sensibio Gel Moussant",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Ultra suave",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "sensibilidade"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Botik Cica Pantenol Gel de Limpeza",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Calmante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "sensibilidade"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Sallve Limpador Facial",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Minimalista e hidratante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Creamy Gel de Limpeza",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Sem fragrancia, clean",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "sensibilidade"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Simple Gel de Limpeza Facial",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Basico sem erro",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "Effaclar Alta Tolerancia",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Pele sensivel + oleosa",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel",
+                          "oleosa"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "sensibilidade"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Bioderma Sensibio Gel",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Referencia mundial",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "sensibilidade"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Darrow Suavie Sabonete Liquido",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Ultra delicado",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "sensibilidade"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Panvel Dermativ SensAvel",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Custo-beneficio",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "sensibilidade"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Cetaphil Oil Control",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Limpa sem agredir",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel",
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "oleosidade"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Principia GL-01",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Hype tech skincare",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Principia GL-02",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controle + leve hidratacao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Actine Control Oil",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Zona T controlada",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "oleosidade"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Dermotivin Control",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "EquilAbrio clAssico",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Dermotivin Salix",
+        "Category":  "Limpeza",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Acne leve + oleosidade",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "oleosidade"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "La Roche-Posay Pure Vitamin Cdez10 Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Vitamina C + salicAlico (tratamento + glow)",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "oleosidade",
+                         "tratamento"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Principia VC-10",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Custo-beneficio absurdo (influencers amam)",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "oleosidade"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Principia NI-10",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Niacinamida 10% (controle de oleosidade top)",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "oleosidade"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "The Ordinary Niacinamide 10% + Zinc 1%",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Classico mundial",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "oleosidade"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Vichy Liftactiv Vitamin C Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Leve e potente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "oleosidade",
+                         "antioxidante"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Sallve Serum Antiacne",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Brasil + funcional",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "Creamy Vitamina C 10",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Textura leve e estavel",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "oleosidade"
+                     ],
+        "Priority":  93
+    },
+    {
+        "Name":  "SkinCeuticals C E Ferulic",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Benchmark mundial (dermato raiz ama)",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "antioxidante"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "La Roche-Posay Redermic Cdez10",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Mais hidratante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "antioxidante"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Vichy Liftactiv Supreme Vitamin C",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Glow + hidratacao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "antioxidante"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Bioderma Hydrabio Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo profunda",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Creamy Niacinamide 10",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "EquilAbrio + hidratacao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Drunk Elephant C-Firma Fresh Day Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Premium influencer global",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "antioxidante",
+                         "hidratacao"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "La Roche-Posay Hyalu B5 Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Calmante + reparacao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "reparacao",
+                         "hidratacao"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Avene A-Oxitive Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Vitamina C estabilizada suave",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "antioxidante"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Bioderma Sensibio Defensive Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "ProteAAo anti-poluiAAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "protecao"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Simple Booster Vitamin C",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Minimalista total",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "antioxidante"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "The Ordinary Ascorbyl Glucoside Solution 12%",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Derivado mais suave",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "antioxidante"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Principia Mix-01",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Niacinamida + ativos equilibrados",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio",
+                         "oleosidade"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "The Ordinary Buffet (Multi-Peptide Serum)",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Abordagem completa",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "L\u0027Oreal Revitalift Vitamina C 10%",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Acessivel e eficiente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "antioxidante"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Nivea Cellular Luminous 630 Serum",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Foco em manchas",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "manchas"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Garnier Booster Vitamina C",
+        "Category":  "Serum",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Popular + fAcil de usar",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "antioxidante"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Neutrogena Hydro Boost Water Gel",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Gel leve, absorAAo rApida",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "hidratacao leve"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Bepantol Derma Oil Free",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Hidrata sem obstruir poros",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "hidratacao leve"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Nivea Facial Acne Control Hidratante",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controle de oleosidade",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "oleosidade",
+                         "hidratacao"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "CeraVe Facial Moisturizing Lotion PM",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Ceramidas + niacinamida",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "hidratacao leve",
+                         "barreira cutanea"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Principia CM-01",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Minimalista e eficiente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "hidratacao leve"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Sallve Hidratante Reparador",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Leve + calmante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "calmante"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "CeraVe Moisturizing Cream",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Referencia mundial",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao profunda"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Cetaphil Moisturizing Cream",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Classico dermato",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao profunda"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Nivea Facial Nutritivo 7 em 1",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Custo-beneficio",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao profunda"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Neutrogena Hydro Boost Cream",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "VersAo mais potente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao intensa"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Creamy Calm Cream",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo + reparacao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "reparacao"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Nutrel Suavizante Balm",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Pele ressecada/sensibilizada",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao profunda",
+                         "barreira cutanea"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "La Roche-Posay Cicaplast Baume B5",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Queridinho absoluto",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "reparacao",
+                         "barreira cutanea"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Avene Cicalfate Restorative Cream",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Cicatrizacao e calma",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "reparacao",
+                         "calmante"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Bioderma Cicabio Creme",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "RegeneraAAo da pele",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "reparacao"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Epidrat Calm",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Dermatite, sensibilidade",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "calmante"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Eucerin Aquaphor",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Ultra reparador (tipo \u0027selante\u0027)",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "reparacao intensiva"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Bioderma Cicabio Creme+",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "VersAo mais completa",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "reparacao completa"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "CeraVe Facial Moisturizing Lotion",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "EquilAbrio perfeito",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "hidratacao leve",
+                         "equilibrio"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Cetaphil Oil Control Moisturizer",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controla brilho",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "oleosidade",
+                         "equilibrio"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Nivea Facial Hidratante Oil Control",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Acessivel",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "hidratacao leve"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Principia Acido HialurAnico Serum",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo leve + tech",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "equilibrio"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Neutrogena Hydro Boost Gel-Cream",
+        "Category":  "Hidratante",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Meio termo ideal",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "hidratacao equilibrada"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "La Roche-Posay Anthelios Airlicium FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Referencia absoluta, efeito matte real",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "controle de brilho",
+                         "toque seco"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "ISDIN Fusion Water FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Leve, nao arde os olhos",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "controle de oleosidade"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Eucerin Oil Control Sun Gel-Cream FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Controle de oleosidade top",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "oleosidade",
+                         "protecao solar"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Neutrogena Sun Fresh Derm Care FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Facil de achar + eficiente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "protecao solar"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Sallve Protetor Solar Toque Seco FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Moderno + textura boa",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "toque seco",
+                         "protecao"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Actine Protetor Solar FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Linha acne clAssica",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "controle de oleosidade"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "Vichy Capital Soleil UV-Clear FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Acne + tratamento",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "protecao",
+                         "acne"
+                     ],
+        "Priority":  93
+    },
+    {
+        "Name":  "La Roche-Posay Anthelios Hydrating Cream FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Conforto alto",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "protecao solar"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Bioderma Photoderm Creme FPS 50+",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "ProteAAo + hidratacao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Avene Solar Fluido FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Suave e consistente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "protecao",
+                         "hidratacao"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Dermage Photoage Water FPS 50",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Antioxidante + protecao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "hidratacao",
+                         "protecao"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Neostrata Minesol Oil Control FPS 70",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "ProteAAo alta + tratamento",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "protecao solar"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Bioderma Photoderm Max FPS 50+",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Dermato raiz",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "protecao solar",
+                         "baixa irritaAAo"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Avene Very High Protection Fluid FPS 50+",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Calmante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "protecao suave"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Episol Sec Protetor Solar FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Muito indicado por dermatos",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "protecao solar"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "ISDIN Fusion Water Sensitive FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "VersAo suave",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "protecao suave"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Bioderma Photoderm AR FPS 50+",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Pele com vermelhidAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "baixa irritaAAo"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "L\u0027Oreal Solar Expertise FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Custo-beneficio forte",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio",
+                         "protecao solar"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Principia PS-01 FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Hype tech skincare",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "hidratacao leve",
+                         "protecao"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Creamy Protetor Solar FPS 60",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Equilibrado e moderno",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "protecao",
+                         "textura leve"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "BiorA UV Aqua Rich Watery Essence FPS 50+",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Textura absurda de leve",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "leve",
+                         "hidratacao"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Skin Aqua UV Super Moisture Gel FPS 50+",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Leve + hidratante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "protecao",
+                         "hidratacao"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "BiorA UV Perfect Milk FPS 50+",
+        "Category":  "Protetor",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Mais sequinho",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "toque seco",
+                         "protecao"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "adapaleno 1mg Medley",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Foco acne + oleosidade",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "controle de oleosidade"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Adapaleno (Differin Gel 0,1%)",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "PadrAo ouro pra acne",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Epiduo Gel (Adapaleno + PerAxido de BenzoAla)",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Tratamento completo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne",
+                         "controle oleosidade"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "La Roche-Posay Effaclar Adapalene Gel",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "VersAo dermato famosa",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Creamy Retinol 0.3",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Entrada segura",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "iniciantes retinol"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Principia Retinol 0.3%",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Custo-beneficio forte",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne leve"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "The Ordinary Retinol 0.5% in Squalane",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Classico global",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "acne leve",
+                         "anti-idade"
+                     ],
+        "Priority":  93
+    },
+    {
+        "Name":  "Vichy Liftactiv Retinol Specialist",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Anti-idade + acne leve",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "anti-idade",
+                         "controle oleosidade"
+                     ],
+        "Priority":  92
+    },
+    {
+        "Name":  "La Roche-Posay Retinol B3 Serum",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Retinol + niacinamida, menos irritaAAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "anti-idade",
+                         "textura"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "SkinCeuticals Retinol 0.3",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "PadrAo premium dermato",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "anti-idade"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Avene RetrinAL 0.1 Cream",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Potente e mais tolerAvel",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "anti-idade"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Neutrogena Rapid Wrinkle Repair Retinol",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Acessivel e eficiente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "anti-idade"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Creamy Retinal 0.1",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Nova geraAAo, menos irritante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "textura",
+                         "anti-idade"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "The Ordinary Granactive Retinoid 2% Emulsion",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Alternativa suave",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "anti-idade",
+                         "tolerAncia alta"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "Avene RetrinAL 0.05 Cream",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "InAcio ideal",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "baixa irritaAAo",
+                         "iniciantes retinol"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "La Roche-Posay Retinol B3 Serum",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Calmante junto",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "baixa irritaAAo"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Bioderma Sebium Night Peel",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Efeito tipo retinoide",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "tolerAncia alta"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "The Ordinary Retinol 0.2% in Squalane",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Ultra iniciante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "iniciantes"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Creamy Retinol 0.1",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Baixa concentraAAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "tolerAncia alta"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Principia Retinol 0.2%",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Entrada segura",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "iniciantes retinol"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "Principia Retinol 0.3%",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "EquilAbrio geral",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "eficAcia + tolerAncia"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Creamy Retinal 0.05",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Mais moderno",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "The Ordinary Retinol 0.5% in Squalane",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "IntermediArio",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "eficAcia"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "La Roche-Posay Retinol B3 Serum",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Seguro e eficaz",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "equilibrio"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Vichy Liftactiv Retinol Specialist",
+        "Category":  "Retinoide",
+        "Recurrence":  "night",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Boa tolerAncia",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "eficAcia + tolerAncia"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Neutrogena Rapid Clear Acne Eliminating Spot Gel",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Secativo rApido",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "espinha ativa",
+                         "secativo"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Clean \u0026 Clear Advantage Acne Spot Treatment",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Classico acessAvel",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "espinha ativa",
+                         "secativo"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Actine Tratamento Pontual",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Dermato BR",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "espinha ativa",
+                         "secativo"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Granado Gel Secativo Antiacne",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Barato e funciona",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "espinha ativa",
+                         "secativo"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Nivea Acne Control Gel Secativo",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Facil de achar",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "espinha ativa",
+                         "secativo"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Principia Acido SalicAlico 2%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Custo-beneficio absurdo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "prevenAAo",
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  94
+    },
+    {
+        "Name":  "The Ordinary Salicylic Acid 2% Solution",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Referencia global",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "prevenAAo",
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  93
+    },
+    {
+        "Name":  "La Roche-Posay Effaclar Ultra Concentrado Serum",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Potente (Acidos combinados)",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  92
+    },
+    {
+        "Name":  "Vichy Normaderm Serum Antiacne",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Controle + tratamento",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  91
+    },
+    {
+        "Name":  "Sallve Serum Antiacne",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Equilibrado",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  90
+    },
+    {
+        "Name":  "Bepantol Derma Toque Seco Antiacne",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "NAo resseca tanto",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "secativo"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Avene Cleanance Spot",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Suave e eficaz",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "secativo"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "The Ordinary Lactic Acid 5% + HA",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "EsfoliaAAo leve",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Creamy Acido SalicAlico",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "VersAo mais hidratante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "La Roche-Posay Effaclar Serum",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "EquilAbrio ideal",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Avene Cleanance Comedomed Spot",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Tecnologia nova",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "secativo"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Bioderma Sebium Global Cover",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Trata + cobre",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "secativo"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Bioderma Sebium Serum",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Suave e progressivo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Principia Niacinamida 10%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "InflamaAAo a",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "The Ordinary Azelaic Acid 10%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Acne + manchas",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Neutrogena Acne Proofing Spot",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "AAAo rApida",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "secativo"
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Nivea Gel Secativo Acne Control",
+        "Category":  "Extras",
+        "Recurrence":  "as_needed",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Custo-beneficio",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "secativo"
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Principia Mix-01",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Combo inteligente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "L\u0027Oreal Revitalift Acido SalicAlico",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Acessivel",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+                         "tratamento contAnuo"
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Principia Mix-02 CafeAna + TranexAmico",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Leve, sem pesar",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "The Ordinary Caffeine Solution 5% + EGCG",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Classico mundial",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Sallve Serum Antioxidante Olhos",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Brasil + funcional",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Nivea Cellular Luminous Eye Cream",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Facil de usar",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Creamy Eye Cream CafeAna",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Textura leve",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "La Roche-Posay Pigmentclar Olhos",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo + clareamento",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Eucerin Anti-Pigment Eye Cream",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Clareamento eficaz",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Vichy Mineral 89 Eyes",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo leve",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Neutrogena Hydro Boost Eye Cream",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Textura gel-creme",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Avene Physiolift Eyes",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo + firmeza",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Avene Soothing Eye Contour Cream",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Suave, baixa irritaAAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "La Roche-Posay Toleriane Dermallergo Eyes",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Alta tolerAncia",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Bioderma Sensibio Eye",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "ProteAAo + calmante",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Simple Kind to Eyes Eye Balm",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Minimalista e seguro",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Principia CafeAna 5%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controle de olheiras",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "Principia Mix-02 CafeAna + TranexAmico",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "EquilAbrio geral",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "The Ordinary Caffeine Solution 5% + EGCG",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Classico e eficaz",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "La Roche-Posay Pigmentclar Olhos",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo + clareamento",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Eucerin Anti-Pigment Eye Cream",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Efeito clareador",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  96
+    },
+    {
+        "Name":  "Nivea Luminous 630 Eye Cream",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Popular e fAcil de achar",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  95
+    },
+    {
+        "Name":  "The Ordinary Niacinamide 10% + Zinc 1%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controle de oleosidade + limpeza profunda",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Principia Acido SalicAlico 2%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Refinamento e controle",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "La Roche-Posay Effaclar Ultra Concentrado Serum",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Tratamento potente",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "oleosa",
+                          "acneica"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "La Roche-Posay Retinol B3 Serum",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "Refina sem ressecar",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Creamy Acido MandAlico",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "night",
+        "Highlight":  "EsfoliaAAo suave",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Vichy Mineral 89 Serum",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "HidrataAAo + firmeza",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca",
+                          "normal"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "The Ordinary Azelaic Acid 10%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Suave e eficaz",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Principia Niacinamida 10%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controle de inflamaAAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Bioderma Sebium Pore Refiner",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "morning",
+        "Highlight":  "Refinamento visAvel",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "Principia Mix-01",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "EquilAbrio geral",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "The Ordinary Niacinamide 10% + Zinc 1%",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Controle de oleosidade",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "mista"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Eucerin Aquaphor Reparador Labial",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Uso diArio, hidratacao intensa",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "geral"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Nivea Med Repair Lip Balm",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "HidrataAAo rApida",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "geral"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Bepantol Derma Regenerador Labial",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "RegeneraAAo + protecao",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "geral"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  97
+    },
+    {
+        "Name":  "La Roche-Posay Cicaplast LAbios",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "ReparaAAo profunda",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "Avene Cicalfate BAlsamo Labial",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "ProteAAo + suavidade",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "seca"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  98
+    },
+    {
+        "Name":  "Nutrel Lip Repair Profuse",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Suave, baixa irritaAAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "sensivel"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    },
+    {
+        "Name":  "La Roche-Posay Cicaplast LAbios",
+        "Category":  "Extras",
+        "Recurrence":  "daily",
+        "PreferredPeriod":  "both",
+        "Highlight":  "Uso geral e manutenAAo",
+        "ImageUrl":  "",
+        "SkinTypes":  [
+                          "geral"
+                      ],
+        "UseCases":  [
+
+                     ],
+        "Priority":  100
+    }
+]

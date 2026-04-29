@@ -1,0 +1,326 @@
+<!-- 
+FaceGlow Email Templates
+Todos os templates estão prontos para serem personalizados no Supabase Auth
+Dashboard > Emails > Email Templates
+-->
+
+<!-- ===== 1. CONFIRM SIGN UP ===== -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirme seu email - FaceGlow</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); padding: 30px 20px; text-align: center; }
+        .logo { font-size: 28px; font-weight: bold; color: white; margin: 0; }
+        .logo span { color: #fff; }
+        .content { padding: 40px 30px; text-align: center; }
+        h1 { color: #333; font-size: 24px; margin: 0 0 15px 0; }
+        .message { color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }
+        .button { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; margin: 30px 0; transition: transform 0.2s; }
+        .button:hover { transform: scale(1.05); }
+        .code { background: #f5f5f5; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 18px; color: #e8a9c2; letter-spacing: 2px; margin: 20px 0; font-weight: bold; }
+        .footer { background: #f9f9f9; padding: 20px 30px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; }
+        .footer a { color: #e8a9c2; text-decoration: none; }
+        .security { background: #fef5f2; padding: 15px; border-left: 4px solid #ef8fb8; margin: 20px 0; text-align: left; font-size: 14px; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">Face<span>Glow</span></h1>
+            <p style="color: #ddd; margin: 10px 0 0 0;">Sua jornada para uma pele radiante começa aqui</p>
+        </div>
+        <div class="content">
+            <h1>Bem-vindo à FaceGlow! ✨</h1>
+            <p class="message">Obrigado por se cadastrar! Para ativar sua conta e começar sua análise personalizada de pele, confirme seu endereço de email clicando no botão abaixo.</p>
+            
+            <a href="{{ .ConfirmationURL }}" class="button">Confirmar Email</a>
+            
+            <p style="color: #999; font-size: 14px;">Ou copie este código:</p>
+            <div class="code">{{ .Token }}</div>
+            
+            <div class="security">
+                <strong>🔒 Segurança:</strong> Este link expirará em 24 horas. Se você não solicitou este email, ignore-o.
+            </div>
+        </div>
+        <div class="footer">
+            <p>© 2026 FaceGlow. Todos os direitos reservados.</p>
+            <p><a href="https://faceglow.com/privacy">Privacidade</a> | <a href="https://faceglow.com/terms">Termos</a></p>
+        </div>
+    </div>
+</body>
+</html>
+
+<!-- ===== 2. INVITE USER ===== -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Você foi convidado para FaceGlow</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); padding: 30px 20px; text-align: center; }
+        .logo { font-size: 28px; font-weight: bold; color: white; margin: 0; }
+        .logo span { color: #fff; }
+        .content { padding: 40px 30px; text-align: center; }
+        h1 { color: #333; font-size: 24px; margin: 0 0 15px 0; }
+        .message { color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }
+        .features { text-align: left; background: #fef5f2; padding: 20px; border-radius: 6px; margin: 20px 0; }
+        .features li { margin: 8px 0; color: #555; }
+        .button { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; margin: 30px 0; transition: transform 0.2s; }
+        .button:hover { transform: scale(1.05); }
+        .footer { background: #f9f9f9; padding: 20px 30px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; }
+        .footer a { color: #e8a9c2; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">Face<span>Glow</span></h1>
+            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Análise inteligente de pele com IA</p>
+        </div>
+        <div class="content">
+            <h1>Você foi convidado! 🎉</h1>
+            <p class="message">Uma pessoa especial quer que você descubra a magia de FaceGlow. Clique abaixo para criar sua conta gratuita e começar sua análise personalizada de pele.</p>
+            
+            <div class="features">
+                <strong>O que você terá acesso:</strong>
+                <ul style="padding-left: 20px;">
+                    <li>✨ Análise de pele com IA em tempo real</li>
+                    <li>🔍 Diagnóstico personalizado de problemas cutâneos</li>
+                    <li>💡 Rotinas de skincare customizadas</li>
+                    <li>⭐ Recomendações de produtos baseadas em seu tipo de pele</li>
+                </ul>
+            </div>
+            
+            <a href="{{ .ConfirmationURL }}" class="button">Aceitar Convite</a>
+            
+            <p style="color: #999; font-size: 13px;">Link expirará em 7 dias</p>
+        </div>
+        <div class="footer">
+            <p>© 2026 FaceGlow. Todos os direitos reservados.</p>
+            <p><a href="https://faceglow.com/privacy">Privacidade</a> | <a href="https://faceglow.com/terms">Termos</a></p>
+        </div>
+    </div>
+</body>
+</html>
+
+<!-- ===== 3. MAGIC LINK ===== -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seu link de acesso FaceGlow</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); padding: 30px 20px; text-align: center; }
+        .logo { font-size: 28px; font-weight: bold; color: white; margin: 0; }
+        .logo span { color: #fff; }
+        .content { padding: 40px 30px; text-align: center; }
+        h1 { color: #333; font-size: 24px; margin: 0 0 15px 0; }
+        .message { color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }
+        .button { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; margin: 30px 0; transition: transform 0.2s; }
+        .button:hover { transform: scale(1.05); }
+        .timer { background: #fef5f2; padding: 15px; border-radius: 6px; margin: 20px 0; color: #d97560; font-weight: 600; }
+        .footer { background: #f9f9f9; padding: 20px 30px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; }
+        .footer a { color: #e8a9c2; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">Face<span>Glow</span></h1>
+            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Acesso instantâneo</p>
+        </div>
+        <div class="content">
+            <h1>✨ Seu link de acesso está pronto!</h1>
+            <p class="message">Clique no botão abaixo para acessar sua conta FaceGlow instantaneamente. Nenhuma senha necessária!</p>
+            
+            <a href="{{ .ConfirmationURL }}" class="button">Acessar FaceGlow Agora</a>
+            
+            <div class="timer">
+                ⏰ Este link expirará em 1 hora
+            </div>
+            
+            <p style="color: #999; font-size: 14px;">Se você não solicitou este acesso, ignore este email. Sua conta permanecerá segura.</p>
+        </div>
+        <div class="footer">
+            <p>© 2026 FaceGlow. Todos os direitos reservados.</p>
+            <p><a href="https://faceglow.com/privacy">Privacidade</a> | <a href="https://faceglow.com/terms">Termos</a></p>
+        </div>
+    </div>
+</body>
+</html>
+
+<!-- ===== 4. CHANGE EMAIL ADDRESS ===== -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirme seu novo email - FaceGlow</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); padding: 30px 20px; text-align: center; }
+        .logo { font-size: 28px; font-weight: bold; color: white; margin: 0; }
+        .logo span { color: #fff; }
+        .content { padding: 40px 30px; text-align: center; }
+        h1 { color: #333; font-size: 24px; margin: 0 0 15px 0; }
+        .message { color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }
+        .old-email { background: #f5f5f5; padding: 15px; border-radius: 6px; margin: 15px 0; color: #666; }
+        .arrow { font-size: 20px; color: #e8a9c2; margin: 10px 0; }
+        .new-email { background: #fef5f2; padding: 15px; border-radius: 6px; margin: 15px 0; color: #d97560; font-weight: 600; }
+        .button { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; margin: 30px 0; transition: transform 0.2s; }
+        .button:hover { transform: scale(1.05); }
+        .security { background: #fef5f2; padding: 15px; border-left: 4px solid #ef8fb8; margin: 20px 0; text-align: left; font-size: 14px; color: #555; }
+        .footer { background: #f9f9f9; padding: 20px 30px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; }
+        .footer a { color: #e8a9c2; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">Face<span>Glow</span></h1>
+            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Atualization de segurança</p>
+        </div>
+        <div class="content">
+            <h1>Confirme seu novo email 📧</h1>
+            <p class="message">Você solicitou alterar o email associado à sua conta. Confirme clicando no botão abaixo para completar a atualização.</p>
+            
+            <div class="old-email">
+                Email anterior: {{ .Email }}
+            </div>
+            
+            <div class="arrow">↓</div>
+            
+            <div class="new-email">
+                Novo email: {{ .NewEmail }} ✓
+            </div>
+            
+            <a href="{{ .ConfirmationURL }}" class="button">Confirmar Novo Email</a>
+            
+            <div class="security">
+                <strong>⚠️ Importante:</strong> Este link expirará em 24 horas. Se você não fez esta solicitação, clique <a href="https://faceglow.com/security" style="color: #d97560; text-decoration: underline;">aqui</a> imediatamente.
+            </div>
+        </div>
+        <div class="footer">
+            <p>© 2026 FaceGlow. Todos os direitos reservados.</p>
+            <p><a href="https://faceglow.com/privacy">Privacidade</a> | <a href="https://faceglow.com/terms">Termos</a></p>
+        </div>
+    </div>
+</body>
+</html>
+
+<!-- ===== 5. RESET PASSWORD ===== -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar senha - FaceGlow</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); padding: 30px 20px; text-align: center; }
+        .logo { font-size: 28px; font-weight: bold; color: white; margin: 0; }
+        .logo span { color: #fff; }
+        .content { padding: 40px 30px; text-align: center; }
+        h1 { color: #333; font-size: 24px; margin: 0 0 15px 0; }
+        .message { color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }
+        .button { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; margin: 30px 0; transition: transform 0.2s; }
+        .button:hover { transform: scale(1.05); }
+        .alert { background: #fef5f2; padding: 15px; border-left: 4px solid #ef8fb8; margin: 20px 0; text-align: left; font-size: 14px; color: #d97560; }
+        .footer { background: #f9f9f9; padding: 20px 30px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; }
+        .footer a { color: #e8a9c2; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">Face<span>Glow</span></h1>
+            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Recuperação de acesso</p>
+        </div>
+        <div class="content">
+            <h1>Recupere sua senha 🔐</h1>
+            <p class="message">Recebemos uma solicitação para recuperar sua senha. Clique no botão abaixo para criar uma nova senha segura para sua conta.</p>
+            
+            <a href="{{ .ConfirmationURL }}" class="button">Recuperar Senha</a>
+            
+            <div class="alert">
+                <strong>🚨 Ação necessária:</strong> Este link é válido por apenas 1 hora. Se você não solicitou uma recuperação de senha, <a href="https://faceglow.com/support" style="color: #d97560; text-decoration: underline;">contacte nosso suporte</a> imediatamente.
+            </div>
+            
+            <p style="color: #999; font-size: 14px; margin-top: 30px;">Dicas de segurança: Escolha uma senha forte com letras, números e símbolos.</p>
+        </div>
+        <div class="footer">
+            <p>© 2026 FaceGlow. Todos os direitos reservados.</p>
+            <p><a href="https://faceglow.com/privacy">Privacidade</a> | <a href="https://faceglow.com/terms">Termos</a></p>
+        </div>
+    </div>
+</body>
+</html>
+
+<!-- ===== 6. REAUTHENTICATION ===== -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificação de identidade - FaceGlow</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); padding: 30px 20px; text-align: center; }
+        .logo { font-size: 28px; font-weight: bold; color: white; margin: 0; }
+        .logo span { color: #fff; }
+        .content { padding: 40px 30px; text-align: center; }
+        h1 { color: #333; font-size: 24px; margin: 0 0 15px 0; }
+        .message { color: #666; font-size: 16px; line-height: 1.6; margin: 20px 0; }
+        .actions { background: #fef5f2; padding: 20px; border-radius: 6px; margin: 20px 0; }
+        .actions p { margin: 10px 0; color: #555; font-size: 14px; }
+        .button { background: linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%); color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; margin: 30px 0; transition: transform 0.2s; }
+        .button:hover { transform: scale(1.05); }
+        .code { background: #f5f5f5; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 18px; color: #e8a9c2; letter-spacing: 2px; margin: 20px 0; font-weight: bold; }
+        .footer { background: #f9f9f9; padding: 20px 30px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; }
+        .footer a { color: #e8a9c2; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">Face<span>Glow</span></h1>
+            <p style="color: white; opacity: 0.9; margin: 10px 0 0 0;">Verificação de segurança</p>
+        </div>
+        <div class="content">
+            <h1>Verificação necessária 🔒</h1>
+            <p class="message">Por motivos de segurança, pedimos que você confirme sua identidade antes de prosseguir com esta ação importante.</p>
+            
+            <div class="actions">
+                <p><strong>🛡️ Ação solicitada:</strong> Mudança de dados sensíveis ou configurações críticas da conta</p>
+            </div>
+            
+            <a href="{{ .ConfirmationURL }}" class="button">Confirmar Identidade</a>
+            
+            <p style="color: #999; font-size: 14px;">Ou use este código temporário:</p>
+            <div class="code">{{ .Token }}</div>
+            
+            <p style="color: #999; font-size: 13px; margin-top: 30px;">Este código expirará em 15 minutos.</p>
+            
+            <p style="color: #d97560; font-size: 14px; margin-top: 20px;">💡 <strong>Não foi você?</strong> Sua conta pode estar sob risco. <a href="https://faceglow.com/security" style="color: #d97560; text-decoration: underline;">Proteja sua conta agora</a></p>
+        </div>
+        <div class="footer">
+            <p>© 2026 FaceGlow. Todos os direitos reservados.</p>
+            <p><a href="https://faceglow.com/privacy">Privacidade</a> | <a href="https://faceglow.com/terms">Termos</a></p>
+        </div>
+    </div>
+</body>
+</html>
