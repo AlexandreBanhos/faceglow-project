@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(ls backend/SkinAnalysis.Api/appsettings*.json)",
+      "Bash(bash backend/setup-skills.sh)"
+    ]
+  }
+}
