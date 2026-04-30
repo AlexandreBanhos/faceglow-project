@@ -1,14 +1,9 @@
-/**
- * Component: Landing Page Hero
- * Seção hero da landing page
- * Padrão: Dependency Injection via Hook (useLandingContent)
- * Princípios SOLID: Single Responsibility, Dependency Inversion
- */
-
+import { Camera, ChevronRight, ScanFace, ShieldCheck, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useLandingContent } from "@/shared/providers/LandingContext";
 import headerImage from "@/assets/header-landing-page.png";
+import { FGGradientText, FGMetricBar, FGScoreOrb } from "@/components/shared";
 
 interface HeroProps {
   onCTAPrimary?: () => void;
@@ -28,147 +23,131 @@ export const LandingHero = ({
   const handleSecondaryAction = onCTASecondary ?? (() => {
     document.getElementById("why-section")?.scrollIntoView({ behavior: "smooth" });
   });
+
   return (
     <motion.section
-      className="relative z-1 py-20 px-4 md:px-8"
-      initial={{ opacity: 0, y: 20 }}
+      className="relative z-10 px-4 pb-16 pt-8 md:px-8 md:pb-24"
+      initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
+      transition={{ duration: 0.55 }}
     >
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:gap-12">
-        {/* Image — acima no mobile, à direita no desktop */}
-        <motion.div
-          className="w-full md:hidden mb-8"
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <img
-            src={headerImage}
-            alt="FaceGlow — análise de pele com IA"
-            className="w-full max-w-sm mx-auto"
-          />
-        </motion.div>
-
-        {/* Content */}
-        <div className="flex-1 text-center md:text-left">
-          {/* Badge */}
+      <div className="fg-shell-wide grid min-h-[calc(100svh-112px)] items-center gap-10 lg:grid-cols-[1.02fr_0.98fr]">
+        <div className="text-center lg:text-left">
           <motion.div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 bg-white/80 backdrop-blur-sm border border-white/90 shadow-sm"
-            initial={{ scale: 0.9, opacity: 0 }}
+            className="fg-eyebrow mb-5"
+            initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.08 }}
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-sm font-medium text-gray-700">IA de análise dermatológica em tempo real</span>
+            <Sparkles size={14} />
+            IA dermatologica em tempo real
           </motion.div>
 
-          {/* Headline */}
           <motion.h1
-            className="text-4xl md:text-4xl lg:text-5xl font-bold mb-6 text-gray-900 leading-tight"
+            className="mx-auto max-w-4xl text-[2.85rem] font-extrabold leading-[0.96] text-[var(--fg-ink)] md:text-6xl lg:mx-0 lg:text-7xl"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.16 }}
           >
-            {config.hero?.headline?.split("\n").map((line, i) => (
-              <div key={i}>
-                {i === 1 ? (
-                  <span className="bg-gradient-to-r from-coral via-pink to-lavender bg-clip-text text-transparent">
-                    {line}
-                  </span>
-                ) : (
-                  line
-                )}
-              </div>
-            )) || (
-              <>
-                Diagnóstico de pele
-                <span className="bg-gradient-to-r from-coral via-pink to-lavender bg-clip-text text-transparent">
-                  {" "}profissional em 60s
+            {config.hero?.headline ? (
+              config.hero.headline.split("\n").map((line, index) => (
+                <span key={line} className="block">
+                  {index === 1 ? <FGGradientText>{line}</FGGradientText> : line}
                 </span>
+              ))
+            ) : (
+              <>
+                Diagnostico de pele <FGGradientText>profissional em 60s</FGGradientText>
               </>
             )}
           </motion.h1>
 
-          {/* Subheadline */}
           <motion.p
-            className="text-lg md:text-xl text-gray-600 mb-8 max-w-xl font-light leading-relaxed mx-auto md:mx-0"
+            className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[var(--fg-ink-3)] md:text-xl lg:mx-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.25 }}
           >
             {config.hero?.subheadline ??
-              "Tire uma selfie. Nossa IA identifica seu tipo de pele, condições e monta sua rotina personalizada — sem filas, sem consulta cara."}
+              "Tire uma selfie. Nossa IA identifica seu tipo de pele, condicoes e monta sua rotina personalizada sem filas e sem consulta cara."}
           </motion.p>
 
-          {/* CTAs */}
           <motion.div
-            className="flex gap-4 justify-center md:justify-start mb-8 flex-wrap"
+            className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.34 }}
           >
             <button
               onClick={handlePrimaryAction}
-              className="px-8 py-3 bg-gradient-to-r from-coral via-pink to-lavender text-white rounded-full font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+              className="coral-button flex w-full items-center justify-center gap-2 rounded-full px-7 py-4 text-sm font-extrabold sm:w-auto"
             >
-              {config.hero?.cta ?? "Analisar minha pele grátis"}
+              <Camera size={18} />
+              {config.hero?.cta ?? "Analisar minha pele gratis"}
             </button>
             <button
               onClick={handleSecondaryAction}
-              className="px-8 py-3 bg-white/80 backdrop-blur-sm border border-coral/25 text-gray-700 rounded-full font-semibold hover:border-coral hover:text-coral transition-all duration-200"
+              className="liquiglass-button flex w-full items-center justify-center gap-2 rounded-full px-7 py-4 text-sm font-extrabold text-[var(--fg-ink-2)] sm:w-auto"
             >
               {config.hero?.secondaryCta ?? "Ver como funciona"}
+              <ChevronRight size={17} />
             </button>
           </motion.div>
 
-          {/* Social Proof */}
           <motion.div
-            className="flex gap-4 justify-center md:justify-start items-center text-sm text-gray-600 flex-wrap"
+            className="mt-7 flex flex-wrap items-center justify-center gap-3 text-sm text-[var(--fg-ink-3)] lg:justify-start"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.42 }}
           >
-            <div className="flex -space-x-2">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="w-7 h-7 rounded-full border-2 border-white bg-gradient-to-br from-coral/20 to-pink/20 flex items-center justify-center text-xs font-bold text-coral"
-                >
-                  {String.fromCharCode(65 + i)}
-                </div>
-              ))}
-              <div className="w-7 h-7 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                +
-              </div>
-            </div>
-
-            <div className="text-coral font-semibold tracking-tighter">★★★★★</div>
-            <span>+{(socialProof?.totalAnalyses ?? 12400).toLocaleString()} análises realizadas</span>
-
-            {socialProof?.isValidatedByDermatologists && (
-              <div className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700 font-medium">
-                Validado por dermatologistas
-              </div>
-            )}
+            <span className="rounded-full bg-white/60 px-3 py-2 font-bold text-primary">
+              +{(socialProof?.totalAnalyses ?? 12400).toLocaleString()} analises
+            </span>
+            <span className="rounded-full bg-white/60 px-3 py-2 font-bold text-[var(--fg-ink-2)]">
+              Validado por dermatologistas
+            </span>
           </motion.div>
         </div>
 
-        {/* Image — lado direito no desktop, oculta no mobile */}
         <motion.div
-          className="hidden md:flex flex-1 items-center justify-center"
+          className="relative mx-auto w-full max-w-[520px]"
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
-          <img
-            src={headerImage}
-            alt="FaceGlow — análise de pele com IA"
-            className="w-full mix-blend-multiply"
-          />
+          <div className="lg-surface-strong relative overflow-hidden rounded-[2.5rem] p-5 md:p-7">
+            <div className="absolute inset-x-8 top-4 h-28 rounded-full bg-white/40 blur-3xl" />
+            <div className="relative grid gap-5 md:grid-cols-[1fr_0.9fr] md:items-center">
+              <div className="flex flex-col items-center">
+                <FGScoreOrb score={92} size={240} variant="default" label="Skin score" />
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/70 px-4 py-2 text-xs font-extrabold text-primary shadow-soft">
+                  <ShieldCheck size={14} />
+                  Rotina pronta
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="overflow-hidden rounded-[1.5rem] bg-white/55 p-2 shadow-soft">
+                  <img
+                    src={headerImage}
+                    alt="FaceGlow - preview de diagnostico de pele"
+                    className="aspect-[4/5] w-full rounded-[1.15rem] object-cover object-top mix-blend-multiply"
+                  />
+                </div>
+                <div className="rounded-[1.35rem] bg-white/60 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.08em] text-primary">
+                    <ScanFace size={14} />
+                    Face map
+                  </div>
+                  <FGMetricBar label="Hidratacao" value={82} />
+                  <FGMetricBar label="Textura" value={76} />
+                  <FGMetricBar label="Glow" value={91} />
+                </div>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </motion.section>
   );
 };
-

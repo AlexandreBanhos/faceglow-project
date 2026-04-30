@@ -221,7 +221,7 @@ const Premium = () => {
       {/* Loading state */}
       {isCheckingStatus && <LoadingSpinnerFullScreen message="Carregando seu plano..." />}
 
-      <div className="relative z-10 max-w-lg mx-auto px-6 py-4">
+      <div className="relative z-10 mx-auto max-w-md px-6 py-4">
         {/* Back button */}
         <button
           onClick={() => navigate(-1)}
@@ -440,8 +440,8 @@ const Premium = () => {
                   onClick={() => setSelectedPlan(p.key)}
                   className={`relative w-full p-3.5 rounded-2xl border-2 transition-all text-left ${
                     selectedPlan === p.key
-                      ? "border-primary bg-primary/10 shadow-lg"
-                      : "border-border bg-card/70 hover:border-primary/30"
+                      ? "border-primary lg-surface-strong shadow-lg"
+                      : "border-white/80 lg-surface hover:border-primary/30"
                   }`}
                 >
                   {p.badge && (
@@ -488,8 +488,8 @@ const Premium = () => {
                     onClick={() => setSelectedPayment(method.id)}
                     className={`p-2.5 rounded-xl border-2 font-semibold transition-all flex items-center justify-center gap-2 ${
                       selectedPayment === method.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-card/70 text-foreground hover:border-primary/30"
+                        ? "border-primary lg-surface-strong text-primary"
+                        : "border-white/80 lg-surface text-foreground hover:border-primary/30"
                     }`}
                   >
                     <method.icon size={18} />
@@ -517,7 +517,7 @@ const Premium = () => {
               transition={{ delay: 0.4 }}
               onClick={handleCheckout}
               disabled={isProcessing}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-primary to-accent text-primary-foreground font-bold text-base shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+              className="coral-button w-full py-3.5 rounded-2xl font-bold text-base active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3"
             >
               {isProcessing ? (
                 <span className="flex items-center justify-center gap-2">

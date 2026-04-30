@@ -341,7 +341,7 @@ const Results = () => {
   return (
     <div className="relative w-full min-h-screen px-6 pt-4 pb-8 overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
-      <div className="relative z-10">
+      <div className="relative z-10 mx-auto w-full max-w-md">
       <AnimatePresence>
         {showFloatingCard && (
           <FloatingAnalysisCard
@@ -375,9 +375,9 @@ const Results = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="lg-surface-strong p-8 flex flex-col items-center mb-12 rounded-3xl"
+        className="lg-surface-strong p-6 flex flex-col items-center mb-8 rounded-[2rem]"
       >
-        <FGScoreOrb score={analysis.overallScore} size={320} variant="default" />
+        <FGScoreOrb score={analysis.overallScore} size={280} variant="default" />
         <div className="mt-5 flex items-center gap-2">
           <span className="px-4 py-1.5 rounded-full gradient-primary text-primary-foreground text-sm font-bold shadow-glow">
             {skinTypeLabel}

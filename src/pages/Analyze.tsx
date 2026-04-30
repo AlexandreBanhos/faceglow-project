@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiRoutes } from "@/lib/api";
+import { apiRoutes, apiBaseUrl } from "@/lib/api";
 import { getAccessToken, getSessionUser } from "@/lib/auth";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { normalizeAnalysis, type AnalysisResponse } from "@/lib/analysis";
@@ -276,7 +276,7 @@ const Analyze = () => {
 
       let response: Response;
       try {
-        response = await fetch(apiRoutes.analysis, {
+        response = await fetch(`${apiBaseUrl}${apiRoutes.analysis}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -373,7 +373,7 @@ const Analyze = () => {
   return (
     <div className="relative w-full min-h-screen pb-8 overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
-      <div className="relative z-10 px-6 py-6 flex flex-col h-screen">
+      <div className="relative z-10 mx-auto flex h-screen w-full max-w-md flex-col px-6 py-6">
         <div className="mb-6 flex items-center justify-between">
           <button onClick={() => setPhase("scanner")} className="text-sm font-semibold text-[var(--fg-ink-2)]">
             Nova captura

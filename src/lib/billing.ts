@@ -1,27 +1,8 @@
 import { apiClient } from "@/shared/services/api/ApiClient";
-import { getAccessToken } from "@/lib/auth";
+import { getAccessTokenWithWait } from "@/lib/auth";
 
 export type BillingPlanKey = "test" | "credits" | "monthly" | "quarterly" | "annual";
 export type BillingGatewayKey = "mercadopago-pix" | "mercadopago-card" | "stripe-card";
-
-/**
- * Aguarda token estar disponivel com retry
- * Resolve race condition onde token pode nao estar pronto imediatamente apos autenticacao
- */
-const getAccessTokenWithWait = async (maxWaitMs = 5000): Promise<string | null> => {
-  const startTime = Date.now();
-  const checkInterval = 100;
-
-  while (Date.now() - startTime < maxWaitMs) {
-    const token = await getAccessToken();
-    if (token) {
-      return token;
-    }
-    await new Promise(resolve => setTimeout(resolve, checkInterval));
-  }
-
-  return null;
-};
 
 export type BillingCheckoutRequest = {
   planKey: BillingPlanKey;
@@ -60,7 +41,7 @@ export type BillingStatusResponse = {
 };
 
 export const createBillingCheckout = async (request: BillingCheckoutRequest): Promise<BillingCheckoutResponse> => {
-  console.log("?? [Billing] Iniciando checkout:", request);
+  console.log("[Billing] Iniciando checkout:", request.planKey, request.gateway);
 
   // Aguarda token estar disponivel
   await getAccessTokenWithWait(5000);
@@ -71,7 +52,7 @@ export const createBillingCheckout = async (request: BillingCheckoutRequest): Pr
     throw new Error(response.error || "N�o foi poss�vel iniciar o pagamento");
   }
 
-  console.log("? [Billing] Checkout criado:", response.data);
+  console.log("[Billing] Checkout criado:", response.data?.planKey, response.data?.status);
   return response.data;
 };
 

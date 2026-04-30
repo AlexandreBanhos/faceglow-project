@@ -5,7 +5,11 @@ import { normalizeAnalysis, type AnalysisRecommendation, type AnalysisResponse }
 import { useEffect, useMemo, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis } from "@/lib/analysisClient";
+import {
+  getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache,
+  fetchRoutineSteps, addRoutineStep, updateRoutineStep, removeRoutineStep,
+  type RoutineStep as ApiRoutineStep,
+} from "@/lib/analysisClient";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
 import type { AdminProduct } from "@/lib/admin-products";
 import { uploadProductImage } from "@/lib/storage";
@@ -411,6 +415,16 @@ const Routine = () => {
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
 
+  // Structured steps from the new API (with resolved images, product IDs)
+  const [apiSteps, setApiSteps] = useState<ApiRoutineStep[]>([]);
+  const [stepsLoaded, setStepsLoaded] = useState(false);
+
+  const reloadApiSteps = async (analysisId: string) => {
+    const steps = await fetchRoutineSteps(analysisId);
+    setApiSteps(steps);
+    setStepsLoaded(true);
+  };
+
   // Diagnostic logging
   const routine_diagnostics = {
     analysisId: analysis?.id,
@@ -462,6 +476,29 @@ const Routine = () => {
 
     loadAnalysisFromAPI();
   }, [loadedAnalysis, isLoadingAnalysis]);
+
+  // Load structured steps from API (fixes image resolution and custom steps)
+  useEffect(() => {
+    if (!analysis?.id) return;
+    setStepsLoaded(false);
+    fetchRoutineSteps(analysis.id).then((steps) => {
+      setApiSteps(steps);
+      setStepsLoaded(true);
+      // Initialize selectedOptionByItem from step.selectedTier (API is source of truth)
+      if (steps.length > 0) {
+        const tierMap: Record<string, string> = {};
+        steps.forEach((s) => {
+          if (s.selectedTier) {
+            const key = `${s.period}::${s.productName.toLowerCase()}`;
+            tierMap[key] = `${key}::${s.selectedTier}`;
+          }
+        });
+        if (Object.keys(tierMap).length > 0) {
+          setSelectedOptionByItem((prev) => ({ ...prev, ...tierMap }));
+        }
+      }
+    });
+  }, [analysis?.id]);
 
   // Load customizations saved to backend when analysis ID changes
   useEffect(() => {
@@ -552,6 +589,7 @@ const Routine = () => {
         const result = await saveRoutineCustomizations(analysis.id, customizationsPayload);
 
         if (result.success) {
+          invalidateAnalysisCache();
           console.debug("[Routine] ✅ Customizações auto-salvas no backend para análise", analysis.id);
         } else {
           console.warn("[Routine] ⚠️ Erro ao salvar customizações:", result.error);
@@ -597,36 +635,66 @@ const Routine = () => {
   }, [customProductByItem, analysis?.id]);
 
   const routineItems = useMemo(() => {
+    // Build image lookup from API steps (resolved by backend — no fragile name matching)
+    const apiImageByKey = new Map<string, string>();
+    const apiUserAddedByPeriod = { morning: [] as RoutineItem[], night: [] as RoutineItem[] };
+
+    if (stepsLoaded && apiSteps.length > 0) {
+      apiSteps.forEach((s) => {
+        const key = `${s.period}::${s.productName.toLowerCase()}`;
+        const img = s.overrideImageUrl ?? s.imageUrl;
+        if (img) apiImageByKey.set(key, img);
+      });
+      // User-added custom steps from API
+      apiSteps
+        .filter((s) => s.isUserAdded)
+        .forEach((s, idx) => {
+          const period = s.period as "morning" | "night";
+          apiUserAddedByPeriod[period].push({
+            key: s.id,
+            period,
+            stepNumber: s.stepOrder + 1,
+            stepLabel: s.category,
+            title: s.overrideProductName ?? s.productName,
+            type: s.category,
+            recurrence: s.recurrence,
+            note: "",
+            imageUrl: s.overrideImageUrl ?? s.imageUrl,
+            isCustom: true,
+          } as RoutineItem & { isCustom: boolean });
+        });
+    }
+
     const recommendationByName = new Map<string, AnalysisRecommendation>();
     const recommendations = loadedAnalysis?.recommendations ?? analysis?.recommendations ?? [];
-    
     recommendations.forEach((item) => {
-      if (item.product) {
-        recommendationByName.set(item.product.toLowerCase(), item);
-      }
+      if (item.product) recommendationByName.set(item.product.toLowerCase(), item);
     });
 
-    console.debug("[Routine] Built recommendation map", {
-      recommendationCount: recommendations.length,
-      mappedCount: recommendationByName.size,
-      mapped: Array.from(recommendationByName.keys()).slice(0, 5),
+    const applyApiImage = (item: RoutineItem): RoutineItem => ({
+      ...item,
+      imageUrl: apiImageByKey.get(item.key) ?? item.imageUrl,
     });
 
-    const morningItems = routine.morning.map((step, index) => parseRoutineStep(step, "morning", index + 1, recommendationByName));
-    const nightItems = routine.night.map((step, index) => parseRoutineStep(step, "night", index + 1, recommendationByName));
-    
-    console.debug("[Routine] Parsed routine items", {
-      morningCount: morningItems.length,
-      nightCount: nightItems.length,
-      itemsWithImages: [...morningItems, ...nightItems].filter(item => item.imageUrl).length,
-    });
-    
+    const morningItems = [
+      ...routine.morning.map((step, index) =>
+        applyApiImage(parseRoutineStep(step, "morning", index + 1, recommendationByName))
+      ),
+      ...apiUserAddedByPeriod.morning,
+    ];
+    const nightItems = [
+      ...routine.night.map((step, index) =>
+        applyApiImage(parseRoutineStep(step, "night", index + 1, recommendationByName))
+      ),
+      ...apiUserAddedByPeriod.night,
+    ];
+
     return {
       morning: morningItems,
       night: nightItems,
       all: [...morningItems, ...nightItems],
     };
-  }, [analysis?.recommendations, routine.morning, routine.night, loadedAnalysis?.recommendations]);
+  }, [analysis?.recommendations, routine.morning, routine.night, loadedAnalysis?.recommendations, apiSteps, stepsLoaded]);
 
   const productOptionsByItem = useMemo(() => {
     const recommendations = analysis?.recommendations ?? [];
@@ -852,23 +920,25 @@ const Routine = () => {
     localStorage.setItem(getRoutineOrderStorageKey(analysis?.id), JSON.stringify(next));
   };
 
-  const addCustomStep = () => {
-    if (!newStepProduct.trim()) return;
-    const resolvedLabel = newStepLabel.trim();
-    const baseStep = {
-      stepLabel: resolvedLabel || "Passo",
-      productName: newStepProduct.trim(),
-      imageUrl: newStepImage.trim() || undefined,
-      note: newStepNote.trim() || undefined,
-    };
+  const addCustomStep = async () => {
+    if (!newStepProduct.trim() || !analysis?.id) return;
+    const resolvedLabel = newStepLabel.trim() || "Passo";
     const periods: Array<"morning" | "night"> =
       newStepPeriod === "both" ? ["morning", "night"] : [newStepPeriod];
-    const newSteps: CustomStep[] = periods.map((p) => ({
-      id: `custom::${p}::${Date.now()}`,
-      period: p,
-      ...baseStep,
-    }));
-    persistCustomSteps([...customSteps, ...newSteps]);
+
+    // Save to API (new approach — steps stored in DB with resolved images)
+    await Promise.all(periods.map((p) =>
+      addRoutineStep(analysis.id, {
+        period: p,
+        productName: newStepProduct.trim(),
+        category: resolvedLabel,
+        imageUrl: newStepImage.trim() || undefined,
+        recurrence: "daily",
+      })
+    ));
+    await reloadApiSteps(analysis.id);
+    invalidateAnalysisCache();
+
     setNewStepPeriod("both");
     setNewStepLabel("");
     setNewStepLabelOpen(false);
@@ -939,21 +1009,18 @@ const Routine = () => {
 
     setIsDeletingStep(true);
     try {
-      const { deleteRoutineStep } = await import("@/lib/analysisClient");
-      const result = await deleteRoutineStep(analysis.id, stepPendingDelete.id);
-
-      if (result.success) {
-        // Remove from custom steps
-        removeCustomStep(stepPendingDelete.id);
-        console.debug("[Routine] ✅ Passo deletado com sucesso", { stepId: stepPendingDelete.id });
+      // Try new structured steps API first (UUID step IDs from analysis_routine_steps)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stepPendingDelete.id);
+      if (isUuid) {
+        await removeRoutineStep(analysis.id, stepPendingDelete.id);
+        await reloadApiSteps(analysis.id);
       } else {
-        console.error("[Routine] ❌ Erro ao deletar passo:", result.error);
-        // Still remove locally even if backend fails
+        // Legacy: localStorage custom step (old format `custom::period::timestamp`)
         removeCustomStep(stepPendingDelete.id);
       }
+      invalidateAnalysisCache();
     } catch (error) {
       console.error("[Routine] Erro ao deletar passo:", error);
-      // Remove locally anyway
       removeCustomStep(stepPendingDelete.id);
     } finally {
       setStepPendingDelete(null);
@@ -964,7 +1031,9 @@ const Routine = () => {
   const orderedItems = useMemo(() => {
     const toOrdered = (period: "morning" | "night") => {
       const base = routineItems[period].filter((i) => !isExtraItem(i));
-      const customs: RoutineItem[] = customSteps
+      // When API steps are loaded, custom steps are already in routineItems (via apiUserAddedByPeriod)
+      // Only add localStorage customSteps if API hasn't loaded yet
+      const customs: RoutineItem[] = stepsLoaded ? [] : customSteps
         .filter((s) => s.period === period)
         .map((s, idx) => ({
           key: s.id,
@@ -994,7 +1063,7 @@ const Routine = () => {
       return [...ordered, ...added].map((item, idx) => ({ ...item, stepNumber: idx + 1 }));
     };
     return { morning: toOrdered("morning"), night: toOrdered("night") };
-  }, [routineItems, customSteps, routineOrder]);
+  }, [routineItems, customSteps, routineOrder, stepsLoaded]);
 
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [enabledExtrasByItem, setEnabledExtrasByItem] = useState<Record<string, boolean>>(() => {
@@ -1205,7 +1274,19 @@ const Routine = () => {
 
   useEffect(() => {
     localStorage.setItem(getSelectionStorageKey(analysis?.id), JSON.stringify(selectedOptionByItem));
-  }, [analysis?.id, selectedOptionByItem]);
+    // Sync tier selections to API steps
+    if (!analysis?.id || apiSteps.length === 0) return;
+    Object.entries(selectedOptionByItem).forEach(([itemKey, selectionKey]) => {
+      const tier = selectionKey.split("::").pop() as "best" | "second" | "budget" | undefined;
+      if (!tier || !["best", "second", "budget"].includes(tier)) return;
+      const step = apiSteps.find(
+        (s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey
+      );
+      if (step && step.selectedTier !== tier) {
+        updateRoutineStep(analysis.id, step.id, { selectedTier: tier });
+      }
+    });
+  }, [analysis?.id, selectedOptionByItem, apiSteps]);
 
   useEffect(() => {
     if (!analysis?.id) return;
@@ -1254,13 +1335,16 @@ const Routine = () => {
     const coreKeys = new Set(orderedItems[selectedPeriod].map((i) => i.key));
     const coreTitles = new Set(orderedItems[selectedPeriod].map((i) => normalizeCategory(i.title)));
     const raw = (selectedPeriod === "morning" ? routineItems.morning : routineItems.night).filter(isExtraItem);
-    const seen = new Set<string>();
+    const seenKeys = new Set<string>();
+    const seenTitles = new Set<string>();
     return raw.filter((i) => {
-      if (seen.has(i.key)) return false;
-      seen.add(i.key);
-      // Skip if already in core (by key or by title to avoid same-product duplicates)
+      const normTitle = normalizeCategory(i.title);
+      if (seenKeys.has(i.key)) return false;
+      if (seenTitles.has(normTitle)) return false;
+      seenKeys.add(i.key);
+      seenTitles.add(normTitle);
       if (coreKeys.has(i.key)) return false;
-      if (coreTitles.has(normalizeCategory(i.title))) return false;
+      if (coreTitles.has(normTitle)) return false;
       return true;
     }).filter((item) => isScheduledForDay(item.key, selectedWeekDay));
   })();
@@ -1555,32 +1639,30 @@ const Routine = () => {
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-white px-5 pb-4 pt-5" style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+      <div className="sticky top-0 z-20 px-4 pb-4 pt-5">
+        <div className="lg-surface-strong mx-auto max-w-md rounded-[1.75rem] p-3">
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => navigate("/dashboard")}
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "#FAF8F5", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+            className="w-10 h-10 rounded-full liquiglass-button flex items-center justify-center"
           >
-            <ArrowLeft size={18} className="text-[#2D2D2D]" />
+            <ArrowLeft size={18} className="text-[var(--fg-ink)]" />
           </button>
-          <h1 className="text-lg font-bold text-[#2D2D2D] tracking-tight">Rotina Diária</h1>
+          <h1 className="text-lg font-bold text-[var(--fg-ink)] tracking-tight">Rotina Diaria</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/meus-produtos")}
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-              style={{ backgroundColor: "#FAF8F5", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+            className="w-10 h-10 rounded-full liquiglass-button flex items-center justify-center transition-colors"
               aria-label="Meus Produtos"
             >
-              <PackageOpen size={16} style={{ color: "#2D2D2D" }} />
+              <PackageOpen size={16} className="text-[var(--fg-ink)]" />
             </button>
             <button
               onClick={() => setShowCalendar((v) => !v)}
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-              style={{ backgroundColor: showCalendar ? "#E8806A" : "#FAF8F5", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showCalendar ? "coral-button" : "liquiglass-button"}`}
               aria-label="Abrir calendário"
             >
-              <CalendarDays size={16} style={{ color: showCalendar ? "#fff" : "#2D2D2D" }} />
+              <CalendarDays size={16} className={showCalendar ? "text-white" : "text-[var(--fg-ink)]"} />
             </button>
           </div>
         </div>
@@ -1621,13 +1703,13 @@ const Routine = () => {
                     height: active ? 52 : 44,
                     fontSize: active ? 16 : 14,
                     ...(active ? {
-                      backgroundColor: "#E8806A",
+                      background: "var(--grad-coral)",
                       color: "#fff",
-                      boxShadow: "0 4px 12px rgba(232,128,106,0.40)",
+                      boxShadow: "var(--shadow-glow)",
                     } : isToday ? {
-                      backgroundColor: "#FEF3EE",
-                      color: "#E8806A",
-                      border: "1.5px solid #E8806A",
+                      backgroundColor: "rgba(255,255,255,0.7)",
+                      color: "hsl(var(--primary))",
+                      border: "1.5px solid hsl(var(--primary) / 0.45)",
                     } : {
                       backgroundColor: "#fff",
                       color: "#9CA3AF",
@@ -1651,6 +1733,7 @@ const Routine = () => {
             );
           })}
         </div>
+        </div>
       </div>
 
       {/* Full Calendar Modal */}
@@ -1665,11 +1748,10 @@ const Routine = () => {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 60, opacity: 0 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="w-full max-w-sm rounded-3xl p-5"
-            style={{ backgroundColor: "#FFFFFF", boxShadow: "0 -8px 40px rgba(0,0,0,0.18)" }}
+            className="lg-surface-strong w-full max-w-sm rounded-[1.75rem] p-5"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold" style={{ color: "#2D2D2D" }}>
+              <h2 className="text-base font-bold text-[var(--fg-ink)]">
                 {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/^\w/, (c) => c.toUpperCase())}
               </h2>
               <button onClick={() => setShowCalendar(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "#F5F5F5" }}>
@@ -1706,17 +1788,17 @@ const Routine = () => {
                     <span
                       className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold"
                       style={active ? {
-                        backgroundColor: "#E8806A",
+                        background: "var(--grad-coral)",
                         color: "#fff",
-                        boxShadow: "0 4px 10px rgba(232,128,106,0.35)",
+                        boxShadow: "var(--shadow-glow)",
                       } : isToday ? {
-                        backgroundColor: "#FEF3EE",
-                        color: "#E8806A",
-                        border: "1.5px solid #E8806A",
+                        backgroundColor: "rgba(255,255,255,0.7)",
+                        color: "hsl(var(--primary))",
+                        border: "1.5px solid hsl(var(--primary) / 0.45)",
                       } : isFuture ? {
                         color: "#D1D5DB",
                       } : {
-                        color: "#2D2D2D",
+                        color: "var(--fg-ink)",
                       }}
                     >
                       {day.dayNum}
@@ -1735,13 +1817,13 @@ const Routine = () => {
             <div className="flex items-center gap-3 mt-4 pt-3" style={{ borderTop: "1px solid #F0EDE8" }}>
               <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full" style={{ backgroundColor: "#22C55E" }} /><span className="text-[10px]" style={{ color: "#9CA3AF" }}>Completo</span></div>
               <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full" style={{ backgroundColor: "#F59E0B" }} /><span className="text-[10px]" style={{ color: "#9CA3AF" }}>Parcial</span></div>
-              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full" style={{ border: "1.5px solid #E8806A" }} /><span className="text-[10px]" style={{ color: "#9CA3AF" }}>Hoje</span></div>
+              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border border-primary/45" /><span className="text-[10px]" style={{ color: "#9CA3AF" }}>Hoje</span></div>
             </div>
           </motion.div>
         </div>
       )}
 
-      <div className="px-5 pt-5 space-y-4">
+      <div className="mx-auto max-w-md px-5 pt-5 space-y-4">
 
         {!analysis && (
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-warm-orange/10 border border-warm-orange/20">
@@ -1761,12 +1843,12 @@ const Routine = () => {
           </div>
         )}
 
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-4" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.07)" }}>
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="lg-surface-strong rounded-[1.75rem] p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold" style={{ color: "#2D2D2D" }}>
+                  <h2 className="text-base font-bold text-[var(--fg-ink)]">
                     {selectedPeriod === "morning" ? "Rotina da manhã" : "Rotina da noite"}
                   </h2>
                   {isRoutineComplete && (
@@ -1788,7 +1870,7 @@ const Routine = () => {
               <button
                 onClick={() => setSelectedPeriod(selectedPeriod === "morning" ? "night" : "morning")}
                 className="relative w-14 h-8 rounded-full transition-colors"
-                style={selectedPeriod === "night" ? { backgroundColor: "#6B8FD4" } : { backgroundColor: "#E8806A" }}
+                style={selectedPeriod === "night" ? { backgroundColor: "#9aa8dc" } : { background: "var(--grad-coral)" }}
                 title={selectedPeriod === "morning" ? "Mudar para Noite" : "Mudar para Manhã"}
               >
                 <motion.div
@@ -1797,7 +1879,7 @@ const Routine = () => {
                   className="absolute top-1 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center"
                 >
                   {selectedPeriod === "morning" ? (
-                    <Sun size={14} style={{ color: "#E8806A" }} />
+                    <Sun size={14} className="text-primary" />
                   ) : (
                     <Moon size={14} style={{ color: "#6B8FD4" }} />
                   )}
@@ -1812,10 +1894,10 @@ const Routine = () => {
           </div>
 
           <div className="mb-4">
-            <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "#F0EDE8" }}>
+            <div className="h-2 rounded-full overflow-hidden bg-white/65">
               <motion.div
                 className="h-full rounded-full"
-                style={{ background: "linear-gradient(90deg, #E8806A, #F4A68A)" }}
+                style={{ background: "var(--grad-coral)" }}
                 initial={{ width: 0 }}
                 animate={{ width: `${completionPercent}%` }}
                 transition={{ duration: 0.35, ease: "easeOut" }}
@@ -1892,7 +1974,7 @@ const Routine = () => {
 
                 const cardBg = pastelColors[(item.stepNumber - 1) % pastelColors.length];
                 return (
-                  <div key={item.key} className={`rounded-3xl transition-all overflow-hidden ${isChecked && !isEditing ? "opacity-60" : ""}`} style={{ backgroundColor: cardBg, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+                  <div key={item.key} className={`lg-surface rounded-[1.75rem] transition-all overflow-hidden ${isChecked && !isEditing ? "opacity-60" : ""}`}>
                     <div className="flex flex-col w-full">
                       {/* Edit mode controls */}
                       {isEditing && (
@@ -1991,7 +2073,7 @@ const Routine = () => {
                         {/* Details */}
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#E8806A" }}>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
                               {item.stepNumber} · {capitalizeWords(item.stepLabel)}
                             </p>
                             <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold items-center gap-1" style={{ backgroundColor: "rgba(255,255,255,0.7)", color: "#9CA3AF" }}>
@@ -2063,7 +2145,7 @@ const Routine = () => {
                           }}
                           className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all"
                           style={isChecked
-                            ? { backgroundColor: "#E8806A", border: "2px solid #E8806A" }
+                            ? { background: "var(--grad-coral)", border: "2px solid transparent" }
                             : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
                           }
                           aria-label={isChecked ? "Desmarcar item" : "Marcar item"}
@@ -2464,7 +2546,7 @@ const Routine = () => {
                                     key={scope}
                                     onClick={() => setPendingScopeByItem((prev) => ({ ...prev, [item.key]: scope }))}
                                     className={`h-8 rounded-xl text-[11px] font-semibold transition-colors ${active ? "text-white" : "border border-border/70 text-muted-foreground bg-background"}`}
-                                    style={active ? { background: "linear-gradient(135deg, #E8806A, #F4A68A)" } : undefined}
+                                    style={active ? { background: "var(--grad-coral)" } : undefined}
                                   >
                                     {scopeLabel}
                                   </button>
@@ -2474,8 +2556,7 @@ const Routine = () => {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => saveProductSelection(item.key)}
-                                className="flex-1 h-9 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5"
-                                style={{ background: "linear-gradient(135deg, #E8806A, #F4A68A)" }}
+                                className="coral-button flex-1 h-9 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5"
                               >
                                 <CheckCircle2 size={13} />
                                 Salvar
@@ -2769,8 +2850,8 @@ const Routine = () => {
             onClick={() => { setIsEditing((v) => !v); setAddStepOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}
             className={`w-full h-14 rounded-full text-sm font-bold flex items-center justify-center gap-2.5 transition-all`}
             style={isEditing
-              ? { backgroundColor: "#FEF3EE", border: "2px solid #E8806A", color: "#E8806A", boxShadow: "none" }
-              : { background: "linear-gradient(135deg, #E8806A, #F4A68A)", color: "#fff", boxShadow: "0 8px 24px rgba(232,128,106,0.4)" }
+              ? { backgroundColor: "rgba(255,255,255,0.65)", border: "2px solid hsl(var(--primary) / 0.45)", color: "hsl(var(--primary))", boxShadow: "none" }
+              : { background: "var(--grad-coral)", color: "#fff", boxShadow: "var(--shadow-glow)" }
             }
           >
             {isEditing ? (

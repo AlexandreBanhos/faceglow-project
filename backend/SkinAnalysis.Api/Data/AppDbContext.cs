@@ -34,6 +34,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     
     public DbSet<RoutineCompletion> RoutineCompletions => Set<RoutineCompletion>();
 
+    public DbSet<AnalysisRoutineStep> AnalysisRoutineSteps => Set<AnalysisRoutineStep>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -132,8 +134,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.SkinType).HasMaxLength(100).IsRequired();
             entity.Property(x => x.ImageUrl).IsRequired();
             entity.Property(x => x.Summary).HasColumnName("summary");
-            entity.Property(x => x.RoutineJson).HasColumnName("routine_json");
-            entity.Property(x => x.CustomizationsJson).HasColumnName("customizations_json");
+            entity.Property(x => x.RoutineJson).HasColumnName("routine_json").HasColumnType("jsonb");
+            entity.Property(x => x.CustomizationsJson).HasColumnName("customizations_json").HasColumnType("jsonb");
             entity.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc");
 
             entity.Property(x => x.UserId).HasColumnName("user_id");
@@ -415,6 +417,40 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(x => x.UserId);
             entity.HasIndex(x => new { x.UserId, x.CompletionDate }).IsUnique();
+        });
+
+        modelBuilder.Entity<AnalysisRoutineStep>(entity =>
+        {
+            entity.ToTable("analysis_routine_steps");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.AnalysisId).HasColumnName("analysis_id");
+            entity.Property(x => x.UserId).HasColumnName("user_id");
+            entity.Property(x => x.Period).HasMaxLength(20).HasColumnName("period");
+            entity.Property(x => x.StepOrder).HasColumnName("step_order");
+            entity.Property(x => x.Category).HasColumnName("category");
+            entity.Property(x => x.ProductId).HasColumnName("product_id");
+            entity.Property(x => x.RecommendationId).HasColumnName("recommendation_id");
+            entity.Property(x => x.ProductName).HasColumnName("product_name");
+            entity.Property(x => x.ImageUrl).HasColumnName("image_url");
+            entity.Property(x => x.Recurrence).HasMaxLength(30).HasColumnName("recurrence").HasDefaultValue("daily");
+            entity.Property(x => x.IsExtra).HasColumnName("is_extra");
+            entity.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            entity.Property(x => x.IsUserAdded).HasColumnName("is_user_added");
+            entity.Property(x => x.SelectedTier).HasMaxLength(20).HasColumnName("selected_tier");
+            entity.Property(x => x.OverrideProductName).HasColumnName("override_product_name");
+            entity.Property(x => x.OverrideImageUrl).HasColumnName("override_image_url");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne(x => x.Analysis).WithMany().HasForeignKey(x => x.AnalysisId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Product).WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Recommendation).WithMany().HasForeignKey(x => x.RecommendationId).OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(x => x.AnalysisId);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => new { x.AnalysisId, x.Period, x.StepOrder });
         });
     }
 }

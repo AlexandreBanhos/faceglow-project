@@ -1,4 +1,5 @@
 import { assertSupabaseConfigured } from "@/lib/supabase";
+import { setAdminCache } from "@/lib/adminCache";
 
 export const getAccessToken = async (): Promise<string | null> => {
   const client = assertSupabaseConfigured();
@@ -6,7 +7,7 @@ export const getAccessToken = async (): Promise<string | null> => {
   return data.session?.access_token ?? null;
 };
 
-export const getAccessTokenWithWait = async (timeoutMs: number = 5000): Promise<string> => {
+export const getAccessTokenWithWait = async (timeoutMs: number = 5000): Promise<string | null> => {
   const startTime = Date.now();
   const pollIntervalMs = 100;
 
@@ -18,7 +19,7 @@ export const getAccessTokenWithWait = async (timeoutMs: number = 5000): Promise<
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 
-  throw new Error("Access token not available after timeout");
+  return null;
 };
 
 export const getCurrentUser = async () => {
@@ -58,6 +59,7 @@ export const signUpWithEmail = async (
 };
 
 export const signOut = async () => {
+  setAdminCache(null);
   const client = assertSupabaseConfigured();
   return client.auth.signOut();
 };

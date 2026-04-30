@@ -9,7 +9,13 @@
       "Bash(cmd /c \"taskkill /PID 6184 /F\")",
       "Bash(cmd /c \"taskkill /IM SkinAnalysis.Api.exe /F 2>&1\")",
       "Bash(powershell -Command \"Start-Sleep 15; Get-Content 'C:/Users/ALEXAN~1.BAN/AppData/Local/Temp/claude/c--Users-alexandre-banhos-Documents-faceglowapp-faceglow-project/774d3bc1-865e-4637-8418-a7e58723b38d/tasks/bh0znyqz1.output' -ErrorAction SilentlyContinue | Select-Object -First 35\")",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5172/health)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5172/health)",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(npx tsc *)",
+      "Bash(xargs grep *)",
+      "Bash(dotnet build *)"
     ]
   }
 }

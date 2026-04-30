@@ -17,16 +17,16 @@ export const PremiumUnlockModal = ({ isVisible }: PremiumUnlockModalProps) => {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
       transition={{ type: "spring", damping: 20, stiffness: 300 }}
-      className="max-w-sm w-full rounded-3xl border border-border/80 bg-gradient-to-br from-card/95 to-card/90 backdrop-blur-xl shadow-2xl overflow-hidden relative z-50"
+      className="lg-surface-strong max-w-sm w-full rounded-[1.75rem] overflow-hidden relative z-50"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header with Lock Icon */}
-      <div className="bg-gradient-to-r from-primary/25 to-accent/25 p-5 flex flex-col items-center">
+      <div className="bg-white/45 p-5 flex flex-col items-center">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg mb-3"
+          className="w-12 h-12 rounded-full bg-[var(--grad-coral)] flex items-center justify-center shadow-glow mb-3"
         >
           <Lock size={24} className="text-white" />
         </motion.div>
@@ -54,7 +54,7 @@ export const PremiumUnlockModal = ({ isVisible }: PremiumUnlockModalProps) => {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate("/premium")}
-          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-sm flex items-center justify-center gap-2 hover:shadow-lg transition-shadow"
+          className="coral-button w-full py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2"
         >
           Desbloquear com Premium
           <ChevronRight size={14} />

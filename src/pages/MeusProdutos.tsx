@@ -8,6 +8,7 @@ import { type UserCatalogProduct, getUserCatalog, saveUserCatalog } from "@/lib/
 import { fetchMyProducts, createMyProduct, updateMyProduct, deleteMyProduct } from "@/lib/userProducts";
 import { getCurrentUser } from "@/lib/auth";
 import { getCachedLatestAnalysis, loadRoutineCustomizations } from "@/lib/analysisClient";
+import { AuroraBackdrop } from "@/components/shared";
 
 const CATEGORIES = [
   "Limpeza", "Hidratante", "Sérum", "Protetor Solar", "Tônico",
@@ -336,11 +337,13 @@ export default function MeusProdutos() {
   }, {});
 
   return (
-    <div className="min-h-screen pb-28" style={{ backgroundColor: "#FAF8F5" }}>
+    <div className="relative min-h-screen overflow-hidden pb-28" style={{ background: "var(--grad-aurora)" }}>
+      <AuroraBackdrop tone="warm" className="-z-10" />
       {/* Header */}
-      <div className="sticky top-0 z-30 px-4 pt-safe-top" style={{ backgroundColor: "#FAF8F5" }}>
-        <div className="flex items-center gap-3 py-4">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white border border-border/40 flex items-center justify-center shadow-sm">
+      <div className="sticky top-0 z-30 px-4 pt-safe-top">
+        <div className="lg-surface-strong mx-auto max-w-md rounded-[1.75rem] p-3">
+        <div className="flex items-center gap-3 py-2">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full liquiglass-button flex items-center justify-center">
             <ArrowLeft size={18} className="text-foreground" />
           </button>
           <div className="flex-1">
@@ -355,8 +358,7 @@ export default function MeusProdutos() {
           {activeTab === "meus" && (
             <button
               onClick={openAdd}
-              className="h-9 px-4 rounded-full text-sm font-bold text-white flex items-center gap-1.5"
-              style={{ background: "linear-gradient(135deg, #E8806A, #F4A68A)" }}
+              className="coral-button h-9 px-4 rounded-full text-sm font-bold text-white flex items-center gap-1.5"
             >
               <Plus size={15} /> Adicionar
             </button>
@@ -369,7 +371,7 @@ export default function MeusProdutos() {
             onClick={() => setActiveTab("meus")}
             className={`px-4 py-2 text-sm font-semibold rounded-full transition-all ${
               activeTab === "meus"
-                ? "bg-white text-foreground border border-border/40 shadow-sm"
+                ? "bg-white/80 text-foreground border border-white/80 shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -379,16 +381,17 @@ export default function MeusProdutos() {
             onClick={() => setActiveTab("indicados")}
             className={`px-4 py-2 text-sm font-semibold rounded-full transition-all flex items-center gap-1.5 ${
               activeTab === "indicados"
-                ? "bg-white text-foreground border border-border/40 shadow-sm"
+                ? "bg-white/80 text-foreground border border-white/80 shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Lightbulb size={14} /> Indicados
           </button>
         </div>
+        </div>
       </div>
 
-      <div className="px-4 space-y-6">
+      <div className="mx-auto max-w-md px-4 pt-5 space-y-6">
         {/* "Meus Produtos" tab */}
         {activeTab === "meus" && (
           <>
@@ -404,8 +407,7 @@ export default function MeusProdutos() {
                 </div>
                 <button
                   onClick={openAdd}
-                  className="h-11 px-6 rounded-full text-sm font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, #E8806A, #F4A68A)" }}
+                  className="coral-button h-11 px-6 rounded-full text-sm font-bold text-white"
                 >
                   Adicionar primeiro produto
                 </button>
@@ -419,7 +421,7 @@ export default function MeusProdutos() {
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
-                  className="rounded-3xl border border-border/60 bg-white p-4 space-y-3 shadow-sm"
+                  className="lg-surface-strong rounded-[1.75rem] p-4 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-bold text-foreground">{editingId ? "Editar produto" : "Novo produto"}</p>
@@ -511,7 +513,7 @@ export default function MeusProdutos() {
                     <button
                       onClick={save}
                       disabled={!form.name.trim() || saving}
-                      className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold disabled:opacity-40"
+                      className="coral-button flex-1 h-10 rounded-xl text-xs font-bold disabled:opacity-40"
                     >
                       {saving ? "Salvando..." : editingId ? "Salvar alterações" : "Cadastrar produto"}
                     </button>
@@ -538,7 +540,7 @@ export default function MeusProdutos() {
                         layout
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="flex flex-col items-center text-center rounded-lg md:rounded-xl bg-white border border-border/40 shadow-sm p-2 md:p-2.5"
+                        className="lg-surface flex flex-col items-center text-center rounded-lg md:rounded-xl p-2 md:p-2.5"
                       >
                         {/* Product image - compact */}
                         <div className="w-full h-16 md:h-20 lg:h-24 rounded-md flex items-center justify-center mb-1.5 md:mb-2 flex-shrink-0">
@@ -598,8 +600,7 @@ export default function MeusProdutos() {
                 </div>
                 <button
                   onClick={() => navigate("/analysis")}
-                  className="h-11 px-6 rounded-full text-sm font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, #E8806A, #F4A68A)" }}
+                  className="coral-button h-11 px-6 rounded-full text-sm font-bold text-white"
                 >
                   Fazer análise
                 </button>

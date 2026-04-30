@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -149,6 +149,8 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    background: var(--grad-aurora);
+    color: var(--fg-ink);
   }
 }
 
@@ -192,7 +194,7 @@
   }
 
   .lg-surface {
-    background: rgba(255, 255, 255, 0.65);
+    background: var(--glass-bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.8);
@@ -201,7 +203,7 @@
   }
 
   .lg-surface-strong {
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--glass-bg-strong);
     backdrop-filter: blur(40px) saturate(180%);
     -webkit-backdrop-filter: blur(40px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.9);
@@ -212,6 +214,58 @@
   .fg-mono {
     font-family: "JetBrains Mono", ui-monospace, monospace;
     letter-spacing: 0.02em;
+  }
+
+  .fg-page {
+    position: relative;
+    min-height: 100svh;
+    overflow: hidden;
+    background: var(--grad-aurora);
+    color: var(--fg-ink);
+  }
+
+  .fg-page-scroll {
+    position: relative;
+    min-height: 100svh;
+    overflow-x: hidden;
+    background: var(--grad-aurora);
+    color: var(--fg-ink);
+  }
+
+  .fg-shell {
+    width: 100%;
+    max-width: 28rem;
+    margin-inline: auto;
+  }
+
+  .fg-shell-wide {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+
+  .fg-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    color: hsl(var(--primary));
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .fg-tabbar {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(28px) saturate(165%);
+    -webkit-backdrop-filter: blur(28px) saturate(165%);
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 1.75rem;
+    box-shadow: 0 24px 70px -26px rgba(60, 30, 50, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.85);
   }
 
   /* Gradient text */
@@ -317,7 +371,6 @@
 
   .bottom-nav-safe {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
-    background: linear-gradient(180deg, #fbf6f1 0%, #f5ecf2 50%, #efe6ef 100%);
     will-change: transform;
   }
 

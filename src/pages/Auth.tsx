@@ -93,13 +93,7 @@ const Auth = () => {
     setErrorMessage(null);
     setSuccessMessage("E-mail confirmado com sucesso. Agora voce pode fazer login.");
 
-    // Recuperar redirectTo do localStorage se foi guardado durante signup
-    const savedRedirectTo = localStorage.getItem("faceglow-auth-redirect-to");
-    if (savedRedirectTo) {
-      // Limpar localStorage e navegar para o redirectTo após login bem-sucedido
-      localStorage.removeItem("faceglow-auth-redirect-to");
-      // Será usado no handleSubmit para redirecionar
-    }
+    // Não remover o redirectTo aqui — handleSubmit vai usar e remover após login
   }, [isConfirmedEmail]);
 
   useEffect(() => {

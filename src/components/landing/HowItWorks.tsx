@@ -28,11 +28,11 @@ export const HowItWorks = () => {
           transition={{ duration: 0.5 }}
           viewport={{ once: true }}
         >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-4 bg-coral/10 border border-coral/20">
+          <div className="fg-eyebrow mb-4">
             <div className="w-1 h-1 rounded-full bg-coral" />
-            <span className="text-sm font-semibold uppercase tracking-wider text-coral">Como funciona</span>
+            <span>Como funciona</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-[var(--fg-ink)]">
             Do zero ao diagnóstico{" "}
             <span className="bg-gradient-to-r from-coral via-pink to-lavender bg-clip-text text-transparent">
               em 4 passos simples
@@ -49,7 +49,7 @@ export const HowItWorks = () => {
           {steps.map((step, index) => (
             <motion.div
               key={step.order}
-              className="text-center relative z-10"
+              className="lg-surface relative z-10 rounded-[1.75rem] p-5 text-center"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -57,7 +57,7 @@ export const HowItWorks = () => {
             >
               {/* Number circle */}
               <motion.div
-                className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center font-bold text-lg bg-white/80 backdrop-blur-sm border-1.5 border-coral/25 text-coral shadow-md hover:bg-gradient-to-r hover:from-coral hover:via-pink hover:to-lavender hover:text-white hover:border-transparent transition-all duration-300"
+                className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center font-bold text-lg bg-[var(--grad-coral)] text-white shadow-glow transition-all duration-300"
                 whileHover={{ scale: 1.1 }}
               >
                 {step.order}
@@ -65,8 +65,8 @@ export const HowItWorks = () => {
 
               {/* Content */}
               <div className="text-3xl mb-3">{step.icon}</div>
-              <h3 className="font-bold text-gray-900 mb-2">{step.title}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{step.description}</p>
+              <h3 className="font-bold text-[var(--fg-ink)] mb-2">{step.title}</h3>
+              <p className="text-sm text-[var(--fg-ink-3)] leading-relaxed">{step.description}</p>
             </motion.div>
           ))}
         </div>

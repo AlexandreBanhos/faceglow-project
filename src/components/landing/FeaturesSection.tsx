@@ -28,7 +28,7 @@ export const FeaturesSection = () => {
   };
 
   return (
-    <section id="offers" className="relative z-1 py-20 px-4 md:px-8 bg-gradient-to-b from-transparent via-coral/5 to-transparent">
+    <section id="offers" className="relative z-1 py-20 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
@@ -38,17 +38,17 @@ export const FeaturesSection = () => {
           transition={{ duration: 0.5 }}
           viewport={{ once: true }}
         >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-4 bg-coral/10 border border-coral/20">
+          <div className="fg-eyebrow mb-4">
             <div className="w-1 h-1 rounded-full bg-coral" />
-            <span className="text-sm font-semibold uppercase tracking-wider text-coral">O que o FaceGlow oferece</span>
+            <span>O que o FaceGlow oferece</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-[var(--fg-ink)] mb-4">
             Tudo que sua pele precisa,{" "}
             <span className="bg-gradient-to-r from-coral via-pink to-lavender bg-clip-text text-transparent">
               em um único app
             </span>
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <p className="text-[var(--fg-ink-3)] max-w-2xl mx-auto">
             Do diagnóstico ao produto certo, do lembrete diário ao rastreio de evolução. Uma plataforma completa.
           </p>
         </motion.div>
@@ -64,13 +64,13 @@ export const FeaturesSection = () => {
           {features.map((feature) => (
             <motion.div
               key={feature.id}
-              className="p-6 rounded-2xl bg-white/75 backdrop-blur-sm border border-white/90 shadow-sm hover:shadow-md transition-all duration-300"
+              className="lg-surface p-6 rounded-[1.75rem] transition-all duration-300"
               variants={itemVariants}
               whileHover={{ y: -8 }}
             >
               <div className="text-3xl mb-4">{feature.icon}</div>
-              <h3 className="font-bold text-gray-900 mb-2">{feature.title}</h3>
-              <p className="text-sm text-gray-600 mb-4 leading-relaxed">{feature.description}</p>
+              <h3 className="font-bold text-[var(--fg-ink)] mb-2">{feature.title}</h3>
+              <p className="text-sm text-[var(--fg-ink-3)] mb-4 leading-relaxed">{feature.description}</p>
               <div
                 className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold"
                 style={{

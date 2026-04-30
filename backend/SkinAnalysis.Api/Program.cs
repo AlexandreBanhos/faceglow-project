@@ -157,58 +157,7 @@ builder.Services.AddScoped<AdminService>();
 
 var app = builder.Build();
 
-// ============ ENSURE ROUTINE COMPLETIONS TABLE EXISTS ============
-try
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var connection = dbContext.Database.GetDbConnection();
-        await connection.OpenAsync();
-        
-        using (var cmd = connection.CreateCommand())
-        {
-            // Criar tabela routine_completions se não existir
-            cmd.CommandText = @"
-                CREATE TABLE IF NOT EXISTS routine_completions (
-                    id UUID NOT NULL PRIMARY KEY,
-                    user_id UUID NOT NULL,
-                    completion_date DATE NOT NULL,
-                    morning_completed BOOLEAN DEFAULT FALSE,
-                    night_completed BOOLEAN DEFAULT FALSE,
-                    created_at_utc TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    CONSTRAINT fk_routine_completions_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                );
-                
-                CREATE INDEX IF NOT EXISTS ix_routine_completions_user_id ON routine_completions(user_id);
-                CREATE UNIQUE INDEX IF NOT EXISTS ix_routine_completions_user_id_completion_date 
-                    ON routine_completions(user_id, completion_date);
-            ";
-            await cmd.ExecuteNonQueryAsync();
-        }
-        
-        // Marcar migrações como aplicadas se ainda não estiverem
-        using (var cmd = connection.CreateCommand())
-        {
-            cmd.CommandText = @"
-                INSERT INTO ""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"") 
-                VALUES ('20260409015237_AddMissingScoreColumns', '8.0.0'),
-                       ('20260411212420_AddRoutineCompletions', '8.0.0')
-                ON CONFLICT (""MigrationId"") DO NOTHING;
-            ";
-            await cmd.ExecuteNonQueryAsync();
-        }
-        
-        await connection.CloseAsync();
-    }
-}
-catch (Exception ex)
-{
-    app.Logger.LogWarning(ex, "Could not initialize routine_completions table on startup. Continuing anyway.");
-}
-
 // ============ PRODUCT CATALOG WARMUP ============
-// (Warmup agora é feito junto com seed acima)
 
 var slowRequestThresholdMs = app.Configuration.GetValue<int?>("Observability:SlowRequestThresholdMs") ?? 1200;
 
@@ -326,25 +275,22 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok", utc = DateTime.UtcNo
 .WithName("Health")
 .WithOpenApi();
 
-app.MapGet("/health/db", async (IConfiguration config, AppDbContext dbContext, CancellationToken cancellationToken) =>
+app.MapGet("/health/db", async (ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
 {
+    var userId = GetAuthenticatedUserId(user);
+    if (!userId.HasValue) return Results.Unauthorized();
+
+    var isAdmin = await IsUserAdminAsync(userId.Value, dbContext, cancellationToken);
+    if (!isAdmin) return Results.Forbid();
+
     try
     {
-        var connStr = config.GetConnectionString("DefaultConnection");
         var isConnected = await dbContext.Database.CanConnectAsync(cancellationToken);
-
-        // Mask password from connection string for security
-        var maskedConnStr = connStr?.Replace(
-            System.Text.RegularExpressions.Regex.Match(connStr, @"Password=([^;]+)").Groups[1].Value,
-            "***REDACTED***"
-        );
-
         return Results.Ok(new
         {
             status = isConnected ? "connected" : "disconnected",
             database = "PostgreSQL (Supabase)",
             timestamp = DateTime.UtcNow,
-            connectionString = maskedConnStr,
             canConnect = isConnected
         });
     }
@@ -359,14 +305,19 @@ app.MapGet("/health/db", async (IConfiguration config, AppDbContext dbContext, C
         });
     }
 })
+.RequireAuthorization()
 .WithName("HealthDb")
 .WithOpenApi();
 
-app.MapGet("/test-db", async (Database db) =>
+app.MapGet("/test-db", async (ClaimsPrincipal user, Database db) =>
 {
+    var userId = GetAuthenticatedUserId(user);
+    if (!userId.HasValue) return Results.Unauthorized();
+
     var result = await db.ExecuteScalarWithRetryAsync("select 1");
     return Results.Ok(result);
 })
+.RequireAuthorization()
 .WithName("TestDb")
 .WithOpenApi();
 
@@ -847,6 +798,7 @@ app.MapPost("/analysis/{id:guid}/routine/save", async (
     SaveRoutineCustomizationsRequest request,
     ClaimsPrincipal user,
     AppDbContext dbContext,
+    IMemoryCache cache,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
@@ -866,9 +818,14 @@ app.MapPost("/analysis/{id:guid}/routine/save", async (
     logger.LogInformation("[POST /routine/save] ✓ Salvando customizações para análise: {AnalysisId}", id);
 
     analysis.CustomizationsJson = request.CustomizationsJson ?? "{}";
-    
+
     dbContext.Analyses.Update(analysis);
     await dbContext.SaveChangesAsync(cancellationToken);
+
+    // Invalidar caches do dashboard e análise para este usuário
+    cache.Remove($"dashboard_{userId.Value}");
+    cache.Remove($"analysis_summary_{userId.Value}_20_0");
+    cache.Remove($"profile_summary_{userId.Value}");
 
     logger.LogInformation("[POST /routine/save] ✓ Customizações salvas: {AnalysisId}", id);
 
@@ -930,56 +887,183 @@ app.MapGet("/analysis/{id:guid}/routine/custom", async (
 .WithOpenApi()
 .RequireAuthorization();
 
-// ========== DELETE CUSTOM ROUTINE STEP ==========
-app.MapDelete("/analysis/{id:guid}/routine/step/{stepId}", async (
+// ========== GET STRUCTURED ROUTINE STEPS (with images) ==========
+app.MapGet("/analysis/{id:guid}/steps", async (
     Guid id,
-    string stepId,
     ClaimsPrincipal user,
     AppDbContext dbContext,
+    IMemoryCache cache,
     ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
     var userId = GetAuthenticatedUserId(user);
     if (!userId.HasValue) return Results.Unauthorized();
 
-    var routine = await dbContext.Routines
-        .Where(r => r.BasedOnAnalysisId == id && r.UserId == userId.Value)
+    var cacheKey = $"steps_{id}";
+    if (cache.TryGetValue(cacheKey, out var cached)) return Results.Ok(cached);
+
+    var steps = await dbContext.AnalysisRoutineSteps
+        .AsNoTracking()
+        .Where(s => s.AnalysisId == id && s.UserId == userId.Value && s.IsActive)
+        .Include(s => s.Product)
+        .Include(s => s.Recommendation)
+        .OrderBy(s => s.Period)
+        .ThenBy(s => s.StepOrder)
+        .ToListAsync(cancellationToken);
+
+    // Lazy populate: if no steps exist yet, generate from routine_json
+    if (steps.Count == 0)
+    {
+        var analysis = await dbContext.Analyses
+            .AsNoTracking()
+            .Include(a => a.Recommendations)
+            .Where(a => a.Id == id && a.UserId == userId.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (analysis is null) return Results.NotFound(new { error = "Análise não encontrada." });
+
+        var generated = BuildStepsFromRoutineJson(analysis, analysis.Recommendations.ToList());
+        if (generated.Count > 0)
+        {
+            dbContext.AnalysisRoutineSteps.AddRange(generated);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            steps = generated;
+            logger.LogInformation("[GET /steps] Populados {Count} passos para análise {Id}", generated.Count, id);
+        }
+    }
+
+    static string? ResolveImage(SkinAnalysis.Api.Models.AnalysisRoutineStep s)
+        => s.OverrideImageUrl
+        ?? s.Product?.ImageUrl
+        ?? s.Recommendation?.ImageUrl
+        ?? s.ImageUrl;
+
+    var dto = steps.Select(s => new
+    {
+        s.Id,
+        s.AnalysisId,
+        s.Period,
+        s.StepOrder,
+        s.Category,
+        s.ProductId,
+        s.ProductName,
+        imageUrl = ResolveImage(s),
+        s.Recurrence,
+        s.IsExtra,
+        s.IsUserAdded,
+        s.SelectedTier,
+        s.OverrideProductName,
+        s.OverrideImageUrl,
+    }).ToList();
+
+    cache.Set(cacheKey, dto, TimeSpan.FromSeconds(30));
+    return Results.Ok(dto);
+})
+.WithName("GetRoutineSteps")
+.WithOpenApi()
+.RequireAuthorization();
+
+// ========== ADD CUSTOM ROUTINE STEP ==========
+app.MapPost("/analysis/{id:guid}/steps", async (
+    Guid id,
+    AddRoutineStepRequest request,
+    ClaimsPrincipal user,
+    AppDbContext dbContext,
+    IMemoryCache cache,
+    CancellationToken cancellationToken) =>
+{
+    var userId = GetAuthenticatedUserId(user);
+    if (!userId.HasValue) return Results.Unauthorized();
+
+    var exists = await dbContext.Analyses.AnyAsync(a => a.Id == id && a.UserId == userId.Value, cancellationToken);
+    if (!exists) return Results.NotFound(new { error = "Análise não encontrada." });
+
+    var maxOrder = await dbContext.AnalysisRoutineSteps
+        .Where(s => s.AnalysisId == id && s.Period == request.Period)
+        .MaxAsync(s => (int?)s.StepOrder, cancellationToken) ?? -1;
+
+    var step = new SkinAnalysis.Api.Models.AnalysisRoutineStep
+    {
+        AnalysisId = id,
+        UserId = userId.Value,
+        Period = request.Period,
+        StepOrder = maxOrder + 1,
+        Category = request.Category ?? "Personalizado",
+        ProductName = request.ProductName,
+        ImageUrl = request.ImageUrl,
+        OverrideImageUrl = request.ImageUrl,
+        Recurrence = NormalizeRecurrence(request.Recurrence) ?? "daily",
+        IsUserAdded = true,
+    };
+
+    dbContext.AnalysisRoutineSteps.Add(step);
+    await dbContext.SaveChangesAsync(cancellationToken);
+    cache.Remove($"steps_{id}");
+
+    return Results.Created($"/analysis/{id}/steps/{step.Id}", new { step.Id, step.Period, step.ProductName, step.Category });
+})
+.WithName("AddRoutineStep")
+.WithOpenApi()
+.RequireAuthorization();
+
+// ========== UPDATE ROUTINE STEP (tier, product override, image) ==========
+app.MapPatch("/analysis/{id:guid}/steps/{stepId:guid}", async (
+    Guid id,
+    Guid stepId,
+    PatchRoutineStepRequest request,
+    ClaimsPrincipal user,
+    AppDbContext dbContext,
+    IMemoryCache cache,
+    CancellationToken cancellationToken) =>
+{
+    var userId = GetAuthenticatedUserId(user);
+    if (!userId.HasValue) return Results.Unauthorized();
+
+    var step = await dbContext.AnalysisRoutineSteps
+        .Where(s => s.Id == stepId && s.AnalysisId == id && s.UserId == userId.Value)
         .FirstOrDefaultAsync(cancellationToken);
 
-    if (routine is null)
-        return Results.NotFound(new { error = "Rotina customizada não encontrada." });
+    if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
 
-    try
-    {
-        var customizations = string.IsNullOrEmpty(routine.CustomizationsJson)
-            ? new { customSteps = new List<object>() }
-            : JsonSerializer.Deserialize<dynamic>(routine.CustomizationsJson) ?? new { customSteps = new List<object>() };
+    if (request.SelectedTier is not null) step.SelectedTier = request.SelectedTier;
+    if (request.OverrideProductName is not null) step.OverrideProductName = request.OverrideProductName;
+    if (request.OverrideImageUrl is not null) step.OverrideImageUrl = request.OverrideImageUrl;
+    if (request.ProductId.HasValue) step.ProductId = request.ProductId;
+    step.UpdatedAt = DateTime.UtcNow;
 
-        // Parse customSteps and filter out the step to delete
-        var customizationsDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-            routine.CustomizationsJson ?? "{}"
-        ) ?? new Dictionary<string, JsonElement>();
+    await dbContext.SaveChangesAsync(cancellationToken);
+    cache.Remove($"steps_{id}");
 
-        if (customizationsDict.TryGetValue("customSteps", out var stepsElement))
-        {
-            var steps = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(stepsElement.GetRawText()) ?? new();
-            steps.RemoveAll(s => s.TryGetValue("id", out var idElem) && idElem.GetString() == stepId);
-            customizationsDict["customSteps"] = JsonSerializer.SerializeToElement(steps);
-        }
+    return Results.Ok(new { step.Id, step.SelectedTier, step.OverrideProductName, step.OverrideImageUrl });
+})
+.WithName("PatchRoutineStep")
+.WithOpenApi()
+.RequireAuthorization();
 
-        routine.CustomizationsJson = JsonSerializer.Serialize(customizationsDict);
-        routine.UpdatedAtUtc = DateTime.UtcNow;
-        dbContext.Routines.Update(routine);
-        await dbContext.SaveChangesAsync(cancellationToken);
+// ========== SOFT DELETE ROUTINE STEP ==========
+app.MapDelete("/analysis/{id:guid}/steps/{stepId:guid}", async (
+    Guid id,
+    Guid stepId,
+    ClaimsPrincipal user,
+    AppDbContext dbContext,
+    IMemoryCache cache,
+    CancellationToken cancellationToken) =>
+{
+    var userId = GetAuthenticatedUserId(user);
+    if (!userId.HasValue) return Results.Unauthorized();
 
-        logger.LogInformation("[DeleteRoutineStep] Passo {StepId} deletado para análise {AnalysisId}", stepId, id);
-        return Results.Ok(new { message = "Passo deletado com sucesso." });
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "[DeleteRoutineStep] Erro ao deletar passo {StepId}", stepId);
-        return Results.Problem("Erro ao deletar passo.");
-    }
+    var step = await dbContext.AnalysisRoutineSteps
+        .Where(s => s.Id == stepId && s.AnalysisId == id && s.UserId == userId.Value)
+        .FirstOrDefaultAsync(cancellationToken);
+
+    if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
+
+    step.IsActive = false;
+    step.UpdatedAt = DateTime.UtcNow;
+    await dbContext.SaveChangesAsync(cancellationToken);
+    cache.Remove($"steps_{id}");
+
+    return Results.Ok(new { message = "Passo removido." });
 })
 .WithName("DeleteRoutineStep")
 .WithOpenApi()
@@ -1356,179 +1440,17 @@ app.MapGet("/analysis", async (ClaimsPrincipal user, AppDbContext dbContext, int
 .WithOpenApi()
 .RequireAuthorization();
 
-app.MapPost("/v2/analysis/routine", async (
-    CreateSkinAnalysisRequest request,
-    ClaimsPrincipal user,
-    ISkinAnalysisService skinAnalysisService,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue)
-    {
-        return Results.Unauthorized();
-    }
+// v2 endpoints removed — referenced dropped skin_analysis table. Use /analysis/{id}/steps instead.
 
-    var email = user.FindFirstValue("email")
-        ?? user.FindFirstValue(ClaimTypes.Email)
-        ?? $"{userId.Value}@faceglow.local";
+app.MapPost("/v2/analysis/routine", () => Results.StatusCode(410))
+.WithName("CreateSkinAnalysisAndRoutine_Deprecated").RequireAuthorization();
+app.MapPost("/v2/routines/regenerate", () => Results.StatusCode(410))
+.WithName("RegenerateRoutine_Deprecated").RequireAuthorization();
+app.MapGet("/v2/routines/active", () => Results.StatusCode(410))
+.WithName("GetActiveRoutine_Deprecated").RequireAuthorization();
+app.MapPost("/v2/routines/steps/{routineStepId:guid}/override", (Guid routineStepId) => Results.StatusCode(410))
+.WithName("OverrideRoutineStep_Deprecated").RequireAuthorization();
 
-    var result = await skinAnalysisService.CreateAnalysisAndGenerateRoutine(
-        userId.Value,
-        email,
-        request.SkinType,
-        request.AcneLevel,
-        request.SensitivityLevel,
-        request.HasDarkCircles,
-        request.HasSpots,
-        cancellationToken);
-
-    return Results.Created($"/v2/routines/{result.Routine.Id}", new
-    {
-        analysis = new
-        {
-            result.Analysis.Id,
-            result.Analysis.UserId,
-            result.Analysis.SkinType,
-            result.Analysis.AcneLevel,
-            result.Analysis.SensitivityLevel,
-            result.Analysis.HasDarkCircles,
-            result.Analysis.HasSpots,
-            result.Analysis.CreatedAt,
-        },
-        routine = new
-        {
-            result.Routine.Id,
-            result.Routine.UserId,
-            result.Routine.BasedOnAnalysisId,
-            result.Routine.IsActive,
-            result.Routine.CreatedAt,
-            steps = result.Routine.Steps.Select(step => new
-            {
-                step.Id,
-                step.StepType,
-                step.ProductId,
-                step.IsUserProduct,
-                step.CreatedAt,
-            }),
-        },
-    });
-})
-.WithName("CreateSkinAnalysisAndRoutine")
-.WithOpenApi()
-.RequireAuthorization();
-
-app.MapPost("/v2/routines/regenerate", async (
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    IRoutineService routineService,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue)
-    {
-        return Results.Unauthorized();
-    }
-
-    var latestAnalysis = await dbContext.SkinAnalyses
-        .AsNoTracking()
-        .Where(x => x.UserId == userId.Value)
-        .OrderByDescending(x => x.CreatedAt)
-        .FirstOrDefaultAsync(cancellationToken);
-
-    if (latestAnalysis is null)
-    {
-        return Results.BadRequest(new { error = "No skin analysis found for user." });
-    }
-
-    var routine = await routineService.GenerateRoutine(userId.Value, latestAnalysis, cancellationToken);
-    return Results.Ok(new { routineId = routine.Id, basedOnAnalysisId = routine.BasedOnAnalysisId, routine.CreatedAt, routine.IsActive });
-})
-.WithName("RegenerateRoutineWithDiff")
-.WithOpenApi()
-.RequireAuthorization();
-
-app.MapGet("/v2/routines/active", async (
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue)
-    {
-        return Results.Unauthorized();
-    }
-
-    var routine = await dbContext.Routines
-        .AsNoTracking()
-        .Include(x => x.Steps)
-        .ThenInclude(x => x.Product)
-        .Where(x => x.UserId == userId.Value && x.IsActive)
-        .OrderByDescending(x => x.CreatedAt)
-        .FirstOrDefaultAsync(cancellationToken);
-
-    if (routine is null)
-    {
-        return Results.NotFound(new { error = "Active routine not found." });
-    }
-
-    return Results.Ok(new
-    {
-        routine.Id,
-        routine.UserId,
-        routine.BasedOnAnalysisId,
-        routine.IsActive,
-        routine.CreatedAt,
-        steps = routine.Steps.Select(step => new
-        {
-            step.Id,
-            step.StepType,
-            step.ProductId,
-            step.IsUserProduct,
-            step.CreatedAt,
-            product = step.Product is null
-                ? null
-                : new
-                {
-                    step.Product.Id,
-                    step.Product.Name,
-                    step.Product.Brand,
-                    step.Product.Category,
-                    step.Product.SkinTypes,
-                    step.Product.ImageUrl,
-                    step.Product.IsUserProduct,
-                    step.Product.UserId,
-                },
-        }),
-    });
-})
-.WithName("GetActiveRoutineV2")
-.WithOpenApi()
-.RequireAuthorization();
-
-app.MapPost("/v2/routines/steps/{routineStepId:guid}/override", async (
-    Guid routineStepId,
-    OverrideRoutineStepRequest request,
-    ClaimsPrincipal user,
-    IRoutineService routineService,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue)
-    {
-        return Results.Unauthorized();
-    }
-
-    await routineService.OverrideRoutineStepWithUserProduct(
-        userId.Value,
-        routineStepId,
-        request.UserProductId,
-        cancellationToken);
-
-    return Results.Ok(new { message = "Routine step overridden successfully." });
-})
-.WithName("OverrideRoutineStepWithUserProduct")
-.WithOpenApi()
-.RequireAuthorization();
 
 app.MapPost("/routine/mark-complete", async (MarkRoutineCompleteRequest request, ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
 {
@@ -2394,86 +2316,132 @@ static bool ShouldSkipRequestTiming(string path)
         || path.StartsWith("/robots.txt", StringComparison.OrdinalIgnoreCase);
 }
 
+// Normaliza tags de período usadas erroneamente pelo Gemini como recorrência
+// Ex: "(morning)" num item do array night → daily
+static string NormalizeRecurrence(string? raw)
+{
+    if (string.IsNullOrWhiteSpace(raw)) return "daily";
+    var lower = raw.Trim().ToLowerInvariant();
+    return lower switch
+    {
+        "morning" or "night" or "both" => "daily",
+        "daily" or "as_needed" or "weekly" => lower,
+        "2x_semana" or "3x_semana" or "2x_week" or "3x_week" => lower,
+        _ when lower.StartsWith("2-3x") || lower.StartsWith("3x") || lower.StartsWith("2x") => lower,
+        _ => "daily",
+    };
+}
+
 static AnalysisRoutineDto ParseRoutineJson(string routineJson, IEnumerable<SkinAnalysis.Api.Models.Recommendation> recommendations)
 {
-    System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] RoutineJson length: {routineJson?.Length ?? 0}");
-    System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Recommendations count: {recommendations?.Count() ?? 0}");
-    
     if (!string.IsNullOrWhiteSpace(routineJson))
     {
         try
         {
             var parsed = JsonSerializer.Deserialize<AnalysisRoutineDto>(routineJson) ?? new AnalysisRoutineDto();
-            System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Parsed routine - Morning: {parsed.Morning?.Count ?? 0}, Night: {parsed.Night?.Count ?? 0}");
-            
             if (parsed.Morning.Count > 0 || parsed.Night.Count > 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] ✓ Using stored RoutineJson");
                 return parsed;
-            }
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] ✗ Error deserializing: {ex.Message}");
-            // Fallback to recommendation-derived routine below.
-        }
+        catch { /* fallback to recommendations below */ }
     }
 
-    System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Building routine from recommendations...");
-    
     var morning = new List<string>();
     var night = new List<string>();
     var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-    foreach (var recommendation in recommendations)
+    foreach (var rec in recommendations)
     {
-        if (string.IsNullOrWhiteSpace(recommendation.Product))
-        {
-            continue;
-        }
+        if (string.IsNullOrWhiteSpace(rec.Product)) continue;
 
-        var category = string.IsNullOrWhiteSpace(recommendation.Type) ? "Passo" : recommendation.Type.Trim();
-        var product = recommendation.Product.Trim();
+        var category = string.IsNullOrWhiteSpace(rec.Type) ? "Passo" : rec.Type.Trim();
+        var product = rec.Product.Trim();
         var step = $"{category}: {product}";
-        var dedupeKey = $"{category.ToLowerInvariant()}::{product.ToLowerInvariant()}";
-        if (!seen.Add(dedupeKey))
-        {
-            System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Skipping duplicate: {dedupeKey}");
-            continue;
-        }
+        var key = $"{category.ToLowerInvariant()}::{product.ToLowerInvariant()}";
+        if (!seen.Add(key)) continue;
 
-        System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Adding step: {step}");
-
-        if (category.Equals("Protetor", StringComparison.OrdinalIgnoreCase))
-        {
-            morning.Add(step);
-            System.Diagnostics.Debug.WriteLine($"  → Added to MORNING only (Protetor)");
-            continue;
-        }
-
-        if (category.Equals("Retinoide", StringComparison.OrdinalIgnoreCase)
-            || category.Equals("Retinol", StringComparison.OrdinalIgnoreCase)
-            || category.StartsWith("Retino", StringComparison.OrdinalIgnoreCase))
-        {
-            night.Add(step);
-            System.Diagnostics.Debug.WriteLine($"  → Added to NIGHT only (Retinoid)");
-            continue;
-        }
-
+        if (category.Equals("Protetor", StringComparison.OrdinalIgnoreCase)) { morning.Add(step); continue; }
+        if (category.StartsWith("Retino", StringComparison.OrdinalIgnoreCase)) { night.Add(step); continue; }
         morning.Add(step);
         night.Add(step);
-        System.Diagnostics.Debug.WriteLine($"  → Added to BOTH morning and night");
     }
 
-    System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Final routine - Morning: {morning.Count}, Night: {night.Count}");
-    System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Morning steps: {string.Join(" | ", morning)}");
-    System.Diagnostics.Debug.WriteLine($"[DEBUG ParseRoutineJson] Night steps: {string.Join(" | ", night)}");
+    return new AnalysisRoutineDto { Morning = morning, Night = night };
+}
 
-    return new AnalysisRoutineDto
+// Popula analysis_routine_steps a partir de routine_json + recommendations (chamada lazy)
+static List<SkinAnalysis.Api.Models.AnalysisRoutineStep> BuildStepsFromRoutineJson(
+    SkinAnalysis.Api.Models.Analysis analysis,
+    List<SkinAnalysis.Api.Models.Recommendation> recommendations)
+{
+    var steps = new List<SkinAnalysis.Api.Models.AnalysisRoutineStep>();
+    if (string.IsNullOrWhiteSpace(analysis.RoutineJson)) return steps;
+
+    AnalysisRoutineDto? routine;
+    try { routine = JsonSerializer.Deserialize<AnalysisRoutineDto>(analysis.RoutineJson); }
+    catch { return steps; }
+    if (routine is null) return steps;
+
+    // Index recommendations by product name for fast lookup
+    var recByName = recommendations
+        .Where(r => !string.IsNullOrWhiteSpace(r.Product))
+        .GroupBy(r => r.Product.Trim().ToLowerInvariant())
+        .ToDictionary(g => g.Key, g => g.First());
+
+    static (string category, string productName, string recurrence) ParseStep(string raw)
     {
-        Morning = morning,
-        Night = night,
-    };
+        var sep = raw.IndexOf(':');
+        var category = sep > 0 ? raw[..sep].Trim() : "Passo";
+        var rest = sep > 0 ? raw[(sep + 1)..].Trim() : raw.Trim();
+
+        string recurrence = "daily";
+        var match = System.Text.RegularExpressions.Regex.Match(rest, @"\(([^)]+)\)\s*$");
+        if (match.Success)
+        {
+            recurrence = match.Groups[1].Value.Trim().ToLowerInvariant();
+            rest = rest[..match.Index].Trim();
+        }
+
+        return (category, rest, recurrence);
+    }
+
+    static bool IsExtraCategory(string cat)
+    {
+        var n = cat.ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        n = System.Text.RegularExpressions.Regex.Replace(n, @"\p{M}", "");
+        return n is "extras" or "extra" or "adicional";
+    }
+
+    void AddSteps(IList<string> rawSteps, string period)
+    {
+        var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < rawSteps.Count; i++)
+        {
+            var (category, productName, rawRec) = ParseStep(rawSteps[i]);
+            if (string.IsNullOrWhiteSpace(productName)) continue;
+            if (!seenTitles.Add(productName.ToLowerInvariant())) continue;
+
+            recByName.TryGetValue(productName.ToLowerInvariant(), out var rec);
+
+            steps.Add(new SkinAnalysis.Api.Models.AnalysisRoutineStep
+            {
+                AnalysisId = analysis.Id,
+                UserId = analysis.UserId,
+                Period = period,
+                StepOrder = i,
+                Category = category,
+                RecommendationId = rec?.Id,
+                ProductName = productName,
+                ImageUrl = rec?.ImageUrl,
+                Recurrence = NormalizeRecurrence(rawRec),
+                IsExtra = IsExtraCategory(category),
+                IsActive = true,
+            });
+        }
+    }
+
+    AddSteps(routine.Morning, "morning");
+    AddSteps(routine.Night, "night");
+    return steps;
 }
 
 static void LoadLocalEnvironmentFiles()

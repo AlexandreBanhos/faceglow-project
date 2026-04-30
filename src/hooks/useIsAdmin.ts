@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { checkAdminAccess } from "@/lib/admin-products";
-
-let cachedIsAdmin: boolean | null = null;
+import { getAdminCache, setAdminCache } from "@/lib/adminCache";
 
 export const useIsAdmin = () => {
-  const [isAdmin, setIsAdmin] = useState<boolean>(cachedIsAdmin ?? false);
-  const [isLoading, setIsLoading] = useState<boolean>(cachedIsAdmin === null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(getAdminCache() ?? false);
+  const [isLoading, setIsLoading] = useState<boolean>(getAdminCache() === null);
 
   useEffect(() => {
-    if (cachedIsAdmin !== null) {
-      setIsAdmin(cachedIsAdmin);
+    const cached = getAdminCache();
+    if (cached !== null) {
+      setIsAdmin(cached);
       setIsLoading(false);
       return;
     }
@@ -17,11 +17,11 @@ export const useIsAdmin = () => {
     const controller = new AbortController();
     checkAdminAccess(controller.signal)
       .then((result) => {
-        cachedIsAdmin = result.isAdmin;
+        setAdminCache(result.isAdmin);
         setIsAdmin(result.isAdmin);
       })
       .catch(() => {
-        cachedIsAdmin = false;
+        setAdminCache(false);
         setIsAdmin(false);
       })
       .finally(() => setIsLoading(false));

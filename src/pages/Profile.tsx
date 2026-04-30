@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronRight, LogOut, Shield, Bell, HelpCircle, Sparkles, Pencil, Lock, TrendingUp, Flame, Trophy, Coins, Settings, PackageOpen, ScanFace, ArrowLeft } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
-import { fetchProfileSummary, fetchDashboardSummary } from "@/lib/analysisClient";
+import { fetchProfileSummary, fetchDashboardSummary, invalidateAnalysisCache } from "@/lib/analysisClient";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
@@ -247,8 +247,12 @@ const Profile = () => {
   }, [displayEmail, displayName]);
 
   const handleLogout = async () => {
-    await signOut();
+    invalidateAnalysisCache();
     localStorage.removeItem("faceglow-last-analysis");
+    localStorage.removeItem("faceglow-pending-analyze-image");
+    localStorage.removeItem("faceglow-pending-analyze-face-validation");
+    localStorage.removeItem("faceglow-pending-analyze-at");
+    await signOut();
     navigate("/auth?mode=login", { replace: true });
   };
 

@@ -1,6 +1,8 @@
 import { apiRoutes, apiBaseUrl } from "./api";
 import { getAccessToken, getAccessTokenWithWait } from "./auth";
 
+const adminProductsUrl = `${apiBaseUrl}${apiRoutes.adminProducts}`;
+
 // Helper function for fetch with timeout
 async function fetchWithTimeout(
   url: string,
@@ -78,7 +80,7 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
     console.log("[getAdminProducts] Headers prepared, token present:", !!headers.Authorization);
     
     console.log("[getAdminProducts] Sending GET request with 30s timeout...");
-    const response = await fetchWithTimeout(apiRoutes.adminProducts, {
+    const response = await fetchWithTimeout(adminProductsUrl, {
       headers: headers,
       timeout: 60000,
     });
@@ -108,7 +110,7 @@ export async function createAdminProduct(
     console.log("[createAdminProduct] Headers prepared, token present:", !!headers.Authorization);
     
     console.log("[createAdminProduct] Sending POST request with 30s timeout...");
-    const response = await fetchWithTimeout(apiRoutes.adminProducts, {
+    const response = await fetchWithTimeout(adminProductsUrl, {
       method: "POST",
       headers: headers,
       body: JSON.stringify(payload),
@@ -149,7 +151,7 @@ export async function updateAdminProduct(
     console.log("[updateAdminProduct] Headers prepared, token present:", !!headers.Authorization);
     
     console.log("[updateAdminProduct] Sending PUT request with 30s timeout...");
-    const response = await fetchWithTimeout(`${apiRoutes.adminProducts}/${id}`, {
+    const response = await fetchWithTimeout(`${adminProductsUrl}/${id}`, {
       method: "PUT",
       headers: headers,
       body: JSON.stringify(payload),
@@ -187,7 +189,7 @@ export async function deleteAdminProduct(id: string): Promise<void> {
     console.log("[deleteAdminProduct] Headers prepared, token present:", !!headers.Authorization);
     
     console.log("[deleteAdminProduct] Sending DELETE request with 30s timeout...");
-    const response = await fetchWithTimeout(`${apiRoutes.adminProducts}/${id}`, {
+    const response = await fetchWithTimeout(`${adminProductsUrl}/${id}`, {
       method: "DELETE",
       headers: headers,
       timeout: 60000,
@@ -289,7 +291,7 @@ export async function promoteUserToAdmin(
 
 export async function searchAdminProducts(name: string): Promise<AdminProduct[]> {
   const headers = await getHeaders();
-  const response = await fetchWithTimeout(`${apiRoutes.adminProducts}?search=${encodeURIComponent(name)}`, {
+  const response = await fetchWithTimeout(`${adminProductsUrl}?search=${encodeURIComponent(name)}`, {
     headers,
     timeout: 15000,
   });
@@ -300,7 +302,7 @@ export async function searchAdminProducts(name: string): Promise<AdminProduct[]>
 export async function patchAdminProductImage(id: string, imageUrl: string): Promise<AdminProduct> {
   const headers = await getHeaders();
   // Fetch current product first to avoid overwriting other fields with nulls
-  const getResp = await fetchWithTimeout(`${apiRoutes.adminProducts}?search=`, { headers, timeout: 15000 });
+  const getResp = await fetchWithTimeout(`${adminProductsUrl}?search=`, { headers, timeout: 15000 });
   // We only need to PATCH imageUrl — use PUT with minimal required fields pulled from a search
   const allProducts: AdminProduct[] = getResp.ok ? await getResp.json() : [];
   const product = allProducts.find((p) => p.id === id);
@@ -323,7 +325,7 @@ export async function patchAdminProductImage(id: string, imageUrl: string): Prom
     imageUrl,
   };
 
-  const response = await fetchWithTimeout(`${apiRoutes.adminProducts}/${id}`, {
+  const response = await fetchWithTimeout(`${adminProductsUrl}/${id}`, {
     method: "PUT",
     headers,
     body: JSON.stringify(payload),

@@ -143,8 +143,8 @@ const Dashboard = () => {
         // Retorna dados em cache imediatamente, revalida em background
         const summary = await staleWhileRevalidate(
           'dashboard-summary',
-          () => fetchDashboardSummary(false),
-          false // nao força refresh — usa cache primeiro
+          () => fetchDashboardSummary(true),
+          true // força refresh a cada navegação para refletir alterações de rotina
         );
 
         if (!mounted) return;
@@ -321,7 +321,7 @@ const Dashboard = () => {
          style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
       
-      <div className="relative z-10">
+      <div className="relative z-10 mx-auto w-full max-w-md">
       {/* Header */}
       <div className="px-6 pt-14 pb-2">
         <motion.div

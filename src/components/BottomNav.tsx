@@ -6,11 +6,10 @@ import { normalizeAnalysis } from "@/lib/analysis";
 import { getCachedLatestAnalysis, fetchAnalysisWithRecommendations } from "@/lib/analysisClient";
 
 const leftTabs = [
-  { path: "/dashboard", icon: Home, label: "Início" },
-  { path: "/history", icon: Clock, label: "Histórico" },
+  { path: "/dashboard", icon: Home, label: "Inicio" },
+  { path: "/history", icon: Clock, label: "Historico" },
 ];
 
-// Tabs que mudam conforme plano ativo
 const getRightTabs = (isActive: boolean) => [
   isActive
     ? { path: "/routine", icon: ListChecks, label: "Rotina" }
@@ -19,14 +18,12 @@ const getRightTabs = (isActive: boolean) => [
 ];
 
 const getLastAnalysis = () => {
-  // Prefer in-memory API cache (populated by Dashboard) — has full routine data
   const cached = getCachedLatestAnalysis();
   if (cached) {
     console.debug("[BottomNav] Using cached analysis", { id: cached.id });
     return cached;
   }
 
-  // Fallback: localStorage stored after last analysis
   try {
     const raw = localStorage.getItem("faceglow-last-analysis");
     if (raw) {
@@ -53,8 +50,7 @@ const BottomNav = () => {
 
   const handleRoutineClick = async () => {
     let analysis = getLastAnalysis();
-    
-    // Log current state
+
     console.debug("[BottomNav] Routine click - analysis available:", {
       hasAnalysis: !!analysis,
       analysisId: analysis?.id,
@@ -62,15 +58,14 @@ const BottomNav = () => {
       hasRecommendations: !!analysis?.recommendations?.length,
       recommendationCount: analysis?.recommendations?.length ?? 0,
     });
-    
-    // If we have an analysis ID but no recommendations, fetch the full version
+
     if (analysis && analysis.id && !analysis.recommendations?.length) {
       try {
         console.debug("[BottomNav] Fetching full analysis with recommendations...");
         const fullAnalysis = await fetchAnalysisWithRecommendations(analysis.id);
         if (fullAnalysis) {
           analysis = fullAnalysis;
-          console.debug("[BottomNav] ✅ Fetched full analysis", {
+          console.debug("[BottomNav] Fetched full analysis", {
             id: analysis.id,
             recommendationCount: analysis.recommendations?.length ?? 0,
           });
@@ -79,8 +74,7 @@ const BottomNav = () => {
         console.error("[BottomNav] Failed to fetch full analysis:", error);
       }
     }
-    
-    // Always pass analysis, even if partial - Routine page will handle loading fallbacks
+
     if (analysis) {
       console.debug("[BottomNav] Navigating to routine with analysis", { id: analysis.id });
       navigate("/routine", { state: { analysis } });
@@ -92,6 +86,7 @@ const BottomNav = () => {
 
   const renderTab = ({ path, icon: Icon, label }: typeof leftTabs[0]) => {
     const isActive = location.pathname === path;
+
     return (
       <button
         key={path}
@@ -102,23 +97,23 @@ const BottomNav = () => {
             navigate(path);
           }
         }}
-        className="flex flex-col items-center gap-0.5 py-1.5 px-3 relative min-w-[60px]"
+        className="relative flex h-12 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 transition-colors"
       >
         {isActive && (
           <motion.div
             layoutId="nav-pill"
-            className="absolute -top-1 w-10 h-1 rounded-full gradient-primary"
+            className="absolute inset-0 rounded-2xl bg-white/75 shadow-soft"
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
           />
         )}
         <Icon
           size={20}
-          className={isActive ? "text-primary" : "text-muted-foreground"}
+          className={`relative z-10 ${isActive ? "text-primary" : "text-[var(--fg-ink-4)]"}`}
           strokeWidth={isActive ? 2.5 : 1.8}
         />
         <span
-          className={`text-[10px] font-semibold ${
-            isActive ? "text-primary" : "text-muted-foreground"
+          className={`relative z-10 text-[10px] font-bold leading-none ${
+            isActive ? "text-primary" : "text-[var(--fg-ink-4)]"
           }`}
         >
           {label}
@@ -128,21 +123,25 @@ const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass bottom-nav-safe border-t border-border/30">
-      <div className="flex items-center justify-around max-w-md mx-auto px-2 pt-2 relative">
-        {leftTabs.map(renderTab)}
+    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 bottom-nav-safe px-4">
+      <div className="fg-tabbar pointer-events-auto mx-auto flex h-[72px] max-w-md items-center justify-between px-3">
+        <div className="flex flex-1 items-center justify-around">
+          {leftTabs.map(renderTab)}
+        </div>
 
-        {/* Floating center camera button */}
-        <div className="relative -mt-8">
+        <div className="flex w-[74px] items-center justify-center">
           <button
             onClick={() => navigate("/analyze")}
-            className="w-14 h-14 rounded-full gradient-primary flex items-center justify-center shadow-glow active:scale-95 transition-transform border-4 border-background"
+            aria-label="Analisar pele"
+            className="flex h-16 w-16 -translate-y-4 items-center justify-center rounded-full border-[6px] border-white/80 bg-[var(--grad-coral)] shadow-glow transition-transform active:scale-95"
           >
-            <Camera size={22} className="text-primary-foreground" />
+            <Camera size={24} className="text-white" />
           </button>
         </div>
 
-        {rightTabs.map(renderTab)}
+        <div className="flex flex-1 items-center justify-around">
+          {rightTabs.map(renderTab)}
+        </div>
       </div>
     </nav>
   );

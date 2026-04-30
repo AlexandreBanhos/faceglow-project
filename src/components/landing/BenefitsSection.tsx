@@ -38,11 +38,11 @@ export const BenefitsSection = () => {
           transition={{ duration: 0.5 }}
           viewport={{ once: true }}
         >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-4 bg-coral/10 border border-coral/20">
+          <div className="fg-eyebrow mb-4">
             <div className="w-1 h-1 rounded-full bg-coral" />
-            <span className="text-sm font-semibold uppercase letter-spacing text-coral">Por que FaceGlow?</span>
+            <span>Por que FaceGlow?</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-[var(--fg-ink)] mb-2">
             A diferença entre{" "}
             <span className="bg-gradient-to-r from-coral via-pink to-lavender bg-clip-text text-transparent">
               gastar e investir na pele
@@ -61,17 +61,17 @@ export const BenefitsSection = () => {
           {benefits.map((benefit, index) => (
             <motion.div
               key={benefit.id}
-              className="p-6 rounded-2xl bg-white/75 backdrop-blur-sm border border-white/90 shadow-sm hover:shadow-md hover:translate-x-1 transition-all duration-300 cursor-default"
+              className="lg-surface p-6 rounded-[1.75rem] hover:shadow-glow transition-all duration-300 cursor-default"
               variants={itemVariants}
               whileHover={{ y: -4 }}
             >
               <div className="flex gap-4">
                 <div className="text-3xl flex-shrink-0">{benefit.icon}</div>
                 <div>
-                  <h3 className="font-bold text-gray-900 mb-2">{benefit.title}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{benefit.description}</p>
+                  <h3 className="font-bold text-[var(--fg-ink)] mb-2">{benefit.title}</h3>
+                  <p className="text-sm text-[var(--fg-ink-3)] mb-3">{benefit.description}</p>
                   <div className="text-xs space-y-2">
-                    <div className="text-gray-500">
+                    <div className="text-[var(--fg-ink-4)]">
                       <span className="font-semibold">❌ Antes:</span> {benefit.comparison.before}
                     </div>
                     <div className="text-coral font-semibold">

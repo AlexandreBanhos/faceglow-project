@@ -27,6 +27,7 @@ import { AdminProducts } from "./pages/AdminProducts";
 import MeusProdutos from "./pages/MeusProdutos";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/RequireAuth";
+import RequireAdmin from "./components/RequireAdmin";
 import { UserProvider } from "./contexts/UserContext";
 import Debug from "./pages/Debug";
 import VerifyEmail from "./pages/VerifyEmail";
@@ -72,7 +73,9 @@ const App = () => (
               <Route path="/profile/edit" element={<EditProfile />} />
               <Route path="/profile/password" element={<ChangePassword />} />
               <Route path="/premium" element={<Premium />} />
-              <Route path="/admin/products" element={<AdminProducts />} />
+              <Route element={<RequireAdmin />}>
+                <Route path="/admin/products" element={<AdminProducts />} />
+              </Route>
               <Route path="/meus-produtos" element={<MeusProdutos />} />
             </Route>
             <Route path="*" element={<NotFound />} />

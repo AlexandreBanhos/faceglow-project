@@ -1,25 +1,6 @@
 import { apiRoutes, apiBaseUrl } from "@/lib/api";
 import { normalizeAnalysis, type AnalysisResponse } from "@/lib/analysis";
-import { getAccessToken } from "@/lib/auth";
-
-/**
- * Aguarda token estar disponivel com retry
- * Resolve race condition onde token pode nao estar pronto imediatamente apos autenticacao
- */
-const getAccessTokenWithWait = async (maxWaitMs = 5000): Promise<string | null> => {
-  const startTime = Date.now();
-  const checkInterval = 100;
-
-  while (Date.now() - startTime < maxWaitMs) {
-    const token = await getAccessToken();
-    if (token) {
-      return token;
-    }
-    await new Promise(resolve => setTimeout(resolve, checkInterval));
-  }
-
-  return null;
-};
+import { getAccessTokenWithWait } from "@/lib/auth";
 
 export type AnalysisJobStatus = {
   id: string;
@@ -522,5 +503,115 @@ export const loadRoutineCustomizations = async (
   } catch (error) {
     console.error("[loadRoutineCustomizations] Error:", error);
     return null;
+  }
+};
+
+// ============================================================
+// STRUCTURED ROUTINE STEPS — nova API com imagens via produto ID
+// ============================================================
+
+export type RoutineStep = {
+  id: string;
+  analysisId: string;
+  period: "morning" | "night";
+  stepOrder: number;
+  category: string;
+  productId: string | null;
+  productName: string;
+  imageUrl: string | null;
+  recurrence: string;
+  isExtra: boolean;
+  isUserAdded: boolean;
+  selectedTier: "best" | "second" | "budget" | null;
+  overrideProductName: string | null;
+  overrideImageUrl: string | null;
+};
+
+export const fetchRoutineSteps = async (analysisId: string): Promise<RoutineStep[]> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return [];
+
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      10_000,
+    );
+    if (!response.ok) return [];
+    return (await response.json()) as RoutineStep[];
+  } catch {
+    return [];
+  }
+};
+
+export const addRoutineStep = async (
+  analysisId: string,
+  data: { period: string; productName: string; category?: string; imageUrl?: string; recurrence?: string },
+): Promise<{ id: string } | null> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return null;
+
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      },
+      10_000,
+    );
+    if (!response.ok) return null;
+    return (await response.json()) as { id: string };
+  } catch {
+    return null;
+  }
+};
+
+export const updateRoutineStep = async (
+  analysisId: string,
+  stepId: string,
+  patch: {
+    selectedTier?: string | null;
+    overrideProductName?: string | null;
+    overrideImageUrl?: string | null;
+    productId?: string | null;
+  },
+): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps/${encodeURIComponent(stepId)}`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      },
+      10_000,
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
+export const removeRoutineStep = async (analysisId: string, stepId: string): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps/${encodeURIComponent(stepId)}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      10_000,
+    );
+    return response.ok;
+  } catch {
+    return false;
   }
 };

@@ -94,8 +94,16 @@ export const useUserStatus = (enabled = true) => {
         creditsRemaining = creditsRes.value.data.creditsRemaining;
       }
 
+      const userId = (() => {
+        try {
+          return JSON.parse(atob(token.split(".")[1]))?.sub ?? "";
+        } catch {
+          return "";
+        }
+      })();
+
       const newStatus: UserStatus = {
-        userId: token.split(".")[0] || "",
+        userId,
         isPremium,
         isFullAccess: isPremium && subscriptionType === "monthly",
         subscriptionType,

@@ -18,8 +18,6 @@ import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { PricingSection } from "@/components/landing/PricingSection";
-import { LogoImageOptional } from "@/components/LogoImage";
-import { DEFAULT_LOGOS } from "@/lib/logo";
 import { AuroraBackdrop, FGGradientText } from "@/components/shared";
 import logoFaceglow from "@/assets/logo-faceglow.svg";
 
@@ -67,7 +65,7 @@ export function LandingPageContent() {
 
       {/* Navigation — Liquid glass */}
       <nav className="sticky top-0 z-50 px-4 md:px-8 py-3 mx-auto max-w-7xl">
-        <div className="lg-surface px-6 py-3 rounded-3xl flex justify-between items-center">
+        <div className="lg-surface px-4 py-3 rounded-full flex justify-between items-center gap-3">
           {/* Logo */}
           <div className="flex items-center">
             <img src={logoFaceglow} alt="FaceGlow" className="h-10 w-auto" />
@@ -99,7 +97,7 @@ export function LandingPageContent() {
             </button>
             <button
               onClick={() => document.getElementById("cta-final")?.scrollIntoView({ behavior: "smooth" })}
-              className="coral-button px-6 py-2 rounded-2xl text-sm font-semibold"
+              className="coral-button hidden px-6 py-2 rounded-full text-sm font-semibold sm:inline-flex"
             >
               Começar grátis
             </button>
@@ -125,10 +123,7 @@ export function LandingPageContent() {
       {/* Final CTA — Liquid glass premium card */}
       <section id="cta-final" className="relative z-10 py-20 px-4 md:px-8">
         <div className="max-w-4xl mx-auto">
-          <div className="lg-surface-strong p-8 md:p-16 rounded-4xl text-center relative overflow-hidden">
-            {/* Aurora glow effect */}
-            <div className="absolute -top-20 right-0 w-96 h-96 bg-[var(--grad-orb)] rounded-full blur-3xl opacity-30 -z-10" />
-
+          <div className="lg-surface-strong p-8 md:p-16 rounded-[2.5rem] text-center relative overflow-hidden">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 bg-gradient-to-r from-coral/20 to-pink/20 border border-[var(--glass-border)]">
               <span className="w-2 h-2 rounded-full bg-gradient-to-r from-coral to-pink" />
@@ -180,11 +175,7 @@ export function LandingPageContent() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             {/* Brand */}
             <div>
-              <LogoImageOptional
-                logo={DEFAULT_LOGOS.FACEGLOW_SVG}
-                fallbackLogo={DEFAULT_LOGOS.TEXT}
-                showSkeleton={false}
-              />
+              <img src={logoFaceglow} alt="FaceGlow" className="h-10 w-auto" />
               <p className="text-sm text-gray-600 mt-3">
                 Diagnóstico de pele com IA. Profissional, acessível, disponível 24/7.
               </p>
