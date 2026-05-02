@@ -402,6 +402,12 @@ const Routine = () => {
     loadAnalysisFromAPI();
   }, [loadedAnalysis, isLoadingAnalysis]);
 
+  // Declarado cedo pois useEffects abaixo dependem dele
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
   // Carrega progresso de hoje do DB e hidrata checkedByDayItem
   useEffect(() => {
     if (stepsLoading || apiSteps.length === 0) return;
@@ -986,8 +992,6 @@ const Routine = () => {
   const autoAdvanceRef = useRef<string | null>(null);
   const markedCompleteRef = useRef<Set<string>>(new Set());
   const carouselRef = useRef<HTMLDivElement>(null);
-
-  const todayStr = useMemo(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }, []);
 
   const calendarDays = useMemo(() => {
     const now = new Date();
