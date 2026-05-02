@@ -7,10 +7,10 @@ import BottomNav from "@/components/BottomNav";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
   getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache,
-  fetchRoutineSteps, addRoutineStep, updateRoutineStep, removeRoutineStep,
-  reorderRoutineSteps, migrateRoutineFromCustomizations,
+  addRoutineStep, updateRoutineStep,
   type RoutineStep as ApiRoutineStep,
 } from "@/lib/analysisClient";
+import { useRoutineSteps, useRoutineComplete } from "@/features/routine";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
 import type { AdminProduct } from "@/lib/admin-products";
 import { uploadProductImage } from "@/lib/storage";
@@ -362,14 +362,16 @@ const Routine = () => {
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
 
-  const [apiSteps, setApiSteps] = useState<ApiRoutineStep[]>([]);
-  const [stepsLoaded, setStepsLoaded] = useState(false);
-
-  const reloadApiSteps = async (analysisId: string) => {
-    const steps = await fetchRoutineSteps(analysisId);
-    setApiSteps(steps);
-    setStepsLoaded(true);
-  };
+  const {
+    steps: apiSteps,
+    isLoading: stepsLoading,
+    reload: reloadApiSteps,
+    patchStep,
+    deleteStep: deleteApiStep,
+    reorder: reorderApiSteps,
+  } = useRoutineSteps(analysis?.id);
+  const stepsLoaded = !stepsLoading;
+  const { markComplete } = useRoutineComplete();
 
 
   // Try loading analysis from API if none available from initial fallbacks
@@ -400,37 +402,20 @@ const Routine = () => {
     loadAnalysisFromAPI();
   }, [loadedAnalysis, isLoadingAnalysis]);
 
-  // Carrega steps estruturados — fonte única de verdade para tier, ordem e schedule
+  // Sync tiers da API para selectedOptionByItem quando steps carregam (hook gerencia o fetch)
   useEffect(() => {
-    if (!analysis?.id) return;
-    setStepsLoaded(false);
-    fetchRoutineSteps(analysis.id).then((steps) => {
-      setApiSteps(steps);
-      setStepsLoaded(true);
-
-      if (steps.length > 0) {
-        // Sync tiers da API para o estado de seleção
-        const tierMap: Record<string, string> = {};
-        steps.forEach((s) => {
-          if (s.selectedTier) {
-            const key = `${s.period}::${s.productName.toLowerCase()}`;
-            tierMap[key] = `${key}::${s.selectedTier}`;
-          }
-        });
-        if (Object.keys(tierMap).length > 0) {
-          setSelectedOptionByItem((prev) => ({ ...prev, ...tierMap }));
-        }
-
-        // Migração one-time: aplica routineOrder e schedule do blob para steps estruturados
-        const migrationKey = `faceglow-migrated-${analysis.id}`;
-        if (!localStorage.getItem(migrationKey)) {
-          migrateRoutineFromCustomizations(analysis.id).then(() => {
-            localStorage.setItem(migrationKey, "1");
-          });
-        }
+    if (stepsLoading || apiSteps.length === 0) return;
+    const tierMap: Record<string, string> = {};
+    apiSteps.forEach((s) => {
+      if (s.selectedTier) {
+        const key = `${s.period}::${s.productName.toLowerCase()}`;
+        tierMap[key] = `${key}::${s.selectedTier}`;
       }
     });
-  }, [analysis?.id]);
+    if (Object.keys(tierMap).length > 0) {
+      setSelectedOptionByItem((prev) => ({ ...prev, ...tierMap }));
+    }
+  }, [stepsLoading, apiSteps]);
 
   const routineItems = useMemo(() => {
     // ---- Phase 2: apiSteps is the primary data source ----
@@ -767,7 +752,7 @@ const Routine = () => {
       } catch { /* ignora — passo já foi salvo */ }
     }
 
-    await reloadApiSteps(analysis.id);
+    await reloadApiSteps();
     invalidateAnalysisCache();
 
     // Reset completo — evita herdar imagem do passo anterior
@@ -842,7 +827,7 @@ const Routine = () => {
       const stepByKey = new Map(periodSteps.map((s) => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
       const orderedIds = next.map((k) => stepByKey.get(k)).filter((id): id is string => !!id);
       if (orderedIds.length > 0) {
-        reorderRoutineSteps(analysis.id, period, orderedIds);
+        reorderApiSteps(period, orderedIds);
       }
     }
   };
@@ -855,8 +840,7 @@ const Routine = () => {
       // Try new structured steps API first (UUID step IDs from analysis_routine_steps)
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stepPendingDelete.id);
       if (isUuid) {
-        await removeRoutineStep(analysis.id, stepPendingDelete.id);
-        await reloadApiSteps(analysis.id);
+        await deleteApiStep(stepPendingDelete.id);
       } else {
         // Legacy: localStorage custom step (old format `custom::period::timestamp`)
         removeCustomStep(stepPendingDelete.id);
@@ -1281,43 +1265,13 @@ const Routine = () => {
     }
     markedCompleteRef.current.add(markKey);
 
-    const markRoutineComplete = async () => {
-      try {
-        const token = await getAccessToken();
-        if (!token) {
-          console.warn("[Routine] Sem token para marcar rotina completa");
-          return;
-        }
-
-        const response = await fetch(`${apiBaseUrl}${apiRoutes.routineMarkComplete}`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            period: selectedPeriod,
-            localDate: todayStr, // data no timezone local do usuário
-          }),
-        });
-
-        if (response.ok) {
-          if (selectedPeriod === "morning") {
-            setTimeout(() => {
-              setSelectedPeriod("night");
-            }, 1500);
-          }
-        } else {
-          console.warn(`[Routine] Erro ao marcar rotina: HTTP ${response.status}`);
-          markedCompleteRef.current.delete(markKey);
-        }
-      } catch (error) {
-        console.error("[Routine] Erro ao marcar rotina completa:", error);
+    markComplete(selectedPeriod, todayStr).then((ok) => {
+      if (ok && selectedPeriod === "morning") {
+        setTimeout(() => setSelectedPeriod("night"), 1500);
+      } else if (!ok) {
         markedCompleteRef.current.delete(markKey);
       }
-    };
-
-    markRoutineComplete();
+    });
   }, [isRoutineComplete, selectedDay, selectedPeriod, todayStr]);
 
   const getDisplayProductName = (item: RoutineItem) => {

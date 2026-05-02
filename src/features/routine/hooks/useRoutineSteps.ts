@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   fetchRoutineSteps,
   addRoutineStep,
@@ -22,7 +22,7 @@ export type UseRoutineStepsReturn = {
 
 export function useRoutineSteps(analysisId: string | undefined): UseRoutineStepsReturn {
   const [steps, setSteps] = useState<RoutineStep[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // começa carregando
 
   const reload = useCallback(async () => {
     if (!analysisId) return;
@@ -76,6 +76,11 @@ export function useRoutineSteps(analysisId: string | undefined): UseRoutineSteps
     });
     await reorderRoutineSteps(analysisId, period, stepIds);
   }, [analysisId]);
+
+  // Auto-load quando analysisId muda
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   return { steps, isLoading, reload, addStep, patchStep, deleteStep, reorder };
 }
