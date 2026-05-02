@@ -434,4 +434,31 @@
     display: inline-block;
     animation: gradient-text-shift 4s ease-in-out infinite;
   }
+
+  /* Shimmer skeleton */
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to   { background-position:  200% 0; }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      rgba(255,255,255,0.55) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+/* prefers-reduced-motion — desativa animações para usuários sensíveis */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

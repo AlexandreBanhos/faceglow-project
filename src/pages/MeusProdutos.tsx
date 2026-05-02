@@ -8,6 +8,7 @@ import { type UserCatalogProduct, getUserCatalog, saveUserCatalog } from "@/lib/
 import { fetchMyProducts, createMyProduct, updateMyProduct, deleteMyProduct } from "@/lib/userProducts";
 import { getCurrentUser } from "@/lib/auth";
 import { getCachedLatestAnalysis, loadRoutineCustomizations, addRoutineStep, invalidateAnalysisCache } from "@/lib/analysisClient";
+import { toast } from "@/components/ui/sonner";
 import { AuroraBackdrop } from "@/components/shared";
 
 const CATEGORIES = [
@@ -44,88 +45,31 @@ async function getActualRoutineWithSwaps(analysis: any): Promise<string[]> {
       ...(analysis.routine?.night || []),
     ];
     
-    // Load customizations from BACKEND (not localStorage)
     const customizationData = await loadRoutineCustomizations(analysis.id);
-    if (!customizationData?.customizations) {
-      console.debug("[getActualRoutineWithSwaps] No customizations saved in BD, using original routine");
-      return originalRoutine;
-    }
-    
+    if (!customizationData?.customizations) return originalRoutine;
+
     const customizations = customizationData.customizations as any;
     const selectedOptions: Record<string, string> = customizations.selectedByItem || {};
-    
-    console.debug("[getActualRoutineWithSwaps] Loaded customizations from BD:", {
-      selectedCount: Object.keys(selectedOptions).length,
-      selections: selectedOptions,
-      updatedAt: customizationData.updatedAtUtc
-    });
-    
-    if (Object.keys(selectedOptions).length === 0) {
-      console.debug("[getActualRoutineWithSwaps] No swaps in customizations, returning original routine");
-      return originalRoutine;
-    }
-    
-    // Build the recommendations grouped by category (same as Routine.tsx)
+    if (Object.keys(selectedOptions).length === 0) return originalRoutine;
+
     const recommendationsByType = new Map<string, any>();
     analysis.recommendations?.forEach((rec: any) => {
       const type = (rec.type || "").toLowerCase().trim();
-      if (!recommendationsByType.has(type)) {
-        recommendationsByType.set(type, []);
-      }
+      if (!recommendationsByType.has(type)) recommendationsByType.set(type, []);
       recommendationsByType.get(type).push(rec);
     });
-    
-    console.debug("[getActualRoutineWithSwaps] Recommendations by type:", {
-      types: Array.from(recommendationsByType.keys())
-    });
-    
-    // For each step in the original routine, check if it was swapped
-    const actualRoutine = originalRoutine.map((step) => {
+
+    return originalRoutine.map((step) => {
       if (!step) return step;
-      
-      // Extract category from step (e.g., "Limpeza" from "Limpeza: Product")
       const category = step.includes(":") ? step.split(":")[0].toLowerCase().trim() : "";
       if (!category) return step;
-      
-      // Check if there's a selected option for this category
-      const selectedOption = Object.entries(selectedOptions).find(([key]) => {
-        // The key format is like "morning-0-limpeza" or "night-4-hidratante"
-        return key.toLowerCase().includes(category);
-      })?.[1];
-      
-      if (!selectedOption) {
-        console.debug("[getActualRoutineWithSwaps] No swap for step:", { step, category });
-        return step;
-      }
-      
-      // selectedOption format: "${item.key}::best" or "${item.key}::second" etc
+      const selectedOption = Object.entries(selectedOptions).find(([key]) => key.toLowerCase().includes(category))?.[1];
+      if (!selectedOption) return step;
       const categoryRecs = recommendationsByType.get(category) || [];
-      const optionType = selectedOption.split("::")[1]; // "best", "second", "budget"
-      
-      let swappedProduct = null;
-      if (optionType === "best" && categoryRecs[0]) {
-        swappedProduct = categoryRecs[0].product;
-      } else if (optionType === "second" && categoryRecs[1]) {
-        swappedProduct = categoryRecs[1].product;
-      } else if (optionType === "budget" && categoryRecs[2]) {
-        swappedProduct = categoryRecs[2].product;
-      }
-      
-      if (swappedProduct) {
-        const newStep = `${category}: ${swappedProduct} (original: ${step})`;
-        console.debug("[getActualRoutineWithSwaps] ✓ Swapped:", { original: step, swapped: newStep });
-        return newStep;
-      }
-      
-      return step;
+      const optionType = selectedOption.split("::")[1];
+      const swapped = optionType === "best" ? categoryRecs[0]?.product : optionType === "second" ? categoryRecs[1]?.product : categoryRecs[2]?.product;
+      return swapped ? `${category}: ${swapped}` : step;
     });
-    
-    console.debug("[getActualRoutineWithSwaps] Final actual routine:", {
-      count: actualRoutine.length,
-      steps: actualRoutine.slice(0, 3)
-    });
-    
-    return actualRoutine;
   } catch (error) {
     console.error("[getActualRoutineWithSwaps] Error:", error);
     return [];
@@ -198,27 +142,9 @@ export default function MeusProdutos() {
         }
       }
       
-      // Now compare
-      const matches = 
-        productFromStep === lowerName || 
-        lowerStep.includes(lowerName) ||
-        lowerName.includes(productFromStep);
-      
-      if (matches) {
-        console.debug("[isProductInRoutine] ✓ Match found:", { 
-          productName, 
-          step, 
-          productFromStep,
-          lowerName 
-        });
-      }
-      return matches;
+      return productFromStep === lowerName || lowerStep.includes(lowerName) || lowerName.includes(productFromStep);
     });
-    
-    if (!found) {
-      console.debug("[isProductInRoutine] ✗ No match for:", { productName, routineStepsCount: routineSteps.length });
-    }
-    
+
     return found;
   };
 
@@ -244,37 +170,15 @@ export default function MeusProdutos() {
             const actualRoutineSteps: string[] = (await getActualRoutineWithSwaps(latestAnalysis))
               .filter(step => step && typeof step === 'string' && step.trim().length > 0);
             
-            console.log("=== DEBUG ROTINA ATUAL COM TROCAS (DO BD) ===");
-            console.log("ROTINA ATUAL (com trocas do BD):", actualRoutineSteps);
-            console.log("PRODUTOS RECOMENDADOS:", latestAnalysis.recommendations.map(r => r.product));
-            console.log("==========================================");
-            
-            console.debug("[MeusProdutos] Actual routine with swaps from BD:", { 
-              count: actualRoutineSteps.length, 
-              steps: actualRoutineSteps 
-            });
-            console.debug("[MeusProdutos] Recommended products to check:", { 
-              count: latestAnalysis.recommendations.length,
-              products: latestAnalysis.recommendations.map(r => r.product)
-            });
-            
             const inUse = new Set<string>();
             latestAnalysis.recommendations.forEach((rec) => {
-              // Check against the ACTUAL routine (with swaps from BD)
               if (actualRoutineSteps.length > 0 && isProductInRoutine(rec.product, actualRoutineSteps)) {
                 inUse.add(rec.product);
-                console.debug("[MeusProdutos] ✅ Product marked as in-use:", rec.product);
-              } else {
-                console.debug("[MeusProdutos] ❌ Product NOT in routine:", rec.product);
               }
             });
             setProductsInUse(inUse);
-            console.log("PRODUTOS EM USO (final, do BD):", Array.from(inUse));
-            console.debug("[MeusProdutos] Final products in use:", { count: inUse.size, products: Array.from(inUse) });
           }
-        } catch (err) {
-          console.debug("[MeusProdutos] Erro ao carregar produtos indicados ou customizações:", err);
-        }
+        } catch { /* falha silenciosa — não crítico */ }
         
         setLoadingProducts(false);
       } else {
@@ -312,14 +216,17 @@ export default function MeusProdutos() {
         const next = products.map((p) => p.id === editingId ? updated : p);
         setProducts(next);
         saveUserCatalog(next, userId ?? undefined);
+        toast.success("Produto atualizado!", { duration: 2000 });
       } else {
         const created = await createMyProduct(data, userId ?? undefined);
         const next = [created, ...products];
         setProducts(next);
         saveUserCatalog(next, userId ?? undefined);
+        toast.success("Produto cadastrado!", { duration: 2000 });
       }
     } catch (err) {
       console.error("Erro ao salvar produto:", err);
+      toast.error("Erro ao salvar. Tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -328,12 +235,15 @@ export default function MeusProdutos() {
   };
 
   const remove = async (id: string) => {
+    const name = products.find((p) => p.id === id)?.name ?? "Produto";
     setProducts((prev) => prev.filter((p) => p.id !== id));
     try {
       await deleteMyProduct(id);
       saveUserCatalog(products.filter((p) => p.id !== id), userId ?? undefined);
+      toast.success(`"${name}" removido`, { duration: 2000 });
     } catch (err) {
       console.error("Erro ao remover produto:", err);
+      toast.error("Erro ao remover. Tente novamente.");
     }
   };
 
@@ -565,7 +475,9 @@ export default function MeusProdutos() {
                         layout
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="lg-surface flex flex-col items-center text-center rounded-lg md:rounded-xl p-2 md:p-2.5"
+                        whileHover={{ y: -3, boxShadow: "0 12px 32px -8px rgba(180,100,140,0.18)" }}
+                        transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                        className="lg-surface flex flex-col items-center text-center rounded-lg md:rounded-xl p-2 md:p-2.5 cursor-default"
                       >
                         {/* Product image - compact */}
                         <div className="w-full h-16 md:h-20 lg:h-24 rounded-md flex items-center justify-center mb-1.5 md:mb-2 flex-shrink-0">

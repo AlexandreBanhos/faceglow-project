@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Ellipsis, BookOpen, Droplets, Zap, Sun, Eye, AlertTriangle, Gift, Lock, Sparkles, CheckCircle2 } from "lucide-react";
 import MetricBar from "@/components/MetricBar";
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { FloatingAnalysisCard } from "@/components/FloatingAnalysisCard";
 import { PremiumUnlockModal } from "@/components/PremiumUnlockModal";
@@ -56,6 +56,9 @@ const Results = () => {
   const [routineState, setRoutineState] = useState<"idle" | "loading" | "done">("idle");
   const [showFloatingCard, setShowFloatingCard] = useState(true);
   const [isPremiumBlocked, setIsPremiumBlocked] = useState(true);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [carouselCurrent, setCarouselCurrent] = useState(0);
+  const [carouselCount, setCarouselCount] = useState(0);
 
   useEffect(() => {
     fetchBillingStatus({ forceRefresh: true })
@@ -231,6 +234,20 @@ const Results = () => {
       </div>
     );
   }
+
+  // Carousel embla API tracking
+  const onCarouselSelect = useCallback(() => {
+    if (!carouselApi) return;
+    setCarouselCurrent(carouselApi.selectedScrollSnap());
+    setCarouselCount(carouselApi.scrollSnapList().length);
+  }, [carouselApi]);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    onCarouselSelect();
+    carouselApi.on("select", onCarouselSelect);
+    return () => { carouselApi.off("select", onCarouselSelect); };
+  }, [carouselApi, onCarouselSelect]);
 
   const confidence = 92;
   const skinAge = Math.max(18, Math.round(36 - analysis.overallScore / 5));
@@ -573,7 +590,7 @@ const Results = () => {
               {routineState === "done" && primaryRecommendations.length > 0 && (
                 <div className="glass-card p-5 mb-4">
                   <h3 className="text-sm font-bold text-foreground mb-3">Produtos Recomendados</h3>
-                  <Carousel opts={{ align: "start", loop: primaryRecommendations.length > 1 }} className="w-full">
+                  <Carousel opts={{ align: "start", loop: primaryRecommendations.length > 1 }} setApi={setCarouselApi} className="w-full">
                     <CarouselContent className="-ml-2">
                       {primaryRecommendations.map((item) => (
                         <CarouselItem key={`${item.type}-${item.product}`} className="basis-1/3 sm:basis-1/4 pl-2">
@@ -591,11 +608,16 @@ const Results = () => {
                       ))}
                     </CarouselContent>
                   </Carousel>
-                  {/* Dots indicator */}
-                  {primaryRecommendations.length > 3 && (
+                  {/* Dots interativos via embla API */}
+                  {carouselCount > 1 && (
                     <div className="flex justify-center gap-1.5 mt-2.5">
-                      {Array.from({ length: Math.ceil(primaryRecommendations.length / 3) }).map((_, i) => (
-                        <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === 0 ? "w-4 bg-primary" : "w-1.5 bg-primary/25"}`} />
+                      {Array.from({ length: carouselCount }).map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => carouselApi?.scrollTo(i)}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${i === carouselCurrent ? "w-4 bg-primary" : "w-1.5 bg-primary/25"}`}
+                          aria-label={`Ir para página ${i + 1}`}
+                        />
                       ))}
                     </div>
                   )}
