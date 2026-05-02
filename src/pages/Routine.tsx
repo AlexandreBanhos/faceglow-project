@@ -14,8 +14,9 @@ import { useRoutineSteps, useRoutineComplete } from "@/features/routine";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
 import type { AdminProduct } from "@/lib/admin-products";
 import { uploadProductImage } from "@/lib/storage";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
 import { getUserCatalog } from "@/lib/userCatalog";
+import { createMyProduct } from "@/lib/userProducts";
 import { apiBaseUrl } from "@/lib/api";
 import { AuroraBackdrop } from "@/components/shared";
 
@@ -361,6 +362,7 @@ const Routine = () => {
   const [shakingDay, setShakingDay] = useState<string | null>(null);
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
+  const [isAdvancingToNight, setIsAdvancingToNight] = useState(false);
 
   const {
     steps: apiSteps,
@@ -413,7 +415,6 @@ const Routine = () => {
     if (stepsLoading || apiSteps.length === 0) return;
     const loadTodayProgress = async () => {
       try {
-        const { getAccessTokenWithWait } = await import("@/lib/auth");
         const token = await getAccessTokenWithWait(3000);
         if (!token) return;
         const res = await fetch(`${apiBaseUrl}/routine/progress/today?localDate=${todayStr}`, {
@@ -788,7 +789,6 @@ const Routine = () => {
     // Produto digitado manualmente → salvar em "Meus Produtos" automaticamente
     if (!newStepProductFromCatalog && productName) {
       try {
-        const { createMyProduct } = await import("@/lib/userProducts");
         await createMyProduct({ name: productName, category: resolvedLabel, imageUrl }, userId);
       } catch { /* ignora — passo já foi salvo */ }
     }
@@ -1329,7 +1329,11 @@ const Routine = () => {
 
     markComplete(selectedPeriod, todayStr).then((ok) => {
       if (ok && selectedPeriod === "morning") {
-        setTimeout(() => setSelectedPeriod("night"), 1500);
+        setIsAdvancingToNight(true);
+        setTimeout(() => {
+          setSelectedPeriod("night");
+          setIsAdvancingToNight(false);
+        }, 1600);
       } else if (!ok) {
         markedCompleteRef.current.delete(markKey);
       }
@@ -1488,8 +1492,22 @@ const Routine = () => {
     >
       <AuroraBackdrop tone="warm" className="-z-10" />
 
+      {/* Banner de transição manhã → noite */}
+      {isAdvancingToNight && (
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -16 }}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg"
+          style={{ background: "linear-gradient(135deg, #9aa8dc, #6366f1)", color: "white" }}
+        >
+          <Moon size={15} />
+          <span className="text-sm font-semibold">Ótimo! Partindo para a rotina da noite…</span>
+        </motion.div>
+      )}
+
       {stepPendingDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1870,7 +1888,7 @@ const Routine = () => {
 
                 const cardBg = pastelColors[(item.stepNumber - 1) % pastelColors.length];
                 return (
-                  <div key={item.key} className={`lg-surface rounded-[1.75rem] transition-all overflow-hidden ${isChecked && !isEditing ? "opacity-60" : ""}`}>
+                  <div key={item.key} className={`lg-surface rounded-[1.75rem] overflow-hidden transition-opacity duration-300 ${isChecked && !isEditing ? "opacity-55" : "opacity-100"}`}>
                     <div className="flex flex-col w-full">
                       {/* Edit mode controls */}
                       {isEditing && (
@@ -2032,14 +2050,19 @@ const Routine = () => {
                           </div>
                         </div>
 
-                        {/* Check button */}
-                        <button
+                        {/* Check button — 44px touch target, spring animation */}
+                        <motion.button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
                             if (!isEditing) toggleChecklist(item.key);
                           }}
-                          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all"
+                          whileTap={{ scale: 0.88 }}
+                          animate={isChecked
+                            ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } }
+                            : { scale: 1 }
+                          }
+                          className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center flex-shrink-0"
                           style={isChecked
                             ? { background: "var(--grad-coral)", border: "2px solid transparent" }
                             : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
@@ -2047,11 +2070,25 @@ const Routine = () => {
                           aria-label={isChecked ? "Desmarcar item" : "Marcar item"}
                         >
                           {isChecked && (
-                            <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
-                              <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <motion.svg
+                              width="14" height="14" viewBox="0 0 12 12" fill="none"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0.15 }}
+                            >
+                              <motion.path
+                                d="M2 6L5 9L10 3"
+                                stroke="white"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                initial={{ pathLength: 0 }}
+                                animate={{ pathLength: 1 }}
+                                transition={{ duration: 0.22, ease: "easeOut" }}
+                              />
+                            </motion.svg>
                           )}
-                        </button>
+                        </motion.button>
                       </div>
 
                       {/* Admin Edit Panel */}
