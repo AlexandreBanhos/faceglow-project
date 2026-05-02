@@ -792,100 +792,19 @@ app.MapGet("/analysis/{id:guid}/status", async (Guid id, ClaimsPrincipal user, A
 .WithOpenApi()
 .RequireAuthorization();
 
-// ========== SAVE CUSTOM ROUTINE ==========
-app.MapPost("/analysis/{id:guid}/routine/save", async (
-    Guid id,
-    SaveRoutineCustomizationsRequest request,
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    IMemoryCache cache,
-    ILogger<Program> logger,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue) return Results.Unauthorized();
-
-    var analysis = await dbContext.Analyses
-        .Where(a => a.Id == id && a.UserId == userId.Value)
-        .FirstOrDefaultAsync(cancellationToken);
-
-    if (analysis is null)
-    {
-        logger.LogWarning("[POST /routine/save] ❌ ANÁLISE NÃO ENCONTRADA! ID={AnalysisId}, UserId={UserId}", id, userId.Value);
-        return Results.NotFound(new { error = "Análise não encontrada." });
-    }
-
-    logger.LogInformation("[POST /routine/save] ✓ Salvando customizações para análise: {AnalysisId}", id);
-
-    analysis.CustomizationsJson = request.CustomizationsJson ?? "{}";
-
-    dbContext.Analyses.Update(analysis);
-    await dbContext.SaveChangesAsync(cancellationToken);
-
-    // Invalidar caches do dashboard e análise para este usuário
-    cache.Remove($"dashboard_{userId.Value}");
-    cache.Remove($"analysis_summary_{userId.Value}_20_0");
-    cache.Remove($"profile_summary_{userId.Value}");
-
-    logger.LogInformation("[POST /routine/save] ✓ Customizações salvas: {AnalysisId}", id);
-
-    return Results.Ok(new
-    {
-        message = "Rotina customizada salva com sucesso.",
-        analysisId = analysis.Id,
-    });
-})
+// ========== SAVE CUSTOM ROUTINE — deprecated, migrado para analysis_routine_steps ==========
+app.MapPost("/analysis/{id:guid}/routine/save", () =>
+    Results.Json(new { error = "Endpoint descontinuado. Use PATCH /analysis/{id}/steps/{stepId}." },
+        statusCode: 410))
 .WithName("SaveRoutineCustomizations")
-.WithOpenApi()
-.RequireAuthorization();
+.WithOpenApi();
 
-// ========== GET CUSTOM ROUTINE ==========
-app.MapGet("/analysis/{id:guid}/routine/custom", async (
-    Guid id,
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    ILogger<Program> logger,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue) return Results.Unauthorized();
-
-    var analysis = await dbContext.Analyses
-        .AsNoTracking()
-        .Where(a => a.Id == id && a.UserId == userId.Value)
-        .FirstOrDefaultAsync(cancellationToken);
-
-    if (analysis is null)
-    {
-        return Results.NotFound(new { error = "Análise não encontrada." });
-    }
-
-    try
-    {
-        var baseRoutine = string.IsNullOrEmpty(analysis.RoutineJson)
-            ? new { }
-            : JsonSerializer.Deserialize<object>(analysis.RoutineJson) ?? new { };
-
-        var customizations = string.IsNullOrEmpty(analysis.CustomizationsJson)
-            ? new { }
-            : JsonSerializer.Deserialize<object>(analysis.CustomizationsJson) ?? new { };
-
-        return Results.Ok(new
-        {
-            baseRoutine,
-            customizations,
-            updatedAtUtc = analysis.CreatedAtUtc,
-        });
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "[GetCustomRoutine] Erro ao processar rotina para análise {AnalysisId}", id);
-        return Results.Problem("Erro ao carregar rotina customizada.");
-    }
-})
+// ========== GET CUSTOM ROUTINE — deprecated ==========
+app.MapGet("/analysis/{id:guid}/routine/custom", () =>
+    Results.Json(new { error = "Endpoint descontinuado. Use GET /analysis/{id}/steps." },
+        statusCode: 410))
 .WithName("GetCustomRoutine")
-.WithOpenApi()
-.RequireAuthorization();
+.WithOpenApi();
 
 // (Routine step endpoints extracted to RoutineStepEndpoints.cs — registered via app.MapRoutineStepEndpoints())
 
@@ -2043,7 +1962,7 @@ app.MapAdminEndpoints();
 // Map v2 recommendation endpoints (scoring + cache + telemetry)
 app.MapRecommendationEndpoints();
 
-// Map routine step endpoints (structured CRUD + lazy population)
+// Map routine step endpoints (structured CRUD + lazy population + reorder + migrate)
 app.MapRoutineStepEndpoints();
 
 // ── User Products (Meus Produtos) ────────────────────────────────────────────

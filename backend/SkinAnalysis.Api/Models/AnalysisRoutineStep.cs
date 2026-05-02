@@ -19,6 +19,7 @@ public class AnalysisRoutineStep
     public string? SelectedTier { get; set; } // "best" | "second" | "budget"
     public string? OverrideProductName { get; set; }
     public string? OverrideImageUrl { get; set; }
+    public string? ScheduleDays { get; set; } // JSON array: ["mon","tue","wed","thu","fri","sat","sun"]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

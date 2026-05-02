@@ -8,6 +8,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
   getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache,
   fetchRoutineSteps, addRoutineStep, updateRoutineStep, removeRoutineStep,
+  reorderRoutineSteps, migrateRoutineFromCustomizations,
   type RoutineStep as ApiRoutineStep,
 } from "@/lib/analysisClient";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
@@ -399,15 +400,16 @@ const Routine = () => {
     loadAnalysisFromAPI();
   }, [loadedAnalysis, isLoadingAnalysis]);
 
-  // Load structured steps from API (fixes image resolution and custom steps)
+  // Carrega steps estruturados — fonte única de verdade para tier, ordem e schedule
   useEffect(() => {
     if (!analysis?.id) return;
     setStepsLoaded(false);
     fetchRoutineSteps(analysis.id).then((steps) => {
       setApiSteps(steps);
       setStepsLoaded(true);
-      // Initialize selectedOptionByItem from step.selectedTier (API is source of truth)
+
       if (steps.length > 0) {
+        // Sync tiers da API para o estado de seleção
         const tierMap: Record<string, string> = {};
         steps.forEach((s) => {
           if (s.selectedTier) {
@@ -418,71 +420,17 @@ const Routine = () => {
         if (Object.keys(tierMap).length > 0) {
           setSelectedOptionByItem((prev) => ({ ...prev, ...tierMap }));
         }
+
+        // Migração one-time: aplica routineOrder e schedule do blob para steps estruturados
+        const migrationKey = `faceglow-migrated-${analysis.id}`;
+        if (!localStorage.getItem(migrationKey)) {
+          migrateRoutineFromCustomizations(analysis.id).then(() => {
+            localStorage.setItem(migrationKey, "1");
+          });
+        }
       }
     });
   }, [analysis?.id]);
-
-  // Load customizations saved to backend when analysis ID changes
-  useEffect(() => {
-    if (!analysis?.id) return;
-
-    const loadSavedCustomizations = async () => {
-      try {
-        const { loadRoutineCustomizations } = await import("@/lib/analysisClient");
-        const saved = await loadRoutineCustomizations(analysis.id);
-        if (saved?.customizations) {
-          const cust = saved.customizations as Partial<{
-            selectedByItem: Record<string, string>;
-            customSteps: CustomStep[];
-            routineOrder: { morning: string[]; night: string[] };
-            schedule: ProductSchedule;
-            myProducts: Record<string, MyProduct>;
-          }>;
-
-          // Restore each customization from backend
-          if (cust.selectedByItem) setSelectedOptionByItem(cust.selectedByItem);
-          if (cust.customSteps) {
-            setCustomSteps(cust.customSteps);
-            localStorage.setItem(getCustomStepsStorageKey(analysis?.id), JSON.stringify(cust.customSteps));
-          }
-          if (cust.routineOrder) {
-            setRoutineOrder(cust.routineOrder);
-            localStorage.setItem(getRoutineOrderStorageKey(analysis?.id), JSON.stringify(cust.routineOrder));
-          }
-          if (cust.schedule) {
-            setProductSchedule(normalizeSchedule(cust.schedule, []));
-            localStorage.setItem(getScheduleStorageKey(analysis?.id), JSON.stringify(cust.schedule));
-          }
-          if (cust.myProducts) {
-            setCustomProductByItem(cust.myProducts);
-            localStorage.setItem(getMyProductsStorageKey(analysis?.id), JSON.stringify(cust.myProducts));
-          }
-        }
-      } catch {
-        // Sem customizações salvas ou erro de parse — estado inicial já está correto
-      }
-    };
-
-    loadSavedCustomizations();
-  }, [analysis?.id]);
-
-  // Auto-save movido para após todas as declarações de estado (ver abaixo)
-
-  // Persist selectedOptionByItem to localStorage (fallback se backend save falhar)
-  useEffect(() => {
-    if (!analysis?.id) return;
-    try {
-      localStorage.setItem(getSelectionStorageKey(analysis.id), JSON.stringify(selectedOptionByItem));
-    } catch { /* ignora — não crítico */ }
-  }, [selectedOptionByItem, analysis?.id]);
-
-  // Persist customProductByItem to localStorage (fallback se backend save falhar)
-  useEffect(() => {
-    if (!analysis?.id) return;
-    try {
-      localStorage.setItem(getMyProductsStorageKey(analysis.id), JSON.stringify(customProductByItem));
-    } catch { /* ignora — não crítico */ }
-  }, [customProductByItem, analysis?.id]);
 
   const routineItems = useMemo(() => {
     // ---- Phase 2: apiSteps is the primary data source ----
@@ -877,7 +825,7 @@ const Routine = () => {
     }
   };
 
-  const moveStep = (period: "morning" | "night", key: string, direction: "up" | "down") => {
+  const moveStep = async (period: "morning" | "night", key: string, direction: "up" | "down") => {
     const items = orderedItems[period];
     const keys = items.map((i) => i.key);
     const idx = keys.indexOf(key);
@@ -886,7 +834,17 @@ const Routine = () => {
     const swapIdx = direction === "up" ? idx - 1 : idx + 1;
     const next = [...keys];
     [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+    // Atualiza ordem local para resposta imediata
     persistRoutineOrder({ ...routineOrder, [period]: next });
+    // Persiste ordem no banco via API
+    if (analysis?.id) {
+      const periodSteps = apiSteps.filter((s) => s.period === period);
+      const stepByKey = new Map(periodSteps.map((s) => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
+      const orderedIds = next.map((k) => stepByKey.get(k)).filter((id): id is string => !!id);
+      if (orderedIds.length > 0) {
+        reorderRoutineSteps(analysis.id, period, orderedIds);
+      }
+    }
   };
 
   const confirmDeleteStep = async () => {
@@ -962,52 +920,49 @@ const Routine = () => {
   });
 
   const [productSchedule, setProductSchedule] = useState<ProductSchedule>(() => {
+    // checkedByDayItem continua em localStorage (tracking diário, Sprint 5 vai migrar para DB)
     const storageKey = getScheduleStorageKey(analysis?.id);
     const raw = localStorage.getItem(storageKey);
-    if (!raw) {
-      return buildInitialSchedule(routineItems.all.map((item) => item.key));
-    }
-
-    try {
-      return normalizeSchedule(JSON.parse(raw), routineItems.all.map((item) => item.key));
-    } catch {
-      return buildInitialSchedule(routineItems.all.map((item) => item.key));
-    }
+    const parsed = (() => { try { return raw ? JSON.parse(raw) : null; } catch { return null; } })();
+    const checkedByDayItem = (parsed?.checkedByDayItem as Record<string, boolean>) ?? {};
+    // daysByItem: inicia com todos os dias (apiSteps serão a fonte após carregamento)
+    const itemKeys = routineItems.all.map((item) => item.key);
+    const daysByItem: Record<string, WeekDayKey[]> = {};
+    itemKeys.forEach((k) => { daysByItem[k] = [...allDays]; });
+    return { daysByItem, checkedByDayItem };
   });
+
+  // Sincroniza daysByItem dos apiSteps para productSchedule quando steps carregam
+  useEffect(() => {
+    if (!stepsLoaded || apiSteps.length === 0) return;
+    setProductSchedule((prev) => {
+      const daysByItem = { ...prev.daysByItem };
+      apiSteps.forEach((s) => {
+        const key = `${s.period}::${s.productName.toLowerCase()}`;
+        try {
+          const days = JSON.parse(s.scheduleDays ?? "[]") as WeekDayKey[];
+          if (days.length > 0) daysByItem[key] = days;
+        } catch { /* mantém valor atual */ }
+      });
+      return { ...prev, daysByItem };
+    });
+  }, [stepsLoaded, apiSteps]);
 
   const persistSchedule = (next: ProductSchedule) => {
     setProductSchedule(next);
+    // Persiste checkedByDayItem em localStorage (tracking diário temporário até Sprint 5)
     localStorage.setItem(getScheduleStorageKey(analysis?.id), JSON.stringify(next));
-  };
-
-  // Auto-save: lê direto do estado React (não do localStorage) e inclui todas as dependências
-  useEffect(() => {
-    if (!analysis?.id) return;
-
-    const saveTimeout = setTimeout(async () => {
-      try {
-        const payload = JSON.stringify({
-          selectedByItem: selectedOptionByItem,
-          customSteps,
-          routineOrder,
-          schedule: productSchedule,
-          myProducts: customProductByItem,
-        });
-
-        const { saveRoutineCustomizations } = await import("@/lib/analysisClient");
-        const result = await saveRoutineCustomizations(analysis.id, payload);
-        if (result.success) {
-          invalidateAnalysisCache();
-        } else {
-          console.error("[Routine] Erro ao auto-salvar customizações:", result.error);
+    // Persiste daysByItem nos steps estruturados via PATCH
+    if (analysis?.id && apiSteps.length > 0) {
+      const stepByKey = new Map(apiSteps.map((s) => [`${s.period}::${s.productName.toLowerCase()}`, s]));
+      Object.entries(next.daysByItem).forEach(([itemKey, days]) => {
+        const step = stepByKey.get(itemKey.toLowerCase());
+        if (step) {
+          updateRoutineStep(analysis.id, step.id, { scheduleDays: JSON.stringify(days) });
         }
-      } catch (error) {
-        console.error("[Routine] Erro ao auto-salvar customizações:", error);
-      }
-    }, 2000);
-
-    return () => clearTimeout(saveTimeout);
-  }, [analysis?.id, selectedOptionByItem, customProductByItem, customSteps, routineOrder, productSchedule]);
+      });
+    }
+  };
 
   const autoAdvanceRef = useRef<string | null>(null);
   const markedCompleteRef = useRef<Set<string>>(new Set());
@@ -1402,24 +1357,45 @@ const Routine = () => {
     const imageUrl = (customImageInputByItem[itemKey] || "").trim() || undefined;
     const next = { ...customProductByItem, [itemKey]: { name, imageUrl } };
     setCustomProductByItem(next);
-    localStorage.setItem(getMyProductsStorageKey(analysis?.id), JSON.stringify(next));
     setCustomInputByItem((prev) => { const p = { ...prev }; delete p[itemKey]; return p; });
     setCustomImageInputByItem((prev) => { const p = { ...prev }; delete p[itemKey]; return p; });
+    // Persiste override no step estruturado
+    if (analysis?.id) {
+      const step = apiSteps.find((s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase());
+      if (step) {
+        updateRoutineStep(analysis.id, step.id, {
+          overrideProductName: name,
+          overrideImageUrl: imageUrl ?? null,
+        });
+      }
+    }
   };
 
   const clearCustomProduct = (itemKey: string) => {
     const next = { ...customProductByItem };
     delete next[itemKey];
     setCustomProductByItem(next);
-    localStorage.setItem(getMyProductsStorageKey(analysis?.id), JSON.stringify(next));
+    // Remove override do step estruturado
+    if (analysis?.id) {
+      const step = apiSteps.find((s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase());
+      if (step) {
+        updateRoutineStep(analysis.id, step.id, { overrideProductName: null, overrideImageUrl: null });
+      }
+    }
   };
 
   const saveCustomProductFromCatalog = (itemKey: string, productName: string, imageUrl?: string) => {
     const next = { ...customProductByItem, [itemKey]: { name: productName, imageUrl } };
     setCustomProductByItem(next);
-    localStorage.setItem(getMyProductsStorageKey(analysis?.id), JSON.stringify(next));
     setCatalogSearchByItem((prev) => ({ ...prev, [itemKey]: "" }));
     setCatalogSearchOpenByItem((prev) => ({ ...prev, [itemKey]: false }));
+    // Persiste override no step estruturado
+    if (analysis?.id) {
+      const step = apiSteps.find((s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase());
+      if (step) {
+        updateRoutineStep(analysis.id, step.id, { overrideProductName: productName, overrideImageUrl: imageUrl ?? null });
+      }
+    }
   };
 
   // Product selection: Save or Cancel

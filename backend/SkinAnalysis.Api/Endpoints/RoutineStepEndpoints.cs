@@ -35,6 +35,16 @@ public static class RoutineStepEndpoints
             .WithName("DeleteRoutineStep")
             .WithDescription("Soft delete a routine step")
             .RequireAuthorization();
+
+        group.MapPut("/{id:guid}/steps/reorder", ReorderStepsHandler)
+            .WithName("ReorderSteps")
+            .WithDescription("Reorder routine steps within a period by updating step_order")
+            .RequireAuthorization();
+
+        group.MapPost("/{id:guid}/steps/migrate", MigrateFromCustomizationsHandler)
+            .WithName("MigrateFromCustomizations")
+            .WithDescription("One-time migration: applies routineOrder and schedule from customizations_json to structured steps")
+            .RequireAuthorization();
     }
 
     private static (Guid userId, bool valid) GetUserId(ClaimsPrincipal user)
@@ -129,6 +139,7 @@ public static class RoutineStepEndpoints
             s.SelectedTier,
             s.OverrideProductName,
             s.OverrideImageUrl,
+            scheduleDays = s.ScheduleDays ?? "[\"mon\",\"tue\",\"wed\",\"thu\",\"fri\",\"sat\",\"sun\"]",
         }).ToList();
 
         cache.Set(cacheKey, dto, TimeSpan.FromSeconds(30));
@@ -221,6 +232,7 @@ public static class RoutineStepEndpoints
         if (request.OverrideProductName is not null) step.OverrideProductName = request.OverrideProductName;
         if (request.OverrideImageUrl is not null) step.OverrideImageUrl = request.OverrideImageUrl;
         if (request.ProductId.HasValue) step.ProductId = request.ProductId;
+        if (request.ScheduleDays is not null) step.ScheduleDays = request.ScheduleDays;
         step.UpdatedAt = DateTime.UtcNow;
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -254,6 +266,133 @@ public static class RoutineStepEndpoints
 
         return Results.Ok(new { message = "Passo removido." });
     }
+
+    // ========== REORDER STEPS ==========
+    private static async Task<IResult> ReorderStepsHandler(
+        Guid id,
+        ReorderStepsRequest request,
+        ClaimsPrincipal user,
+        AppDbContext dbContext,
+        IMemoryCache cache,
+        CancellationToken cancellationToken)
+    {
+        var (userId, valid) = GetUserId(user);
+        if (!valid) return Results.Unauthorized();
+
+        var steps = await dbContext.AnalysisRoutineSteps
+            .Where(s => s.AnalysisId == id && s.UserId == userId && s.IsActive && s.Period == request.Period)
+            .ToListAsync(cancellationToken);
+
+        var stepMap = steps.ToDictionary(s => s.Id);
+        for (int i = 0; i < request.StepIds.Count; i++)
+        {
+            if (stepMap.TryGetValue(request.StepIds[i], out var step))
+            {
+                step.StepOrder = i;
+                step.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        cache.Remove($"steps_{id}_{userId}");
+        return Results.Ok(new { updated = request.StepIds.Count });
+    }
+
+    // ========== MIGRATE FROM CUSTOMIZATIONS JSON (one-time) ==========
+    private static async Task<IResult> MigrateFromCustomizationsHandler(
+        Guid id,
+        ClaimsPrincipal user,
+        AppDbContext dbContext,
+        IMemoryCache cache,
+        ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        var (userId, valid) = GetUserId(user);
+        if (!valid) return Results.Unauthorized();
+
+        var analysis = await dbContext.Analyses
+            .AsNoTracking()
+            .Where(a => a.Id == id && a.UserId == userId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (analysis is null) return Results.NotFound(new { error = "Análise não encontrada." });
+        if (string.IsNullOrWhiteSpace(analysis.CustomizationsJson) || analysis.CustomizationsJson == "{}")
+            return Results.Ok(new { migrated = false, reason = "Sem customizações para migrar." });
+
+        var steps = await dbContext.AnalysisRoutineSteps
+            .Where(s => s.AnalysisId == id && s.UserId == userId && s.IsActive)
+            .ToListAsync(cancellationToken);
+
+        if (steps.Count == 0)
+            return Results.Ok(new { migrated = false, reason = "Sem steps estruturados para atualizar." });
+
+        MigrationCustomizations? cust;
+        try { cust = System.Text.Json.JsonSerializer.Deserialize<MigrationCustomizations>(analysis.CustomizationsJson); }
+        catch { return Results.Ok(new { migrated = false, reason = "CustomizationsJson inválido." }); }
+
+        if (cust is null) return Results.Ok(new { migrated = false, reason = "CustomizationsJson vazio." });
+
+        int updated = 0;
+
+        // Apply routineOrder → step_order
+        void ApplyOrder(string period, List<string>? order)
+        {
+            if (order is null || order.Count == 0) return;
+            var periodSteps = steps.Where(s => s.Period == period).ToList();
+            var stepByKey = periodSteps.ToDictionary(
+                s => $"{s.Period}::{s.ProductName.Trim().ToLowerInvariant()}", s => s);
+            for (int i = 0; i < order.Count; i++)
+            {
+                if (stepByKey.TryGetValue(order[i].ToLowerInvariant(), out var step))
+                {
+                    step.StepOrder = i;
+                    step.UpdatedAt = DateTime.UtcNow;
+                    updated++;
+                }
+            }
+        }
+
+        ApplyOrder("morning", cust.RoutineOrder?.Morning);
+        ApplyOrder("night", cust.RoutineOrder?.Night);
+
+        // Apply schedule.daysByItem → schedule_days per step
+        if (cust.Schedule?.DaysByItem is not null)
+        {
+            var stepByKey = steps.ToDictionary(
+                s => $"{s.Period}::{s.ProductName.Trim().ToLowerInvariant()}", s => s);
+            foreach (var (key, days) in cust.Schedule.DaysByItem)
+            {
+                var normalizedKey = key.ToLowerInvariant();
+                if (stepByKey.TryGetValue(normalizedKey, out var step) && days is not null)
+                {
+                    step.ScheduleDays = System.Text.Json.JsonSerializer.Serialize(days);
+                    step.UpdatedAt = DateTime.UtcNow;
+                    updated++;
+                }
+            }
+        }
+
+        if (updated > 0)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            cache.Remove($"steps_{id}_{userId}");
+            logger.LogInformation("[Migrate] Migrados {Count} steps para análise {Id}", updated, id);
+        }
+
+        return Results.Ok(new { migrated = true, stepsUpdated = updated });
+    }
+
+    private record MigrationCustomizations(
+        [property: System.Text.Json.Serialization.JsonPropertyName("routineOrder")] MigrationOrder? RoutineOrder,
+        [property: System.Text.Json.Serialization.JsonPropertyName("schedule")] MigrationSchedule? Schedule
+    );
+    private record MigrationOrder(
+        [property: System.Text.Json.Serialization.JsonPropertyName("morning")] List<string>? Morning,
+        [property: System.Text.Json.Serialization.JsonPropertyName("night")] List<string>? Night
+    );
+    private record MigrationSchedule(
+        [property: System.Text.Json.Serialization.JsonPropertyName("daysByItem")] Dictionary<string, List<string>>? DaysByItem
+    );
 
     // ========== Helper methods ==========
 

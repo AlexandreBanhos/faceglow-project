@@ -12,5 +12,11 @@ public record PatchRoutineStepRequest(
     string? SelectedTier,
     string? OverrideProductName,
     string? OverrideImageUrl,
-    Guid? ProductId
+    Guid? ProductId,
+    string? ScheduleDays = null    // JSON array ex: "[\"mon\",\"tue\",\"wed\"]"
+);
+
+public record ReorderStepsRequest(
+    string Period,
+    List<Guid> StepIds  // IDs na nova ordem desejada
 );

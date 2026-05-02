@@ -525,6 +525,7 @@ export type RoutineStep = {
   selectedTier: "best" | "second" | "budget" | null;
   overrideProductName: string | null;
   overrideImageUrl: string | null;
+  scheduleDays: string; // JSON array ex: "[\"mon\",\"tue\",\"wed\",\"thu\",\"fri\",\"sat\",\"sun\"]"
 };
 
 export const fetchRoutineSteps = async (analysisId: string): Promise<RoutineStep[]> => {
@@ -568,6 +569,47 @@ export const addRoutineStep = async (
   }
 };
 
+export const reorderRoutineSteps = async (
+  analysisId: string,
+  period: "morning" | "night",
+  stepIds: string[],
+): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps/reorder`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ period, stepIds }),
+      },
+      10_000,
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
+export const migrateRoutineFromCustomizations = async (analysisId: string): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps/migrate`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      10_000,
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
 export const updateRoutineStep = async (
   analysisId: string,
   stepId: string,
@@ -576,6 +618,7 @@ export const updateRoutineStep = async (
     overrideProductName?: string | null;
     overrideImageUrl?: string | null;
     productId?: string | null;
+    scheduleDays?: string | null;
   },
 ): Promise<boolean> => {
   const token = await getAccessTokenWithWait(5000);

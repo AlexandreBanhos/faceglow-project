@@ -272,32 +272,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasDatabaseName("idx_product_rules_periods_gin");
         });
 
-        modelBuilder.Entity<UserProduct>(entity =>
-        {
-            entity.ToTable("user_products");
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Id).HasColumnName("id");
-            entity.Property(x => x.UserId).HasColumnName("user_id");
-            entity.Property(x => x.ProductId).HasColumnName("product_id");
-            entity.Property(x => x.CustomName).HasMaxLength(200).HasColumnName("custom_name");
-            entity.Property(x => x.Notes).HasMaxLength(1000).HasColumnName("notes");
-            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
-
-            entity.HasOne(x => x.User)
-                .WithMany()
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(x => x.Product)
-                .WithMany()
-                .HasForeignKey(x => x.ProductId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasIndex(x => x.UserId);
-            entity.HasIndex(x => x.ProductId);
-            entity.HasIndex(x => new { x.UserId, x.ProductId }).IsUnique();
-        });
-
         modelBuilder.Entity<Subscription>(entity =>
         {
             entity.ToTable("subscriptions");
@@ -419,6 +393,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasIndex(x => new { x.UserId, x.CompletionDate }).IsUnique();
         });
 
+        modelBuilder.Entity<UserProduct>(entity =>
+        {
+            entity.ToTable("user_products");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.UserId).HasColumnName("user_id");
+            entity.Property(x => x.Name).HasColumnName("name");
+            entity.Property(x => x.Brand).HasColumnName("brand");
+            entity.Property(x => x.Category).HasColumnName("category");
+            entity.Property(x => x.ImageUrl).HasColumnName("image_url");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.UserId);
+            entity.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
+        });
+
         modelBuilder.Entity<AnalysisRoutineStep>(entity =>
         {
             entity.ToTable("analysis_routine_steps");
@@ -440,6 +431,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(x => x.SelectedTier).HasMaxLength(20).HasColumnName("selected_tier");
             entity.Property(x => x.OverrideProductName).HasColumnName("override_product_name");
             entity.Property(x => x.OverrideImageUrl).HasColumnName("override_image_url");
+            entity.Property(x => x.ScheduleDays).HasColumnName("schedule_days");
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
             entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
