@@ -87,52 +87,32 @@ const Profile = () => {
     let mounted = true;
 
     const loadProfileData = async () => {
-      console.log("[Profile] === Iniciando carregamento de dados ===");
       setIsLoadingStats(true);
       try {
         const summary = await fetchProfileSummary();
         const dashboard = await fetchDashboardSummary(false);
 
-        if (!mounted) {
-          console.log("[Profile] Componente foi desmontado, ignorando resultado");
-          return;
-        }
+        if (!mounted) return;
 
         if (summary) {
-          console.log("[Profile] OK - Dados carregados com sucesso:", {
-            totalAnalyses: summary.stats.totalAnalyses,
-            bestScore: summary.stats.bestScore,
-            streakDays: summary.stats.streakDays,
-            creditsRemaining: summary.credits.creditsRemaining,
-          });
           setTotalAnalyses(summary.stats.totalAnalyses);
           setBestScore(summary.stats.bestScore);
           setStreakDays(summary.stats.streakDays);
         } else {
-          console.warn("[Profile] fetchProfileSummary retornou null");
           setTotalAnalyses(0);
           setBestScore(0);
           setStreakDays(0);
         }
 
-        // Extract skin type and full analysis from latest
         if (dashboard?.latest) {
-          console.debug("[Profile] Tipo de pele da última análise:", dashboard.latest.skinType);
           if (dashboard.latest.skinType) setLastAnalysisSkinType(dashboard.latest.skinType);
           setLatestAnalysis(dashboard.latest);
         }
       } catch (error) {
         console.error("[Profile] Erro ao carregar dados:", error);
-        if (mounted) {
-          setTotalAnalyses(0);
-          setBestScore(0);
-          setStreakDays(0);
-        }
+        if (mounted) { setTotalAnalyses(0); setBestScore(0); setStreakDays(0); }
       } finally {
-        if (mounted) {
-          console.log("[Profile] === Carregamento finalizado ===");
-          setIsLoadingStats(false);
-        }
+        if (mounted) setIsLoadingStats(false);
       }
     };
 
@@ -152,38 +132,19 @@ const Profile = () => {
 
     const loadLastAnalysisImage = async () => {
       // Se tem avatar customizado, não sobrescrever
-      if (isCustomAvatar) {
-        console.debug("[Profile] Avatar customizado encontrado, não carregando imagem de análise");
-        return;
-      }
+      if (isCustomAvatar) return;
 
       try {
-        console.debug("[Profile] Carregando imagem da última análise como avatar...");
         const dashboard = await fetchDashboardSummary(false);
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         if (dashboard.latest?.imageUrl) {
-          console.debug("[Profile] Imagem da análise encontrada, pré-carregando...");
-          // Pré-carregar a imagem para evitar piscar
           const img = new Image();
-          img.onload = () => {
-            if (mounted) {
-              setAvatarUrl(dashboard.latest.imageUrl);
-              setIsImageLoaded(false); // Reset para animação
-            }
-          };
-          img.onerror = () => {
-            console.warn("[Profile] Erro ao pré-carregar imagem:", dashboard.latest.imageUrl);
-          };
+          img.onload = () => { if (mounted) { setAvatarUrl(dashboard.latest.imageUrl); setIsImageLoaded(false); } };
           img.src = dashboard.latest.imageUrl;
-        } else {
-          console.debug("[Profile] Nenhuma imagem de análise disponível");
         }
       } catch (error) {
-        console.error("[Profile] Erro ao carregar imagem da última análise:", error);
-        // Falha silenciosa - manter avatar anterior
+        console.error("[Profile] Erro ao carregar imagem:", error);
       }
     };
 
@@ -334,19 +295,44 @@ const Profile = () => {
         transition={{ delay: 0.1 }}
         className="mx-6 grid grid-cols-2 gap-3 mb-5"
       >
+        {/* Streak com ring animado */}
+        <div className="lg-surface p-3 rounded-2xl flex flex-col items-center justify-center">
+          {(() => {
+            const R = 20;
+            const circ = 2 * Math.PI * R;
+            const weekProgress = streakDays === 0 ? 0 : Math.min((streakDays % 7 || 7) / 7, 1);
+            const offset = circ * (1 - weekProgress);
+            return (
+              <svg width="52" height="52" viewBox="0 0 52 52">
+                <circle cx="26" cy="26" r={R} fill="none" stroke="#F3F4F6" strokeWidth="4" />
+                <motion.circle
+                  cx="26" cy="26" r={R}
+                  fill="none" stroke="#F59E0B" strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray={circ}
+                  initial={{ strokeDashoffset: circ }}
+                  animate={{ strokeDashoffset: offset }}
+                  transition={{ duration: 1.1, ease: "easeOut", delay: 0.35 }}
+                  transform="rotate(-90 26 26)"
+                />
+                <text x="26" y="22" textAnchor="middle" fontSize="11" fontWeight="800" fill="#F59E0B" dominantBaseline="middle">{streakDays}</text>
+                <text x="26" y="33" textAnchor="middle" fontSize="7.5" fontWeight="600" fill="#9CA3AF" dominantBaseline="middle">dias</text>
+              </svg>
+            );
+          })()}
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mt-1">Sequência</p>
+        </div>
+
+        {/* Demais stats */}
         {[
           { label: "Análises", value: totalAnalyses.toString(), icon: TrendingUp },
-          { label: "Sequência", value: streakDays > 0 ? `${streakDays}d` : "0d", icon: Flame },
           { label: "Melhor Score", value: bestScore.toString(), icon: Trophy },
           { label: "Créditos", value: creditsRemaining.toString(), icon: Coins },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
-            <div
-              key={stat.label}
-              className="lg-surface p-4 rounded-2xl text-center"
-            >
-              <Icon size={24} className="mx-auto text-primary" />
+            <div key={stat.label} className="lg-surface p-4 rounded-2xl text-center">
+              <Icon size={22} className="mx-auto text-primary" />
               <p className="text-xl font-extrabold text-foreground mt-2">{stat.value}</p>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mt-0.5">{stat.label}</p>
             </div>

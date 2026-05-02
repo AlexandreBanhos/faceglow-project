@@ -43,13 +43,6 @@ const parseRoutineForPeriod = (
   period: "morning" | "night",
   todayWeekDay: string,
 ) => {
-  console.debug("[parseRoutineForPeriod] Input:", {
-    period,
-    todayWeekDay,
-    hasRoutine: !!analysis.routine,
-    routineData: analysis.routine,
-  });
-
   const rawSchedule = localStorage.getItem(getRoutineStorageKey(analysis.id));
   let parsedSchedule: RoutineSchedule = {};
   if (rawSchedule) {
@@ -60,8 +53,6 @@ const parseRoutineForPeriod = (
     }
   }
   const steps = analysis.routine[period] ?? [];
-
-  console.debug("[parseRoutineForPeriod] Steps found:", { period, count: steps.length, steps });
 
   return steps
     .map((step) => {
@@ -148,12 +139,6 @@ const Dashboard = () => {
         );
 
         if (!mounted) return;
-        console.debug("[Dashboard Effect] Dashboard data loaded:", {
-          hasLatest: !!summary.latest,
-          latestRoutine: summary.latest?.routine,
-          latestMorning: summary.latest?.routine?.morning?.length ?? 0,
-          latestNight: summary.latest?.routine?.night?.length ?? 0,
-        });
         setLatestAnalysis(summary.latest);
         setPreviousOverallScore(summary.previousOverallScore);
       } catch (error) {
@@ -255,13 +240,6 @@ const Dashboard = () => {
       };
     }
 
-    console.debug("[Dashboard] latestAnalysis routine:", {
-      hasRoutine: !!latestAnalysis.routine,
-      morning: latestAnalysis.routine?.morning?.length ?? 0,
-      night: latestAnalysis.routine?.night?.length ?? 0,
-      routineData: latestAnalysis.routine,
-    });
-
     const todayWeekDay = getTodayWeekDay();
     const rawDisplay = localStorage.getItem(getRoutineDisplayStorageKey(latestAnalysis.id));
     const rawSelection = !rawDisplay ? localStorage.getItem(getRoutineSelectionStorageKey(latestAnalysis.id)) : null;
@@ -355,7 +333,6 @@ const Dashboard = () => {
                 animate={{ opacity: isImageLoaded ? 1 : 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 onLoad={() => {
-                  console.debug("[Dashboard] Imagem do avatar carregada com sucesso");
                   setIsImageLoaded(true);
                 }}
                 onError={(e) => {

@@ -2,7 +2,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, Loader2, PackageOpen } from "lucide-react";
 import { normalizeAnalysis, type AnalysisRecommendation, type AnalysisResponse } from "@/lib/analysis";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
@@ -1807,17 +1808,81 @@ const Routine = () => {
             </div>
           </div>
 
-          <div className="mb-4">
-            <div className="h-2 rounded-full overflow-hidden bg-white/65">
+          {/* Progress ring + bar combinados */}
+          <div className="mb-4 flex items-center gap-3">
+            {/* Mini ring circular */}
+            <div className="flex-shrink-0 relative">
+              {(() => {
+                const R = 14; const circ = 2 * Math.PI * R;
+                return (
+                  <svg width="36" height="36" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r={R} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="3.5"/>
+                    <motion.circle
+                      cx="18" cy="18" r={R}
+                      fill="none" strokeWidth="3.5"
+                      strokeLinecap="round"
+                      stroke={isRoutineComplete ? "#22c55e" : "var(--grad-coral, #f97316)"}
+                      strokeDasharray={circ}
+                      initial={{ strokeDashoffset: circ }}
+                      animate={{ strokeDashoffset: circ * (1 - completionPercent / 100) }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                      transform="rotate(-90 18 18)"
+                    />
+                    <text x="18" y="18" textAnchor="middle" dominantBaseline="middle"
+                      fontSize="8" fontWeight="800"
+                      fill={isRoutineComplete ? "#22c55e" : "var(--fg-ink, #2D2D2D)"}>
+                      {completionPercent}%
+                    </text>
+                  </svg>
+                );
+              })()}
+              {isRoutineComplete && (
+                <motion.div
+                  initial={{ scale: 0 }} animate={{ scale: [0, 1.3, 1] }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center"
+                >
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                    <path d="M1.5 4L3 5.5L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </motion.div>
+              )}
+            </div>
+            {/* Barra linear */}
+            <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/65">
               <motion.div
                 className="h-full rounded-full"
-                style={{ background: "var(--grad-coral)" }}
+                style={{ background: isRoutineComplete ? "#22c55e" : "var(--grad-coral)" }}
                 initial={{ width: 0 }}
                 animate={{ width: `${completionPercent}%` }}
-                transition={{ duration: 0.35, ease: "easeOut" }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
               />
             </div>
           </div>
+
+          {/* Banner de conclusão */}
+          <AnimatePresence>
+            {completionBanner && (
+              <motion.div
+                key="completion-banner"
+                initial={{ opacity: 0, scale: 0.92, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 8 }}
+                transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                className="mb-3 rounded-2xl px-4 py-3 flex items-center gap-3"
+                style={{ background: selectedPeriod === "night" ? "linear-gradient(135deg,#22c55e20,#16a34a15)" : "linear-gradient(135deg,#f9a8d420,#fb923c15)", border: `1px solid ${selectedPeriod === "night" ? "#22c55e40" : "#f97316-40"}` }}
+              >
+                <motion.span
+                  animate={{ rotate: [0, -12, 12, -8, 8, 0] }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="text-xl flex-shrink-0"
+                >
+                  {selectedPeriod === "night" ? "🌙" : "☀️"}
+                </motion.span>
+                <p className="text-sm font-bold text-foreground">{completionBanner}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {isFutureDay && (
             <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: "#FEF9EE", border: "1px solid #F59E0B33" }}>
