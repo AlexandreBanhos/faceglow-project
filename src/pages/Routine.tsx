@@ -15,7 +15,7 @@ import type { AdminProduct } from "@/lib/admin-products";
 import { uploadProductImage } from "@/lib/storage";
 import { getAccessToken, getCurrentUser } from "@/lib/auth";
 import { getUserCatalog } from "@/lib/userCatalog";
-import { apiRoutes } from "@/lib/api";
+import { apiRoutes, apiBaseUrl } from "@/lib/api";
 import { AuroraBackdrop } from "@/components/shared";
 
 const weekDays = [
@@ -97,11 +97,6 @@ const buildRoutineFromRecommendations = (recommendations: AnalysisRecommendation
   const night: string[] = [];
   const seen = new Set<string>();
 
-  console.debug("[buildRoutineFromRecommendations] Processing recommendations:", {
-    count: recommendations.length,
-    samples: recommendations.slice(0, 3).map(r => ({ type: r.type, product: r.product })),
-  });
-
   recommendations.forEach((item) => {
     const category = item.type?.trim() || "Passo";
     const product = item.product?.trim();
@@ -133,13 +128,6 @@ const buildRoutineFromRecommendations = (recommendations: AnalysisRecommendation
     // Morning + Night for all other categories (including extras, adicional, etc)
     morning.push(step);
     night.push(step);
-  });
-
-  console.debug("[buildRoutineFromRecommendations] Built routine:", {
-    morningCount: morning.length,
-    nightCount: night.length,
-    morning: morning.slice(0, 3),
-    night: night.slice(0, 3),
   });
 
   return { morning, night };
@@ -211,15 +199,6 @@ const parseRoutineStep = (
 
   const titleLower = rawTitle.toLowerCase();
   const recommendation = recommendationByName.get(titleLower);
-  
-  if (!recommendation) {
-    console.debug("[parseRoutineStep] No recommendation found for product", {
-      title: rawTitle,
-      titleLower,
-      period,
-      availableProducts: Array.from(recommendationByName.keys()).slice(0, 3),
-    });
-  }
 
   return {
     key: `${period}::${titleLower}`,
@@ -315,14 +294,6 @@ const Routine = () => {
   const location = useLocation();
 
   const stateAnalysis = normalizeAnalysis((location.state as { analysis?: unknown } | null)?.analysis);
-  if (stateAnalysis) {
-    console.debug("[Routine] ✅ Análise carregada via location.state", {
-      hasRoutine: !!stateAnalysis.routine,
-      morning: stateAnalysis.routine?.morning?.length,
-      night: stateAnalysis.routine?.night?.length,
-      recommendations: stateAnalysis.recommendations?.length,
-    });
-  }
 
   let analysis = stateAnalysis;
   if (!analysis) {
@@ -330,31 +301,13 @@ const Routine = () => {
     if (raw) {
       try {
         analysis = normalizeAnalysis(JSON.parse(raw));
-        console.debug("[Routine] ✅ Análise carregada via localStorage", {
-          hasRoutine: !!analysis.routine,
-          morning: analysis.routine?.morning?.length,
-          night: analysis.routine?.night?.length,
-          recommendations: analysis.recommendations?.length,
-        });
-      } catch (e) {
-        console.debug("[Routine] ❌ Erro ao carregar análise de localStorage:", e);
+      } catch {
         analysis = null;
       }
     }
   }
-  // Last resort: use in-memory API cache (populated when Dashboard was visited)
   if (!analysis) {
     analysis = getCachedLatestAnalysis();
-    if (analysis) {
-      console.debug("[Routine] ✅ Análise carregada via cache", {
-        hasRoutine: !!analysis.routine,
-        morning: analysis.routine?.morning?.length,
-        night: analysis.routine?.night?.length,
-        recommendations: analysis.recommendations?.length,
-      });
-    } else {
-      console.warn("[Routine] ❌ Nenhuma análise disponível - usando rotina genérica");
-    }
   }
 
   const hasRoutineFromAnalysis = Boolean(analysis?.routine?.morning?.length || analysis?.routine?.night?.length);
@@ -369,13 +322,6 @@ const Routine = () => {
       ? recommendationFallbackRoutine
       : defaultRoutine;
 
-  console.debug("[Routine] Rotina selecionada:", {
-    hasRoutineFromAnalysis,
-    hasRecommendationFallbackRoutine,
-    selected: hasRoutineFromAnalysis ? "analysis.routine" : hasRecommendationFallbackRoutine ? "recommendationFallback" : "defaultRoutine",
-    morningSteps: routine.morning?.length ?? 0,
-    nightSteps: routine.night?.length ?? 0,
-  });
 
   // Declare all states FIRST before any useEffect or useMemo that use them
   const [selectedDay, setSelectedDay] = useState<string>(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
@@ -415,7 +361,6 @@ const Routine = () => {
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
 
-  // Structured steps from the new API (with resolved images, product IDs)
   const [apiSteps, setApiSteps] = useState<ApiRoutineStep[]>([]);
   const [stepsLoaded, setStepsLoaded] = useState(false);
 
@@ -425,24 +370,6 @@ const Routine = () => {
     setStepsLoaded(true);
   };
 
-  // Diagnostic logging
-  const routine_diagnostics = {
-    analysisId: analysis?.id,
-    hasAnalysis: !!analysis,
-    hasRoutineFromAnalysis,
-    hasRecommendationFallbackRoutine,
-    usingDefaultRoutine: !hasRoutineFromAnalysis && !hasRecommendationFallbackRoutine,
-    routineSource: hasRoutineFromAnalysis ? 'analysis.routine' : hasRecommendationFallbackRoutine ? 'recommendations' : 'default',
-    morningSteps: routine.morning.length,
-    nightSteps: routine.night.length,
-    recommendationsCount: analysis?.recommendations?.length ?? 0,
-  };
-  
-  if (!hasRoutineFromAnalysis) {
-    console.warn("[Routine] Não usando routine estruturada", routine_diagnostics);
-  } else {
-    console.debug("[Routine] Routine carregada com sucesso", routine_diagnostics);
-  }
 
   // Try loading analysis from API if none available from initial fallbacks
   useEffect(() => {
@@ -457,15 +384,10 @@ const Routine = () => {
 
     const loadAnalysisFromAPI = async () => {
       try {
-        console.debug("[Routine] Attempting to load analysis from API...");
         const dashboard = await fetchDashboardSummary(false);
         if (dashboard.latest) {
-          console.debug("[Routine] Successfully loaded analysis from API", { id: dashboard.latest.id });
           setLoadedAnalysis(dashboard.latest);
-          // Update cache for future use
           setCachedLatestAnalysis(dashboard.latest);
-        } else {
-          console.warn("[Routine] API returned no latest analysis");
         }
       } catch (error) {
         console.error("[Routine] Failed to load analysis from API:", error);
@@ -518,151 +440,104 @@ const Routine = () => {
           }>;
 
           // Restore each customization from backend
-          if (cust.selectedByItem) {
-            setSelectedOptionByItem(cust.selectedByItem);
-            console.debug("[Routine] Restored selectedByItem from backend", {
-              count: Object.keys(cust.selectedByItem).length,
-            });
-          }
+          if (cust.selectedByItem) setSelectedOptionByItem(cust.selectedByItem);
           if (cust.customSteps) {
             setCustomSteps(cust.customSteps);
             localStorage.setItem(getCustomStepsStorageKey(analysis?.id), JSON.stringify(cust.customSteps));
-            console.debug("[Routine] Restored customSteps from backend", { count: cust.customSteps.length });
           }
           if (cust.routineOrder) {
             setRoutineOrder(cust.routineOrder);
             localStorage.setItem(getRoutineOrderStorageKey(analysis?.id), JSON.stringify(cust.routineOrder));
-            console.debug("[Routine] Restored routineOrder from backend");
           }
           if (cust.schedule) {
             setProductSchedule(normalizeSchedule(cust.schedule, []));
             localStorage.setItem(getScheduleStorageKey(analysis?.id), JSON.stringify(cust.schedule));
-            console.debug("[Routine] Restored schedule from backend");
           }
           if (cust.myProducts) {
             setCustomProductByItem(cust.myProducts);
             localStorage.setItem(getMyProductsStorageKey(analysis?.id), JSON.stringify(cust.myProducts));
-            console.debug("[Routine] Restored myProducts from backend", {
-              count: Object.keys(cust.myProducts).length,
-            });
           }
         }
-      } catch (error) {
-        console.debug("[Routine] Não há customizações salvas ou erro ao carregar:", error);
+      } catch {
+        // Sem customizações salvas ou erro de parse — estado inicial já está correto
       }
     };
 
     loadSavedCustomizations();
   }, [analysis?.id]);
 
-  // Auto-save customizations to backend with debounce
-  useEffect(() => {
-    if (!analysis?.id) return;
+  // Auto-save movido para após todas as declarações de estado (ver abaixo)
 
-    const saveTimeout = setTimeout(async () => {
-      try {
-        // Collect all customizations from localStorage
-        const customStepsData = (() => {
-          const raw = localStorage.getItem(getCustomStepsStorageKey(analysis?.id));
-          return raw ? JSON.parse(raw) : [];
-        })();
-
-        const routineOrderData = (() => {
-          const raw = localStorage.getItem(getRoutineOrderStorageKey(analysis?.id));
-          return raw ? JSON.parse(raw) : {};
-        })();
-
-        const scheduleData = (() => {
-          const raw = localStorage.getItem(getScheduleStorageKey(analysis?.id));
-          return raw ? JSON.parse(raw) : {};
-        })();
-
-        const customizationsPayload = JSON.stringify({
-          selectedByItem: selectedOptionByItem,
-          customSteps: customStepsData,
-          routineOrder: routineOrderData,
-          schedule: scheduleData,
-          myProducts: customProductByItem,
-        });
-
-        const { saveRoutineCustomizations } = await import("@/lib/analysisClient");
-        const result = await saveRoutineCustomizations(analysis.id, customizationsPayload);
-
-        if (result.success) {
-          invalidateAnalysisCache();
-          console.debug("[Routine] ✅ Customizações auto-salvas no backend para análise", analysis.id);
-        } else {
-          console.warn("[Routine] ⚠️ Erro ao salvar customizações:", result.error);
-        }
-      } catch (error) {
-        console.error("[Routine] Erro ao auto-salvar customizações:", error);
-      }
-    }, 2000); // Debounce 2s para não bombardear o backend
-
-    return () => clearTimeout(saveTimeout);
-  }, [analysis?.id, customProductByItem, selectedOptionByItem]);
-
-  // Persist selectedOptionByItem to localStorage (for fallback if backend save fails)
+  // Persist selectedOptionByItem to localStorage (fallback se backend save falhar)
   useEffect(() => {
     if (!analysis?.id) return;
     try {
-      localStorage.setItem(
-        getSelectionStorageKey(analysis.id),
-        JSON.stringify(selectedOptionByItem)
-      );
-      console.debug("[Routine] ✓ selectedOptionByItem persisted to localStorage", {
-        count: Object.keys(selectedOptionByItem).length,
-      });
-    } catch (error) {
-      console.warn("[Routine] ⚠️ Failed to persist selectedOptionByItem:", error);
-    }
+      localStorage.setItem(getSelectionStorageKey(analysis.id), JSON.stringify(selectedOptionByItem));
+    } catch { /* ignora — não crítico */ }
   }, [selectedOptionByItem, analysis?.id]);
 
-  // Persist customProductByItem to localStorage (for fallback if backend save fails)
+  // Persist customProductByItem to localStorage (fallback se backend save falhar)
   useEffect(() => {
     if (!analysis?.id) return;
     try {
-      localStorage.setItem(
-        getMyProductsStorageKey(analysis.id),
-        JSON.stringify(customProductByItem)
-      );
-      console.debug("[Routine] ✓ customProductByItem persisted to localStorage", {
-        count: Object.keys(customProductByItem).length,
-      });
-    } catch (error) {
-      console.warn("[Routine] ⚠️ Failed to persist customProductByItem:", error);
-    }
+      localStorage.setItem(getMyProductsStorageKey(analysis.id), JSON.stringify(customProductByItem));
+    } catch { /* ignora — não crítico */ }
   }, [customProductByItem, analysis?.id]);
 
   const routineItems = useMemo(() => {
-    // Build image lookup from API steps (resolved by backend — no fragile name matching)
-    const apiImageByKey = new Map<string, string>();
-    const apiUserAddedByPeriod = { morning: [] as RoutineItem[], night: [] as RoutineItem[] };
+    // ---- Phase 2: apiSteps is the primary data source ----
+    // When structured steps are loaded from GET /analysis/{id}/steps, use them directly.
+    // Fall back to string-parsing only while loading or if backend has no steps yet.
 
     if (stepsLoaded && apiSteps.length > 0) {
+      // Build recommendation map for product options (still needed for tier selection)
+      const recommendationByName = new Map<string, AnalysisRecommendation>();
+      const recommendations = loadedAnalysis?.recommendations ?? analysis?.recommendations ?? [];
+      recommendations.forEach((item) => {
+        if (item.product) recommendationByName.set(item.product.toLowerCase(), item);
+      });
+
+      const toRoutineItem = (s: ApiRoutineStep, idx: number): RoutineItem => {
+        const rec = recommendationByName.get(s.productName.toLowerCase());
+        return {
+          key: `${s.period}::${s.productName.toLowerCase()}`,
+          period: s.period as "morning" | "night",
+          stepNumber: s.stepOrder + 1,
+          stepLabel: s.category,
+          title: s.overrideProductName ?? s.productName,
+          type: s.category,
+          recurrence: s.recurrence,
+          note: rec?.reason ?? "",
+          imageUrl: s.overrideImageUrl ?? s.imageUrl ?? rec?.imageUrl,
+          isCustom: s.isUserAdded,
+        };
+      };
+
+      const morningItems = apiSteps
+        .filter((s) => s.period === "morning")
+        .sort((a, b) => a.stepOrder - b.stepOrder)
+        .map((s, idx) => toRoutineItem(s, idx));
+
+      const nightItems = apiSteps
+        .filter((s) => s.period === "night")
+        .sort((a, b) => a.stepOrder - b.stepOrder)
+        .map((s, idx) => toRoutineItem(s, idx));
+
+      return {
+        morning: morningItems,
+        night: nightItems,
+        all: [...morningItems, ...nightItems],
+      };
+    }
+
+    // ---- Fallback: string-parsing while loading or no steps ----
+    const apiImageByKey = new Map<string, string>();
+    if (apiSteps.length > 0) {
       apiSteps.forEach((s) => {
         const key = `${s.period}::${s.productName.toLowerCase()}`;
         const img = s.overrideImageUrl ?? s.imageUrl;
         if (img) apiImageByKey.set(key, img);
       });
-      // User-added custom steps from API
-      apiSteps
-        .filter((s) => s.isUserAdded)
-        .forEach((s, idx) => {
-          const period = s.period as "morning" | "night";
-          apiUserAddedByPeriod[period].push({
-            key: s.id,
-            period,
-            stepNumber: s.stepOrder + 1,
-            stepLabel: s.category,
-            title: s.overrideProductName ?? s.productName,
-            type: s.category,
-            recurrence: s.recurrence,
-            note: "",
-            imageUrl: s.overrideImageUrl ?? s.imageUrl,
-            isCustom: true,
-          } as RoutineItem & { isCustom: boolean });
-        });
     }
 
     const recommendationByName = new Map<string, AnalysisRecommendation>();
@@ -680,13 +555,11 @@ const Routine = () => {
       ...routine.morning.map((step, index) =>
         applyApiImage(parseRoutineStep(step, "morning", index + 1, recommendationByName))
       ),
-      ...apiUserAddedByPeriod.morning,
     ];
     const nightItems = [
       ...routine.night.map((step, index) =>
         applyApiImage(parseRoutineStep(step, "night", index + 1, recommendationByName))
       ),
-      ...apiUserAddedByPeriod.night,
     ];
 
     return {
@@ -772,17 +645,7 @@ const Routine = () => {
     };
     
     const recommendations = loadedAnalysis?.recommendations ?? analysis?.recommendations ?? [];
-    
-    console.debug("[Routine] Recomendações recebidas:", {
-      count: recommendations.length,
-      items: recommendations.slice(0, 3).map(r => ({
-        product: r.product,
-        type: r.type,
-        hasImageUrl: !!r.imageUrl,
-        imageUrl: r.imageUrl?.substring(0, 50),
-      })),
-    });
-    
+
     recommendations.forEach((item) => {
       if (item.product) {
         map.byProduct.set(item.product.toLowerCase(), item);
@@ -793,13 +656,7 @@ const Routine = () => {
         map.byType.set(item.type.toLowerCase(), typeList);
       }
     });
-    
-    console.debug("[recommendationMap] Mapeado", {
-      productCount: map.byProduct.size,
-      typeGroups: map.byType.size,
-      products: Array.from(map.byProduct.keys()).slice(0, 5),
-    });
-    
+
     return map;
   }, [analysis?.recommendations, loadedAnalysis?.recommendations]);
 
@@ -808,12 +665,8 @@ const Routine = () => {
     let rec = recommendationMap.byProduct.get(item.title.toLowerCase());
     
     if (!rec) {
-      // Fallback: por tipo
       const typeRecs = recommendationMap.byType.get(item.type.toLowerCase());
-      if (typeRecs?.length) {
-        rec = typeRecs[0];
-        console.debug("[getRecommendationForStep] Found by type fallback", { item: item.title, type: item.type });
-      }
+      if (typeRecs?.length) rec = typeRecs[0];
     }
     
     return rec;
@@ -891,6 +744,32 @@ const Routine = () => {
   const [newStepNote, setNewStepNote] = useState("");
   const [newStepUploadingImage, setNewStepUploadingImage] = useState(false);
   const newStepFileInputRef = useRef<HTMLInputElement>(null);
+  const [catalogProductsByCategory, setCatalogProductsByCategory] = useState<AdminProduct[]>([]);
+
+  const getCategoryDefaultPeriod = (cat: string): "morning" | "night" | "both" => {
+    const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
+    if (n.includes("protetor") || n.includes("solar") || n.includes("fps")) return "morning";
+    return "both";
+  };
+
+  const handleCategorySelect = async (cat: string) => {
+    setNewStepLabel(cat);
+    setNewStepLabelOpen(false);
+    setNewStepPeriod(getCategoryDefaultPeriod(cat));
+    setNewStepProduct("");
+    setNewStepProductSearch("");
+    setNewStepProductFromCatalog(false);
+    setNewStepImage("");
+    try {
+      const results = await searchAdminProducts(cat);
+      setCatalogProductsByCategory(
+        results.filter((p) =>
+          p.category.toLowerCase().includes(cat.toLowerCase()) ||
+          cat.toLowerCase().includes(p.category.toLowerCase())
+        ).slice(0, 10)
+      );
+    } catch { setCatalogProductsByCategory([]); }
+  };
 
   const [customSteps, setCustomSteps] = useState<CustomStep[]>(() => {
     try {
@@ -923,22 +802,27 @@ const Routine = () => {
   const addCustomStep = async () => {
     if (!newStepProduct.trim() || !analysis?.id) return;
     const resolvedLabel = newStepLabel.trim() || "Passo";
+    const productName = newStepProduct.trim();
+    const imageUrl = newStepImage.trim() || undefined;
     const periods: Array<"morning" | "night"> =
       newStepPeriod === "both" ? ["morning", "night"] : [newStepPeriod];
 
-    // Save to API (new approach — steps stored in DB with resolved images)
     await Promise.all(periods.map((p) =>
-      addRoutineStep(analysis.id, {
-        period: p,
-        productName: newStepProduct.trim(),
-        category: resolvedLabel,
-        imageUrl: newStepImage.trim() || undefined,
-        recurrence: "daily",
-      })
+      addRoutineStep(analysis.id, { period: p, productName, category: resolvedLabel, imageUrl, recurrence: "daily" })
     ));
+
+    // Produto digitado manualmente → salvar em "Meus Produtos" automaticamente
+    if (!newStepProductFromCatalog && productName) {
+      try {
+        const { createMyProduct } = await import("@/lib/userProducts");
+        await createMyProduct({ name: productName, category: resolvedLabel, imageUrl }, userId);
+      } catch { /* ignora — passo já foi salvo */ }
+    }
+
     await reloadApiSteps(analysis.id);
     invalidateAnalysisCache();
 
+    // Reset completo — evita herdar imagem do passo anterior
     setNewStepPeriod("both");
     setNewStepLabel("");
     setNewStepLabelOpen(false);
@@ -947,6 +831,7 @@ const Routine = () => {
     setNewStepProductFromCatalog(false);
     setNewStepImage("");
     setNewStepNote("");
+    setCatalogProductsByCategory([]);
     setAddStepOpen(false);
   };
 
@@ -1094,6 +979,35 @@ const Routine = () => {
     setProductSchedule(next);
     localStorage.setItem(getScheduleStorageKey(analysis?.id), JSON.stringify(next));
   };
+
+  // Auto-save: lê direto do estado React (não do localStorage) e inclui todas as dependências
+  useEffect(() => {
+    if (!analysis?.id) return;
+
+    const saveTimeout = setTimeout(async () => {
+      try {
+        const payload = JSON.stringify({
+          selectedByItem: selectedOptionByItem,
+          customSteps,
+          routineOrder,
+          schedule: productSchedule,
+          myProducts: customProductByItem,
+        });
+
+        const { saveRoutineCustomizations } = await import("@/lib/analysisClient");
+        const result = await saveRoutineCustomizations(analysis.id, payload);
+        if (result.success) {
+          invalidateAnalysisCache();
+        } else {
+          console.error("[Routine] Erro ao auto-salvar customizações:", result.error);
+        }
+      } catch (error) {
+        console.error("[Routine] Erro ao auto-salvar customizações:", error);
+      }
+    }, 2000);
+
+    return () => clearTimeout(saveTimeout);
+  }, [analysis?.id, selectedOptionByItem, customProductByItem, customSteps, routineOrder, productSchedule]);
 
   const autoAdvanceRef = useRef<string | null>(null);
   const markedCompleteRef = useRef<Set<string>>(new Set());
@@ -1420,7 +1334,7 @@ const Routine = () => {
           return;
         }
 
-        const response = await fetch(apiRoutes.routineMarkComplete, {
+        const response = await fetch(`${apiBaseUrl}${apiRoutes.routineMarkComplete}`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -1428,13 +1342,11 @@ const Routine = () => {
           },
           body: JSON.stringify({
             period: selectedPeriod,
+            localDate: todayStr, // data no timezone local do usuário
           }),
         });
 
         if (response.ok) {
-          console.debug(`[Routine] Rotina da ${selectedPeriod} marcada como completa`);
-          
-          // Se foi manhã, avança para noite automaticamente após 1.5s (feedback visual)
           if (selectedPeriod === "morning") {
             setTimeout(() => {
               setSelectedPeriod("night");
@@ -1478,14 +1390,6 @@ const Routine = () => {
     // IMPORTANTE: usar resolvedProductByItem que fica atualizado quando produto é selecionado
     const resolved = resolvedProductByItem.get(item.key);
     const imageUrl = resolved?.imageUrl;
-    
-    if (!imageUrl) {
-      console.debug("[getDisplayImage] Sem imagem", { 
-        title: item.title, 
-        resolved: !!resolved,
-        hasResolvedImage: !!resolved?.imageUrl 
-      });
-    }
     
     return imageUrl || fallbackCardImage;
   };
@@ -2363,7 +2267,7 @@ const Routine = () => {
                                   .slice(0, 5);
                                 if (filteredRecs.length === 0 && filteredCatalog.length === 0) return null;
                                 return (
-                                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-lg overflow-hidden">
+                                  <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-52">
                                     {filteredCatalog.length > 0 && (
                                       <>
                                         <div className="px-3 py-1.5 bg-primary/5 border-b border-border/40">
@@ -2633,13 +2537,13 @@ const Routine = () => {
                             const showAddNew = q.length > 0 && !exactMatch;
                             if (filtered.length === 0 && !showAddNew) return null;
                             return (
-                              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-lg overflow-hidden">
+                              <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-52">
                                 {filtered.map((s) => (
                                   <button
                                     key={s}
                                     type="button"
                                     onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => { setNewStepLabel(s); setNewStepLabelOpen(false); }}
+                                    onClick={() => { void handleCategorySelect(s); }}
                                     className="w-full px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-muted transition-colors"
                                   >
                                     {s}
@@ -2703,22 +2607,30 @@ const Routine = () => {
                           {newStepProductOpen && (() => {
                           const allRecs = analysis?.recommendations ?? [];
                           const q = newStepProductSearch.toLowerCase().trim();
-                          const filtered = allRecs
+                          const filteredRecs = allRecs
                             .filter((r) => r.product && r.product.toLowerCase().includes(q))
-                            .slice(0, 8);
-                          const exactMatch = filtered.some((r) => r.product.toLowerCase() === q);
+                            .slice(0, 5);
+                          const filteredCatalog = catalogProductsByCategory
+                            .filter((p) => !q || p.name.toLowerCase().includes(q))
+                            .filter((p) => !filteredRecs.some((r) => r.product.toLowerCase() === p.name.toLowerCase()))
+                            .slice(0, 5);
+                          const combined = [
+                            ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, type: r.type })),
+                            ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl, type: p.category })),
+                          ];
+                          const exactMatch = combined.some((r) => r.name.toLowerCase() === q);
                           const showAddNew = q.length > 0 && !exactMatch;
-                          if (filtered.length === 0 && !showAddNew) return null;
+                          if (combined.length === 0 && !showAddNew) return null;
                           return (
-                            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-lg overflow-hidden">
-                              {filtered.map((r) => (
+                            <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-52">
+                              {combined.map((r) => (
                                 <button
-                                  key={r.product}
+                                  key={r.name}
                                   type="button"
                                   onMouseDown={(e) => { e.preventDefault(); }}
                                   onClick={() => {
-                                    setNewStepProduct(r.product);
-                                    setNewStepProductSearch(r.product);
+                                    setNewStepProduct(r.name);
+                                    setNewStepProductSearch(r.name);
                                     if (r.imageUrl) setNewStepImage(r.imageUrl);
                                     setNewStepProductFromCatalog(true);
                                     setNewStepProductOpen(false);
@@ -2729,7 +2641,7 @@ const Routine = () => {
                                     <img src={r.imageUrl} className="w-7 h-7 rounded-lg object-contain bg-white border border-border/30 shrink-0" />
                                   )}
                                   <div className="min-w-0">
-                                    <p className="text-xs font-semibold text-foreground truncate">{r.product}</p>
+                                    <p className="text-xs font-semibold text-foreground truncate">{r.name}</p>
                                     {r.type && <p className="text-[10px] text-muted-foreground truncate">{r.type}</p>}
                                   </div>
                                 </button>

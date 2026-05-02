@@ -211,3 +211,60 @@ CREATE TABLE public.analysis_routine_steps (
 | POST | `/analysis/{id}/steps` | Adicionar passo customizado |
 | PATCH | `/analysis/{id}/steps/{stepId}` | Atualizar tier/produto/imagem |
 | DELETE | `/analysis/{id}/steps/{stepId}` | Soft delete (is_active = false) |
+
+---
+
+## Fase 3 — Estabilidade Crítica — Concluída ✅ (2026-05-02)
+
+### 3.1 — Banco de dados
+- [x] Unique partial index `uq_ars_active_product_period` em `(analysis_id, lower(product_name), period) WHERE is_active = true` — previne duplicatas da lazy population race condition
+- [x] Índice composto `ix_ars_lookup (analysis_id, user_id) WHERE is_active = true` — otimiza a query principal do GetRoutineSteps
+- [x] Índice `ix_recommendations_product_lower ON recommendations (lower(product))` — otimiza lookup no BuildStepsFromRoutineJson
+
+### 3.2 — Backend
+- [x] `RoutineStepEndpoints.cs`: cache key agora inclui `user_id` (`steps_{id}_{userId}`)
+- [x] `RoutineStepEndpoints.cs`: lazy population com try-catch em `DbUpdateException` — race condition tratada com re-fetch
+- [x] `MarkRoutineCompleteRequest.cs`: novo campo opcional `LocalDate` ("yyyy-MM-dd")
+- [x] `Program.cs` `/routine/mark-complete`: usa data local do cliente com validação ±26h; fallback UTC-3 (Brasil)
+
+### 3.3 — Frontend
+- [x] `Routine.tsx`: auto-save **movido** para após todas as declarações de estado, lê direto do React state (não localStorage), dependency array completo (`selectedOptionByItem, customProductByItem, customSteps, routineOrder, productSchedule`)
+- [x] `Routine.tsx`: mark-complete envia `localDate: todayStr` no body
+- [x] `Routine.tsx`: removidos todos os `console.debug` de produção (~15 chamadas)
+- [x] `Routine.tsx`: limpeza dos efeitos de persist manual redundantes
+
+### Build verificado ✅
+- Backend: `dotnet build` — 0 erros
+- Frontend: `vite build` — 0 erros
+
+---
+
+## Fase 2 — Concluída ✅
+
+### 2.1 — Routine.tsx migrado para API estruturada ✅
+- `routineItems` useMemo agora usa `apiSteps` como **fonte primária** de dados
+- String-parsing (`parseRoutineStep`) mantido apenas como **fallback** enquanto steps carregam
+- Imagens resolvidas diretamente dos steps (`overrideImageUrl > imageUrl > recommendation.imageUrl`)
+- Ordem garantida por `stepOrder` do backend
+
+### 2.2 — RoutineSummaryCard atualizado ✅
+- Busca `fetchRoutineSteps` via `useEffect`
+- Slot names e imagens vêm de `apiSteps` (fonte primária)
+- String-parsing mantido como fallback
+- `morningCount`/`nightCount` usam contagem de `apiSteps` quando disponível
+
+### 2.3 — Endpoints extraídos para RoutineStepEndpoints.cs ✅
+- 4 endpoints (GET/POST/PATCH/DELETE) extraídos de `Program.cs`
+- Helper `NormalizeRecurrence` e `BuildStepsFromRoutineJson` movidos
+- Registrado via `app.MapRoutineStepEndpoints()`
+- ~255 linhas removidas de `Program.cs`
+
+### 2.4 — Program.cs limpo ✅
+- Endpoints v2 deprecated (410 Gone) removidos
+- `NormalizeRecurrence` órfã removida (estava em `RoutineStepEndpoints.cs`)
+- `BuildStepsFromRoutineJson` movido para `RoutineStepEndpoints.cs`
+- `ParseRoutineJson` mantido (ainda usado por 4 endpoints inline)
+
+### Build verificado ✅
+- Backend: `dotnet build` — 0 erros
+- Frontend: `vite build` — 0 erros

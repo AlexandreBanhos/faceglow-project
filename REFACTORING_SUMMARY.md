@@ -198,6 +198,29 @@ AdminEndpoints.CheckAdminStatusHandler()
    - Unit tests para `AdminService`
    - Integration tests para endpoints
 
+3. **Extrair endpoints restantes de Program.cs**
+   - `/analysis/{id:guid}` (GET analysis)
+   - `/analysis` (POST create + upload)
+   - `/analysis/{id:guid}/recommendations` (PATCH)
+   - `/routine/mark-complete`
+   - `/analysis/{id:guid}/summary`
+
+---
+
+## ✅ Fase 2 — Routine Step Refactoring (Concluída)
+
+### Arquivos criados
+- `backend/SkinAnalysis.Api/Endpoints/RoutineStepEndpoints.cs` — 4 endpoints CRUD + helpers
+
+### Arquivos modificados
+- `backend/SkinAnalysis.Api/Program.cs` — ~310 linhas removidas (endpoints inline, helpers, v2 deprecated)
+- `src/pages/Routine.tsx` — `routineItems` usa apiSteps como fonte primária (string-parsing = fallback)
+- `src/components/RoutineSummaryCard.tsx` — busca apiSteps para imagens/names (fallback string-parsing)
+
+### Build
+- Backend: `dotnet build` — 0 erros ✅
+- Frontend: `vite build` — 0 erros ✅
+
 3. **Auditoria & Compliance**
    - Registrar todas as promoções
    - Histórico de alterações

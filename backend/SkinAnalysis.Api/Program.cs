@@ -887,187 +887,7 @@ app.MapGet("/analysis/{id:guid}/routine/custom", async (
 .WithOpenApi()
 .RequireAuthorization();
 
-// ========== GET STRUCTURED ROUTINE STEPS (with images) ==========
-app.MapGet("/analysis/{id:guid}/steps", async (
-    Guid id,
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    IMemoryCache cache,
-    ILogger<Program> logger,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue) return Results.Unauthorized();
-
-    var cacheKey = $"steps_{id}";
-    if (cache.TryGetValue(cacheKey, out var cached)) return Results.Ok(cached);
-
-    var steps = await dbContext.AnalysisRoutineSteps
-        .AsNoTracking()
-        .Where(s => s.AnalysisId == id && s.UserId == userId.Value && s.IsActive)
-        .Include(s => s.Product)
-        .Include(s => s.Recommendation)
-        .OrderBy(s => s.Period)
-        .ThenBy(s => s.StepOrder)
-        .ToListAsync(cancellationToken);
-
-    // Lazy populate: if no steps exist yet, generate from routine_json
-    if (steps.Count == 0)
-    {
-        var analysis = await dbContext.Analyses
-            .AsNoTracking()
-            .Include(a => a.Recommendations)
-            .Where(a => a.Id == id && a.UserId == userId.Value)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (analysis is null) return Results.NotFound(new { error = "Análise não encontrada." });
-
-        var generated = BuildStepsFromRoutineJson(analysis, analysis.Recommendations.ToList());
-        if (generated.Count > 0)
-        {
-            dbContext.AnalysisRoutineSteps.AddRange(generated);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            steps = generated;
-            logger.LogInformation("[GET /steps] Populados {Count} passos para análise {Id}", generated.Count, id);
-        }
-    }
-
-    static string? ResolveImage(SkinAnalysis.Api.Models.AnalysisRoutineStep s)
-        => s.OverrideImageUrl
-        ?? s.Product?.ImageUrl
-        ?? s.Recommendation?.ImageUrl
-        ?? s.ImageUrl;
-
-    var dto = steps.Select(s => new
-    {
-        s.Id,
-        s.AnalysisId,
-        s.Period,
-        s.StepOrder,
-        s.Category,
-        s.ProductId,
-        s.ProductName,
-        imageUrl = ResolveImage(s),
-        s.Recurrence,
-        s.IsExtra,
-        s.IsUserAdded,
-        s.SelectedTier,
-        s.OverrideProductName,
-        s.OverrideImageUrl,
-    }).ToList();
-
-    cache.Set(cacheKey, dto, TimeSpan.FromSeconds(30));
-    return Results.Ok(dto);
-})
-.WithName("GetRoutineSteps")
-.WithOpenApi()
-.RequireAuthorization();
-
-// ========== ADD CUSTOM ROUTINE STEP ==========
-app.MapPost("/analysis/{id:guid}/steps", async (
-    Guid id,
-    AddRoutineStepRequest request,
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    IMemoryCache cache,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue) return Results.Unauthorized();
-
-    var exists = await dbContext.Analyses.AnyAsync(a => a.Id == id && a.UserId == userId.Value, cancellationToken);
-    if (!exists) return Results.NotFound(new { error = "Análise não encontrada." });
-
-    var maxOrder = await dbContext.AnalysisRoutineSteps
-        .Where(s => s.AnalysisId == id && s.Period == request.Period)
-        .MaxAsync(s => (int?)s.StepOrder, cancellationToken) ?? -1;
-
-    var step = new SkinAnalysis.Api.Models.AnalysisRoutineStep
-    {
-        AnalysisId = id,
-        UserId = userId.Value,
-        Period = request.Period,
-        StepOrder = maxOrder + 1,
-        Category = request.Category ?? "Personalizado",
-        ProductName = request.ProductName,
-        ImageUrl = request.ImageUrl,
-        OverrideImageUrl = request.ImageUrl,
-        Recurrence = NormalizeRecurrence(request.Recurrence) ?? "daily",
-        IsUserAdded = true,
-    };
-
-    dbContext.AnalysisRoutineSteps.Add(step);
-    await dbContext.SaveChangesAsync(cancellationToken);
-    cache.Remove($"steps_{id}");
-
-    return Results.Created($"/analysis/{id}/steps/{step.Id}", new { step.Id, step.Period, step.ProductName, step.Category });
-})
-.WithName("AddRoutineStep")
-.WithOpenApi()
-.RequireAuthorization();
-
-// ========== UPDATE ROUTINE STEP (tier, product override, image) ==========
-app.MapPatch("/analysis/{id:guid}/steps/{stepId:guid}", async (
-    Guid id,
-    Guid stepId,
-    PatchRoutineStepRequest request,
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    IMemoryCache cache,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue) return Results.Unauthorized();
-
-    var step = await dbContext.AnalysisRoutineSteps
-        .Where(s => s.Id == stepId && s.AnalysisId == id && s.UserId == userId.Value)
-        .FirstOrDefaultAsync(cancellationToken);
-
-    if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
-
-    if (request.SelectedTier is not null) step.SelectedTier = request.SelectedTier;
-    if (request.OverrideProductName is not null) step.OverrideProductName = request.OverrideProductName;
-    if (request.OverrideImageUrl is not null) step.OverrideImageUrl = request.OverrideImageUrl;
-    if (request.ProductId.HasValue) step.ProductId = request.ProductId;
-    step.UpdatedAt = DateTime.UtcNow;
-
-    await dbContext.SaveChangesAsync(cancellationToken);
-    cache.Remove($"steps_{id}");
-
-    return Results.Ok(new { step.Id, step.SelectedTier, step.OverrideProductName, step.OverrideImageUrl });
-})
-.WithName("PatchRoutineStep")
-.WithOpenApi()
-.RequireAuthorization();
-
-// ========== SOFT DELETE ROUTINE STEP ==========
-app.MapDelete("/analysis/{id:guid}/steps/{stepId:guid}", async (
-    Guid id,
-    Guid stepId,
-    ClaimsPrincipal user,
-    AppDbContext dbContext,
-    IMemoryCache cache,
-    CancellationToken cancellationToken) =>
-{
-    var userId = GetAuthenticatedUserId(user);
-    if (!userId.HasValue) return Results.Unauthorized();
-
-    var step = await dbContext.AnalysisRoutineSteps
-        .Where(s => s.Id == stepId && s.AnalysisId == id && s.UserId == userId.Value)
-        .FirstOrDefaultAsync(cancellationToken);
-
-    if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
-
-    step.IsActive = false;
-    step.UpdatedAt = DateTime.UtcNow;
-    await dbContext.SaveChangesAsync(cancellationToken);
-    cache.Remove($"steps_{id}");
-
-    return Results.Ok(new { message = "Passo removido." });
-})
-.WithName("DeleteRoutineStep")
-.WithOpenApi()
-.RequireAuthorization();
+// (Routine step endpoints extracted to RoutineStepEndpoints.cs — registered via app.MapRoutineStepEndpoints())
 
 app.MapGet("/analysis/{id:guid}", async (Guid id, bool? includeRecommendations, ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
 {
@@ -1442,15 +1262,6 @@ app.MapGet("/analysis", async (ClaimsPrincipal user, AppDbContext dbContext, int
 
 // v2 endpoints removed — referenced dropped skin_analysis table. Use /analysis/{id}/steps instead.
 
-app.MapPost("/v2/analysis/routine", () => Results.StatusCode(410))
-.WithName("CreateSkinAnalysisAndRoutine_Deprecated").RequireAuthorization();
-app.MapPost("/v2/routines/regenerate", () => Results.StatusCode(410))
-.WithName("RegenerateRoutine_Deprecated").RequireAuthorization();
-app.MapGet("/v2/routines/active", () => Results.StatusCode(410))
-.WithName("GetActiveRoutine_Deprecated").RequireAuthorization();
-app.MapPost("/v2/routines/steps/{routineStepId:guid}/override", (Guid routineStepId) => Results.StatusCode(410))
-.WithName("OverrideRoutineStep_Deprecated").RequireAuthorization();
-
 
 app.MapPost("/routine/mark-complete", async (MarkRoutineCompleteRequest request, ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
 {
@@ -1460,12 +1271,25 @@ app.MapPost("/routine/mark-complete", async (MarkRoutineCompleteRequest request,
         return Results.Unauthorized();
     }
 
-    // Use UTC date at midnight
-    var todayUtc = DateTime.UtcNow.Date;
-    
+    // Usa data local enviada pelo cliente (corrige timezone UTC-3 Brazil).
+    // Valida que está dentro de ±1 dia de UTC para evitar abuso.
+    DateOnly today;
+    if (!string.IsNullOrWhiteSpace(request.LocalDate)
+        && DateOnly.TryParseExact(request.LocalDate, "yyyy-MM-dd", out var parsedLocal)
+        && parsedLocal >= DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-26))
+        && parsedLocal <= DateOnly.FromDateTime(DateTime.UtcNow.AddHours(26)))
+    {
+        today = parsedLocal;
+    }
+    else
+    {
+        // Fallback: UTC-3 (Brasil — sem DST desde 2019)
+        today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
+    }
+
     // Check if record exists for today
     var existingToday = await dbContext.RoutineCompletions
-        .Where(r => r.UserId == userId.Value && r.CompletionDate == todayUtc)
+        .Where(r => r.UserId == userId.Value && r.CompletionDate == today.ToDateTime(TimeOnly.MinValue))
         .FirstOrDefaultAsync(cancellationToken);
 
     if (existingToday == null)
@@ -1474,7 +1298,7 @@ app.MapPost("/routine/mark-complete", async (MarkRoutineCompleteRequest request,
         var newRecord = new RoutineCompletion
         {
             UserId = userId.Value,
-            CompletionDate = todayUtc,
+            CompletionDate = today.ToDateTime(TimeOnly.MinValue),
             MorningCompleted = request.Period == "morning" || request.Period == "both",
             NightCompleted = request.Period == "night" || request.Period == "both",
             CreatedAtUtc = DateTime.UtcNow,
@@ -1499,7 +1323,7 @@ app.MapPost("/routine/mark-complete", async (MarkRoutineCompleteRequest request,
     return Results.Ok(new
     {
         message = "Routine completion marked successfully",
-        completionDate = todayUtc.Date,
+        completionDate = today.ToString("yyyy-MM-dd"),
         morningCompleted = existingToday.MorningCompleted,
         nightCompleted = existingToday.NightCompleted,
         userId = userId.Value,
@@ -2219,6 +2043,9 @@ app.MapAdminEndpoints();
 // Map v2 recommendation endpoints (scoring + cache + telemetry)
 app.MapRecommendationEndpoints();
 
+// Map routine step endpoints (structured CRUD + lazy population)
+app.MapRoutineStepEndpoints();
+
 // ── User Products (Meus Produtos) ────────────────────────────────────────────
 
 app.MapGet("/products/my", async (ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
@@ -2316,21 +2143,7 @@ static bool ShouldSkipRequestTiming(string path)
         || path.StartsWith("/robots.txt", StringComparison.OrdinalIgnoreCase);
 }
 
-// Normaliza tags de período usadas erroneamente pelo Gemini como recorrência
-// Ex: "(morning)" num item do array night → daily
-static string NormalizeRecurrence(string? raw)
-{
-    if (string.IsNullOrWhiteSpace(raw)) return "daily";
-    var lower = raw.Trim().ToLowerInvariant();
-    return lower switch
-    {
-        "morning" or "night" or "both" => "daily",
-        "daily" or "as_needed" or "weekly" => lower,
-        "2x_semana" or "3x_semana" or "2x_week" or "3x_week" => lower,
-        _ when lower.StartsWith("2-3x") || lower.StartsWith("3x") || lower.StartsWith("2x") => lower,
-        _ => "daily",
-    };
-}
+// (NormalizeRecurrence moved to RoutineStepEndpoints.cs)
 
 static AnalysisRoutineDto ParseRoutineJson(string routineJson, IEnumerable<SkinAnalysis.Api.Models.Recommendation> recommendations)
 {
@@ -2368,81 +2181,7 @@ static AnalysisRoutineDto ParseRoutineJson(string routineJson, IEnumerable<SkinA
     return new AnalysisRoutineDto { Morning = morning, Night = night };
 }
 
-// Popula analysis_routine_steps a partir de routine_json + recommendations (chamada lazy)
-static List<SkinAnalysis.Api.Models.AnalysisRoutineStep> BuildStepsFromRoutineJson(
-    SkinAnalysis.Api.Models.Analysis analysis,
-    List<SkinAnalysis.Api.Models.Recommendation> recommendations)
-{
-    var steps = new List<SkinAnalysis.Api.Models.AnalysisRoutineStep>();
-    if (string.IsNullOrWhiteSpace(analysis.RoutineJson)) return steps;
-
-    AnalysisRoutineDto? routine;
-    try { routine = JsonSerializer.Deserialize<AnalysisRoutineDto>(analysis.RoutineJson); }
-    catch { return steps; }
-    if (routine is null) return steps;
-
-    // Index recommendations by product name for fast lookup
-    var recByName = recommendations
-        .Where(r => !string.IsNullOrWhiteSpace(r.Product))
-        .GroupBy(r => r.Product.Trim().ToLowerInvariant())
-        .ToDictionary(g => g.Key, g => g.First());
-
-    static (string category, string productName, string recurrence) ParseStep(string raw)
-    {
-        var sep = raw.IndexOf(':');
-        var category = sep > 0 ? raw[..sep].Trim() : "Passo";
-        var rest = sep > 0 ? raw[(sep + 1)..].Trim() : raw.Trim();
-
-        string recurrence = "daily";
-        var match = System.Text.RegularExpressions.Regex.Match(rest, @"\(([^)]+)\)\s*$");
-        if (match.Success)
-        {
-            recurrence = match.Groups[1].Value.Trim().ToLowerInvariant();
-            rest = rest[..match.Index].Trim();
-        }
-
-        return (category, rest, recurrence);
-    }
-
-    static bool IsExtraCategory(string cat)
-    {
-        var n = cat.ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
-        n = System.Text.RegularExpressions.Regex.Replace(n, @"\p{M}", "");
-        return n is "extras" or "extra" or "adicional";
-    }
-
-    void AddSteps(IList<string> rawSteps, string period)
-    {
-        var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        for (int i = 0; i < rawSteps.Count; i++)
-        {
-            var (category, productName, rawRec) = ParseStep(rawSteps[i]);
-            if (string.IsNullOrWhiteSpace(productName)) continue;
-            if (!seenTitles.Add(productName.ToLowerInvariant())) continue;
-
-            recByName.TryGetValue(productName.ToLowerInvariant(), out var rec);
-
-            steps.Add(new SkinAnalysis.Api.Models.AnalysisRoutineStep
-            {
-                AnalysisId = analysis.Id,
-                UserId = analysis.UserId,
-                Period = period,
-                StepOrder = i,
-                Category = category,
-                RecommendationId = rec?.Id,
-                ProductName = productName,
-                ImageUrl = rec?.ImageUrl,
-                Recurrence = NormalizeRecurrence(rawRec),
-                IsExtra = IsExtraCategory(category),
-                IsActive = true,
-            });
-        }
-    }
-
-    AddSteps(routine.Morning, "morning");
-    AddSteps(routine.Night, "night");
-    return steps;
-}
+// (BuildStepsFromRoutineJson moved to RoutineStepEndpoints.cs)
 
 static void LoadLocalEnvironmentFiles()
 {

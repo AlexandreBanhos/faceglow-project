@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen, Pencil, Lightbulb, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen, Pencil, Lightbulb, Check, Sun, Moon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
@@ -7,7 +7,7 @@ import { uploadProductImage } from "@/lib/storage";
 import { type UserCatalogProduct, getUserCatalog, saveUserCatalog } from "@/lib/userCatalog";
 import { fetchMyProducts, createMyProduct, updateMyProduct, deleteMyProduct } from "@/lib/userProducts";
 import { getCurrentUser } from "@/lib/auth";
-import { getCachedLatestAnalysis, loadRoutineCustomizations } from "@/lib/analysisClient";
+import { getCachedLatestAnalysis, loadRoutineCustomizations, addRoutineStep, invalidateAnalysisCache } from "@/lib/analysisClient";
 import { AuroraBackdrop } from "@/components/shared";
 
 const CATEGORIES = [
@@ -144,6 +144,31 @@ export default function MeusProdutos() {
   const [uploading, setUploading] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [addingToRoutine, setAddingToRoutine] = useState<Record<string, boolean>>({});
+  const [addedToRoutine, setAddedToRoutine] = useState<Record<string, string>>({});
+
+  const handleAddToRoutine = async (
+    productName: string,
+    imageUrl: string | undefined,
+    category: string,
+    period: "morning" | "night" | "both",
+    id: string,
+  ) => {
+    const latestAnalysis = getCachedLatestAnalysis();
+    if (!latestAnalysis?.id) return;
+    setAddingToRoutine((prev) => ({ ...prev, [id]: true }));
+    try {
+      const periods: Array<"morning" | "night"> = period === "both" ? ["morning", "night"] : [period];
+      await Promise.all(periods.map((p) =>
+        addRoutineStep(latestAnalysis.id, { period: p, productName, imageUrl, category, recurrence: "daily" })
+      ));
+      invalidateAnalysisCache();
+      setAddedToRoutine((prev) => ({ ...prev, [id]: period }));
+      setTimeout(() => setAddedToRoutine((prev) => { const n = { ...prev }; delete n[id]; return n; }), 2500);
+    } finally {
+      setAddingToRoutine((prev) => ({ ...prev, [id]: false }));
+    }
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   
   // New: Tab management and recommendations
@@ -562,17 +587,51 @@ export default function MeusProdutos() {
                           <p className="text-[8px] md:text-[9px] text-muted-foreground line-clamp-1 mt-0.5">{p.note}</p>
                         )}
                         
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-1 mt-2 w-full">
-                          <button 
-                            onClick={() => openEdit(p)} 
-                            className="flex-1 h-6 rounded-md border border-border/50 bg-background flex items-center justify-center hover:bg-muted transition-colors text-[11px]"
+                        {/* Quick add to routine */}
+                        {addedToRoutine[p.id] ? (
+                          <div className="flex items-center gap-1 mt-2 w-full justify-center">
+                            <Check size={12} className="text-green-600" />
+                            <p className="text-[10px] font-bold text-green-600">Adicionado!</p>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-0.5 mt-2 w-full">
+                            <button
+                              title="Adicionar à manhã"
+                              disabled={addingToRoutine[p.id]}
+                              onClick={() => handleAddToRoutine(p.name, p.imageUrl, p.category, "morning", p.id)}
+                              className="flex-1 h-6 rounded-l-md border border-border/50 bg-background flex items-center justify-center hover:bg-amber-50 transition-colors"
+                            >
+                              <Sun size={11} className="text-amber-500" />
+                            </button>
+                            <button
+                              title="Adicionar à noite"
+                              disabled={addingToRoutine[p.id]}
+                              onClick={() => handleAddToRoutine(p.name, p.imageUrl, p.category, "night", p.id)}
+                              className="flex-1 h-6 border-y border-border/50 bg-background flex items-center justify-center hover:bg-indigo-50 transition-colors"
+                            >
+                              <Moon size={11} className="text-indigo-500" />
+                            </button>
+                            <button
+                              title="Adicionar às duas rotinas"
+                              disabled={addingToRoutine[p.id]}
+                              onClick={() => handleAddToRoutine(p.name, p.imageUrl, p.category, "both", p.id)}
+                              className="flex-1 h-6 border border-border/50 bg-background flex items-center justify-center gap-0.5 hover:bg-primary/5 transition-colors"
+                            >
+                              <Sun size={9} className="text-amber-500" /><Moon size={9} className="text-indigo-500" />
+                            </button>
+                          </div>
+                        )}
+                        {/* Edit / delete */}
+                        <div className="flex items-center gap-1 mt-1 w-full">
+                          <button
+                            onClick={() => openEdit(p)}
+                            className="flex-1 h-6 rounded-md border border-border/50 bg-background flex items-center justify-center hover:bg-muted transition-colors"
                           >
                             <Pencil size={11} className="text-muted-foreground" />
                           </button>
-                          <button 
-                            onClick={() => remove(p.id)} 
-                            className="flex-1 h-6 rounded-md border border-destructive/40 bg-destructive/10 flex items-center justify-center text-[11px]"
+                          <button
+                            onClick={() => remove(p.id)}
+                            className="flex-1 h-6 rounded-md border border-destructive/40 bg-destructive/10 flex items-center justify-center"
                           >
                             <Trash2 size={11} className="text-destructive" />
                           </button>
@@ -631,6 +690,13 @@ export default function MeusProdutos() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 relative z-10">
                           {items.map((p, idx) => {
                             const isInUse = productsInUse.has(p.product);
+                            const typeNorm = (p.type ?? "").toLowerCase();
+                            const recPeriod = typeNorm.includes("protetor") || typeNorm.includes("solar")
+                              ? "morning"
+                              : typeNorm.includes("retinol") || typeNorm.includes("retinoide")
+                              ? "night"
+                              : "both";
+                            const recId = `rec-${p.product}`;
                             return (
                               <motion.div
                                 key={`${type}-${idx}`}
@@ -638,9 +704,7 @@ export default function MeusProdutos() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.05 }}
                                 className={`flex flex-col items-center text-center rounded-lg md:rounded-xl border shadow-sm p-2 md:p-2.5 relative ${
-                                  isInUse 
-                                    ? 'bg-green-50 border-green-200' 
-                                    : 'bg-white border-border/40'
+                                  isInUse ? "bg-green-50 border-green-200" : "bg-white border-border/40"
                                 }`}
                               >
                                 {/* In-use badge */}
@@ -649,29 +713,60 @@ export default function MeusProdutos() {
                                     <Check size={14} className="text-white" />
                                   </div>
                                 )}
-                                
-                                {/* Product image - compact */}
+                                {/* Period icon */}
+                                <div className="absolute top-1.5 left-1.5 flex gap-0.5">
+                                  {(recPeriod === "morning" || recPeriod === "both") && <Sun size={9} className="text-amber-400" />}
+                                  {(recPeriod === "night" || recPeriod === "both") && <Moon size={9} className="text-indigo-400" />}
+                                </div>
+
+                                {/* Product image */}
                                 <div className="w-full h-16 md:h-20 lg:h-24 rounded-md flex items-center justify-center mb-1.5 md:mb-2 flex-shrink-0">
                                   {p.imageUrl ? (
-                                    <img 
-                                      src={p.imageUrl} 
-                                      alt={p.product} 
-                                      className="h-full object-contain"
-                                      onError={(e) => { e.currentTarget.style.display = "none"; }} 
-                                    />
+                                    <img src={p.imageUrl} alt={p.product} className="h-full object-contain"
+                                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
                                   ) : (
                                     <Image size={20} className="text-muted-foreground md:w-6 md:h-6" />
                                   )}
                                 </div>
-                                
-                                {/* Product name - Responsive text */}
+
                                 <p className="text-[10px] md:text-xs font-semibold text-foreground line-clamp-2 leading-tight">{p.product}</p>
                                 {p.description && (
                                   <p className="text-[8px] md:text-[9px] text-muted-foreground line-clamp-1 mt-0.5">{p.description}</p>
                                 )}
-                                
-                                {/* In-use label */}
-                                {isInUse && (
+
+                                {/* Quick add to routine */}
+                                {addedToRoutine[recId] ? (
+                                  <div className="flex items-center gap-1 mt-1.5 justify-center">
+                                    <Check size={10} className="text-green-600" />
+                                    <p className="text-[9px] font-bold text-green-600">Adicionado!</p>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-0.5 mt-1.5 w-full">
+                                    {(recPeriod === "morning" || recPeriod === "both") && (
+                                      <button title="Manhã" disabled={addingToRoutine[recId]}
+                                        onClick={() => handleAddToRoutine(p.product, p.imageUrl, p.type ?? "", "morning", recId)}
+                                        className="flex-1 h-5 rounded-l-md border border-border/50 bg-white flex items-center justify-center hover:bg-amber-50">
+                                        <Sun size={10} className="text-amber-500" />
+                                      </button>
+                                    )}
+                                    {(recPeriod === "night" || recPeriod === "both") && (
+                                      <button title="Noite" disabled={addingToRoutine[recId]}
+                                        onClick={() => handleAddToRoutine(p.product, p.imageUrl, p.type ?? "", "night", recId)}
+                                        className="flex-1 h-5 border border-border/50 bg-white flex items-center justify-center hover:bg-indigo-50">
+                                        <Moon size={10} className="text-indigo-500" />
+                                      </button>
+                                    )}
+                                    {recPeriod === "both" && (
+                                      <button title="Ambas" disabled={addingToRoutine[recId]}
+                                        onClick={() => handleAddToRoutine(p.product, p.imageUrl, p.type ?? "", "both", recId)}
+                                        className="flex-1 h-5 rounded-r-md border border-border/50 bg-white flex items-center justify-center gap-0.5 hover:bg-primary/5">
+                                        <Sun size={8} className="text-amber-500" /><Moon size={8} className="text-indigo-500" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+
+                                {isInUse && !addedToRoutine[recId] && (
                                   <p className="text-[8px] font-semibold text-green-600 mt-1 px-1.5 py-0.5 bg-green-100 rounded-full">Em uso</p>
                                 )}
                               </motion.div>

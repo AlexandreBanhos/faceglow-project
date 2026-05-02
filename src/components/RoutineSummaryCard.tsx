@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Sun, Moon, ChevronRight, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { type AnalysisResponse, type AnalysisRecommendation } from "@/lib/analysis";
+import { fetchRoutineSteps, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
 
 interface RoutineSummaryCardProps {
   analysis: AnalysisResponse;
@@ -39,17 +40,72 @@ interface ProductSlot {
 const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) => {
   const navigate = useNavigate();
   const { isPremium } = useIsPremium();
+  const [apiSteps, setApiSteps] = useState<ApiRoutineStep[]>([]);
+  const [stepsLoaded, setStepsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!analysis?.id) return;
+    let cancelled = false;
+    fetchRoutineSteps(analysis.id)
+      .then((steps) => { if (!cancelled) { setApiSteps(steps); setStepsLoaded(true); } })
+      .catch(() => { if (!cancelled) setStepsLoaded(true); });
+    return () => { cancelled = true; };
+  }, [analysis?.id]);
 
   const { morningSlots, nightSlots, morningExtra, nightExtra } = useMemo(() => {
     const recommendations: AnalysisRecommendation[] = analysis.recommendations ?? [];
-    const maxDisplay = 4; // Always show max 4 in card, regardless of premium status
+    const maxDisplay = 4;
+
+    // --- Primary source: structured API steps ---
+    if (stepsLoaded && apiSteps.length > 0) {
+      // Build image lookup from API steps (overrideImageUrl > imageUrl)
+      const apiImageByName = new Map<string, string>();
+      const apiNameByPeriod = new Map<string, string>();
+      apiSteps.forEach((s) => {
+        const img = s.overrideImageUrl ?? s.imageUrl;
+        if (img) apiImageByName.set(s.productName.toLowerCase().trim(), img);
+        apiNameByPeriod.set(`${s.period}::${s.productName.toLowerCase().trim()}`, s.overrideProductName ?? s.productName);
+      });
+
+      // Read display storage overrides
+      let displayNames: Record<string, string> = {};
+      try {
+        const raw = localStorage.getItem(getDisplayStorageKey(analysis.id));
+        if (raw) displayNames = JSON.parse(raw) as Record<string, string>;
+      } catch { displayNames = {}; }
+
+      const buildSlotsFromApi = (period: "morning" | "night") => {
+        const periodSteps = apiSteps
+          .filter((s) => s.period === period)
+          .sort((a, b) => a.stepOrder - b.stepOrder);
+        const slots: ProductSlot[] = periodSteps.slice(0, maxDisplay).map((s) => {
+          const itemKey = `${period}::${s.productName.toLowerCase()}`;
+          const displayName = displayNames[itemKey];
+          return {
+            name: displayName ?? s.overrideProductName ?? s.productName,
+            imageUrl: s.overrideImageUrl ?? s.imageUrl,
+          };
+        });
+        return { slots, extraCount: Math.max(0, periodSteps.length - maxDisplay) };
+      };
+
+      const morningResult = buildSlotsFromApi("morning");
+      const nightResult = buildSlotsFromApi("night");
+      return {
+        morningSlots: morningResult.slots,
+        nightSlots: nightResult.slots,
+        morningExtra: morningResult.extraCount,
+        nightExtra: nightResult.extraCount,
+      };
+    }
+
+    // --- Fallback: string-parsing (while loading or no steps) ---
     const recByType = new Map<string, AnalysisRecommendation>();
     recommendations.forEach((rec) => {
       const key = normalizeType(rec.type ?? "");
       if (!recByType.has(key)) recByType.set(key, rec);
     });
 
-    // Build product name → image map
     const recByName = new Map<string, string>();
     recommendations.forEach((rec) => {
       if (rec.product && rec.imageUrl) {
@@ -57,7 +113,6 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
       }
     });
 
-    // Read display storage (selected product display names per item key)
     let displayNames: Record<string, string> = {};
     try {
       const raw = localStorage.getItem(getDisplayStorageKey(analysis.id));
@@ -71,24 +126,16 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
         const type = getStepType(step);
         const title = getStepTitle(step);
         const itemKey = `${period}::${title.toLowerCase()}`;
-
-        // Try display name override first
         const displayName = displayNames[itemKey];
-
-        // Get image from recommendation matching by type
         const rec = recByType.get(normalizeType(type));
-
-        // If display name matches a recommendation product, use its image
         const overrideImageUrl = displayName
           ? recByName.get(displayName.toLowerCase().trim())
           : undefined;
-
         return {
           name: displayName ?? rec?.product ?? title,
           imageUrl: overrideImageUrl ?? rec?.imageUrl,
         };
       });
-      
       const extraCount = Math.max(0, steps.length - maxDisplay);
       return { slots, extraCount };
     };
@@ -96,30 +143,22 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
     const morningSteps = analysis.routine?.morning ?? [];
     const nightSteps = analysis.routine?.night ?? [];
 
-    console.log("[RoutineCard] MORNING RAW:", morningSteps);
-    console.log("[RoutineCard] NIGHT RAW:", nightSteps);
-    console.log("[RoutineCard] Recommendations:", recommendations.map(r => ({ type: r.type, product: r.product })));
-
     const morningResult = buildSlots(morningSteps, "morning");
     const nightResult = buildSlots(nightSteps, "night");
-
-    console.log("[RoutineCard] ✅ FINAL RESULT:", { 
-      morningSlots: morningResult.slots.map(s => s.name),
-      nightSlots: nightResult.slots.map(s => s.name),
-      morningExtra: morningResult.extraCount,
-      nightExtra: nightResult.extraCount,
-    });
-
     return {
       morningSlots: morningResult.slots,
       nightSlots: nightResult.slots,
       morningExtra: morningResult.extraCount,
       nightExtra: nightResult.extraCount,
     };
-  }, [analysis, isPremium]);
+  }, [analysis, isPremium, apiSteps, stepsLoaded]);
 
-  const morningCount = analysis.routine?.morning?.length ?? 0;
-  const nightCount = analysis.routine?.night?.length ?? 0;
+  const morningCount = stepsLoaded && apiSteps.length > 0
+    ? apiSteps.filter((s) => s.period === "morning").length
+    : (analysis.routine?.morning?.length ?? 0);
+  const nightCount = stepsLoaded && apiSteps.length > 0
+    ? apiSteps.filter((s) => s.period === "night").length
+    : (analysis.routine?.night?.length ?? 0);
 
   if (morningCount === 0 && nightCount === 0) return null;
 
