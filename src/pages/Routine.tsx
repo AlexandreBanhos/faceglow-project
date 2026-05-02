@@ -14,9 +14,9 @@ import { useRoutineSteps, useRoutineComplete } from "@/features/routine";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
 import type { AdminProduct } from "@/lib/admin-products";
 import { uploadProductImage } from "@/lib/storage";
-import { getAccessToken, getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { getUserCatalog } from "@/lib/userCatalog";
-import { apiRoutes, apiBaseUrl } from "@/lib/api";
+import { apiBaseUrl } from "@/lib/api";
 import { AuroraBackdrop } from "@/components/shared";
 
 const weekDays = [
@@ -401,6 +401,41 @@ const Routine = () => {
 
     loadAnalysisFromAPI();
   }, [loadedAnalysis, isLoadingAnalysis]);
+
+  // Carrega progresso de hoje do DB e hidrata checkedByDayItem
+  useEffect(() => {
+    if (stepsLoading || apiSteps.length === 0) return;
+    const loadTodayProgress = async () => {
+      try {
+        const { getAccessTokenWithWait } = await import("@/lib/auth");
+        const token = await getAccessTokenWithWait(3000);
+        if (!token) return;
+        const res = await fetch(`${apiBaseUrl}/routine/progress/today?localDate=${todayStr}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const { completedStepIds } = await res.json() as { completedStepIds: string[] };
+        if (!completedStepIds?.length) return;
+        // Mapeia step IDs para itemKeys
+        const stepById = new Map(apiSteps.map((s) => [s.id, s]));
+        const updates: Record<string, boolean> = {};
+        completedStepIds.forEach((id) => {
+          const step = stepById.get(id);
+          if (step) {
+            const itemKey = `${step.period}::${step.productName.toLowerCase()}`;
+            updates[`${todayStr}::${itemKey}`] = true;
+          }
+        });
+        if (Object.keys(updates).length > 0) {
+          setProductSchedule((prev) => ({
+            ...prev,
+            checkedByDayItem: { ...prev.checkedByDayItem, ...updates },
+          }));
+        }
+      } catch { /* ignora — usa estado local */ }
+    };
+    loadTodayProgress();
+  }, [stepsLoading, apiSteps, todayStr]);
 
   // Sync tiers da API para selectedOptionByItem quando steps carregam (hook gerencia o fetch)
   useEffect(() => {
@@ -1004,16 +1039,39 @@ const Routine = () => {
 
   const isFutureDay = selectedDay > todayStr;
 
+  // Registra conclusão de step no DB (fire-and-forget, não bloqueia UI)
+  const persistStepCompletion = async (itemKey: string) => {
+    const step = apiSteps.find(
+      (s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase()
+    );
+    if (!step) return;
+    try {
+      const { getAccessTokenWithWait } = await import("@/lib/auth");
+      const token = await getAccessTokenWithWait(3000);
+      if (!token) return;
+      fetch(`${apiBaseUrl}/routine/steps/${step.id}/complete`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ localDate: todayStr }),
+      });
+    } catch { /* ignora — localStorage já persistiu */ }
+  };
+
   const toggleChecklist = (itemKey: string) => {
     if (isFutureDay) return;
     const key = `${selectedDay}::${itemKey}`;
+    const wasChecked = !!productSchedule.checkedByDayItem[key];
     persistSchedule({
       ...productSchedule,
       checkedByDayItem: {
         ...productSchedule.checkedByDayItem,
-        [key]: !productSchedule.checkedByDayItem[key],
+        [key]: !wasChecked,
       },
     });
+    // Persiste no DB apenas ao marcar (não ao desmarcar)
+    if (!wasChecked && selectedDay === todayStr) {
+      persistStepCompletion(itemKey);
+    }
   };
 
   const toggleProductDay = (itemKey: string, day: WeekDayKey) => {

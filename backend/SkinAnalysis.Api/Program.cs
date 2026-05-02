@@ -343,55 +343,65 @@ app.MapGet("/analysis/stats", async (ClaimsPrincipal user, AppDbContext dbContex
     var totalAnalyses = row?.Total ?? 0;
     var bestScore = row?.Best ?? 0;
 
-    // Calculate streak from routine_completions (independent of analyses)
+    // Streak: calculado a partir de routine_step_completions (step-level) com fallback
+    // para routine_completions (binary). UTC-3 para data local Brasil.
     var streakDays = 0;
-    
     try
     {
         await dbContext.Database.OpenConnectionAsync(cancellationToken);
         var connection = dbContext.Database.GetDbConnection();
 
-        // First, get all complete days for this user (ordered DESC)
-        const string getCompleteDaysSql = """
-            SELECT CAST(completion_date AS DATE)
-            FROM routine_completions
+        // Prefere step-level completions quando disponíveis
+        const string stepLevelSql = """
+            SELECT DISTINCT completed_date
+            FROM routine_step_completions
             WHERE user_id = @userId
-              AND (morning_completed = true OR night_completed = true)
-            ORDER BY completion_date DESC
+            ORDER BY completed_date DESC
             LIMIT 365
             """;
 
-        var completeDays = await connection.QueryAsync<DateTime>(
-            new CommandDefinition(getCompleteDaysSql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken));
+        var stepDays = (await connection.QueryAsync<DateOnly>(
+            new CommandDefinition(stepLevelSql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken))).ToList();
 
-        var completeDaysList = completeDays.ToList();
-        if (completeDaysList.Any())
+        IEnumerable<DateOnly> allCompletedDays;
+
+        if (stepDays.Count > 0)
         {
-            // Calculate streak from today going backwards
-            var today = DateTime.UtcNow.Date;
+            allCompletedDays = stepDays;
+        }
+        else
+        {
+            // Fallback: routine_completions (binary morning/night)
+            const string fallbackSql = """
+                SELECT CAST(completion_date AS DATE)
+                FROM routine_completions
+                WHERE user_id = @userId
+                  AND (morning_completed = true OR night_completed = true)
+                ORDER BY completion_date DESC
+                LIMIT 365
+                """;
+            var legacyDays = await connection.QueryAsync<DateTime>(
+                new CommandDefinition(fallbackSql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken));
+            allCompletedDays = legacyDays.Select(d => DateOnly.FromDateTime(d));
+        }
+
+        var daysList = allCompletedDays.Distinct().OrderByDescending(d => d).ToList();
+        if (daysList.Count > 0)
+        {
+            // Usa data local Brasil (UTC-3) para comparação
+            var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
             var streak = 0;
-            var expectedDate = today;
-
-            foreach (var completeDay in completeDaysList)
+            var expected = today;
+            foreach (var day in daysList)
             {
-                if (completeDay.Date == expectedDate)
-                {
-                    streak++;
-                    expectedDate = expectedDate.AddDays(-1);
-                }
-                else
-                {
-                    break; // Streak broken
-                }
+                if (day == expected) { streak++; expected = expected.AddDays(-1); }
+                else if (day < expected) break;
             }
-
             streakDays = streak;
         }
     }
-    catch (Exception ex)
+    catch
     {
-        // Log the error for debugging
-        System.Diagnostics.Debug.WriteLine($"[STREAK DEBUG] Query failed: {ex.Message}");
         streakDays = 0;
     }
 
