@@ -620,11 +620,26 @@ const Dashboard = () => {
               </motion.div>
             ))}
             {!isLoading && routineSummary.items.length === 0 && (
-              <div className="lg-surface p-4 rounded-2xl">
-                <p className="text-sm text-[var(--fg-ink-3)]">
-                  Sem passos disponíveis para este período. Faça uma nova análise para atualizar sua rotina.
-                </p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="lg-surface p-6 rounded-2xl flex flex-col items-center text-center gap-3"
+              >
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FEF3C7, #FED7AA)" }}>
+                  <span className="text-2xl">✨</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-[var(--fg-ink)] mb-1">Sua rotina vai aparecer aqui</p>
+                  <p className="text-xs text-[var(--fg-ink-3)] leading-relaxed">Faça uma análise facial para receber uma rotina personalizada para o seu tipo de pele.</p>
+                </div>
+                <button
+                  onClick={() => navigate("/analyze")}
+                  className="mt-1 px-4 py-2 rounded-xl text-xs font-bold text-white"
+                  style={{ background: "var(--grad-coral)" }}
+                >
+                  Fazer análise agora
+                </button>
+              </motion.div>
             )}
           </div>
         </motion.div>

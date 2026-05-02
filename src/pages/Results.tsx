@@ -386,6 +386,46 @@ const Results = () => {
         <p className="text-xs text-muted-foreground mt-3 font-medium">
           {confidence}% de confiança na análise
         </p>
+
+        {/* Mini metric donuts — top 3 scores */}
+        {metricCards.length > 0 && (
+          <div className="mt-5 flex items-center justify-center gap-4 w-full">
+            {metricCards.map((m, i) => {
+              const R = 18; const circ = 2 * Math.PI * R;
+              const hue = m.value > 70 ? "#EF4444" : m.value > 40 ? "#F59E0B" : "#22C55E";
+              return (
+                <motion.div
+                  key={m.label}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 + i * 0.1, type: "spring", stiffness: 260, damping: 20 }}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <svg width="44" height="44" viewBox="0 0 44 44">
+                    <circle cx="22" cy="22" r={R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="4"/>
+                    <motion.circle
+                      cx="22" cy="22" r={R}
+                      fill="none" stroke={hue} strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={circ}
+                      initial={{ strokeDashoffset: circ }}
+                      animate={{ strokeDashoffset: circ * (1 - m.value / 100) }}
+                      transition={{ duration: 1, ease: "easeOut", delay: 0.5 + i * 0.12 }}
+                      transform="rotate(-90 22 22)"
+                    />
+                    <text x="22" y="22" textAnchor="middle" dominantBaseline="middle"
+                      fontSize="9" fontWeight="800" fill={hue}>
+                      {m.value}
+                    </text>
+                  </svg>
+                  <p className="text-[10px] font-semibold text-muted-foreground text-center leading-tight">
+                    {m.label}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </motion.div>
 
       {/* Low confidence warning */}
@@ -551,6 +591,14 @@ const Results = () => {
                       ))}
                     </CarouselContent>
                   </Carousel>
+                  {/* Dots indicator */}
+                  {primaryRecommendations.length > 3 && (
+                    <div className="flex justify-center gap-1.5 mt-2.5">
+                      {Array.from({ length: Math.ceil(primaryRecommendations.length / 3) }).map((_, i) => (
+                        <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === 0 ? "w-4 bg-primary" : "w-1.5 bg-primary/25"}`} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

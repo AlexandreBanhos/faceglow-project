@@ -16,6 +16,7 @@ import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-product
 import type { AdminProduct } from "@/lib/admin-products";
 import { uploadProductImage } from "@/lib/storage";
 import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
+import { toast } from "@/components/ui/sonner";
 import { getUserCatalog } from "@/lib/userCatalog";
 import { createMyProduct } from "@/lib/userProducts";
 import { apiBaseUrl } from "@/lib/api";
@@ -777,6 +778,7 @@ const Routine = () => {
 
   const addCustomStep = async () => {
     if (!newStepProduct.trim() || !analysis?.id) return;
+    const toastId = toast.loading("Adicionando passo…");
     const resolvedLabel = newStepLabel.trim() || "Passo";
     const productName = newStepProduct.trim();
     const imageUrl = newStepImage.trim() || undefined;
@@ -808,6 +810,7 @@ const Routine = () => {
     setNewStepNote("");
     setCatalogProductsByCategory([]);
     setAddStepOpen(false);
+    toast.success("Passo adicionado!", { id: toastId, duration: 2500 });
   };
 
   const handleNewStepFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -876,6 +879,7 @@ const Routine = () => {
 
   const confirmDeleteStep = async () => {
     if (!stepPendingDelete || !analysis?.id) return;
+    const name = stepPendingDelete.name;
 
     setIsDeletingStep(true);
     try {
@@ -888,9 +892,11 @@ const Routine = () => {
         removeCustomStep(stepPendingDelete.id);
       }
       invalidateAnalysisCache();
+      toast.success(`"${name}" removido da rotina`, { duration: 2500 });
     } catch (error) {
       console.error("[Routine] Erro ao deletar passo:", error);
       removeCustomStep(stepPendingDelete.id);
+      toast.error("Erro ao remover passo. Tente novamente.");
     } finally {
       setStepPendingDelete(null);
       setIsDeletingStep(false);
@@ -2574,6 +2580,36 @@ const Routine = () => {
                   </div>
                 );
               })}
+
+              {/* Empty state quando rotina não tem passos */}
+              {!stepsLoading && (isEditing ? editAllItems : activeChecklistItems).length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="lg-surface rounded-3xl p-8 flex flex-col items-center text-center gap-4"
+                >
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#FEF3C7,#FED7AA)" }}>
+                    <span className="text-3xl">🌿</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground mb-1">
+                      {selectedPeriod === "morning" ? "Rotina da manhã vazia" : "Rotina da noite vazia"}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Ative o modo de edição para adicionar passos personalizados à sua rotina.
+                    </p>
+                  </div>
+                  {!isEditing && (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                      style={{ background: "var(--grad-coral)" }}
+                    >
+                      + Adicionar passo
+                    </button>
+                  )}
+                </motion.div>
+              )}
 
               {/* Add Step button (edit mode) */}
               {isEditing && (
