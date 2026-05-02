@@ -1965,6 +1965,9 @@ app.MapRecommendationEndpoints();
 // Map routine step endpoints (structured CRUD + lazy population + reorder + migrate)
 app.MapRoutineStepEndpoints();
 
+// Map routine completion endpoints (step-level tracking + daily progress)
+app.MapRoutineCompletionEndpoints();
+
 // ── User Products (Meus Produtos) ────────────────────────────────────────────
 
 app.MapGet("/products/my", async (ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>

@@ -36,6 +36,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     public DbSet<AnalysisRoutineStep> AnalysisRoutineSteps => Set<AnalysisRoutineStep>();
 
+    public DbSet<RoutineStepCompletion> RoutineStepCompletions => Set<RoutineStepCompletion>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -443,6 +445,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasIndex(x => x.AnalysisId);
             entity.HasIndex(x => x.UserId);
             entity.HasIndex(x => new { x.AnalysisId, x.Period, x.StepOrder });
+        });
+
+        modelBuilder.Entity<RoutineStepCompletion>(entity =>
+        {
+            entity.ToTable("routine_step_completions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasColumnName("id");
+            entity.Property(x => x.UserId).HasColumnName("user_id");
+            entity.Property(x => x.StepId).HasColumnName("step_id");
+            entity.Property(x => x.CompletedDate).HasColumnName("completed_date");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Step).WithMany().HasForeignKey(x => x.StepId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.StepId, x.CompletedDate }).IsUnique();
+            entity.HasIndex(x => new { x.UserId, x.CompletedDate });
         });
     }
 }
