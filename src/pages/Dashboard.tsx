@@ -225,7 +225,17 @@ const Dashboard = () => {
     : null;
   const skinTypeLabel = latestAnalysis?.skinType
     ? `${latestAnalysis.skinType.charAt(0).toUpperCase()}${latestAnalysis.skinType.slice(1).toLowerCase()}`
-    : "Sem analise";
+    : "";
+
+  const skinTypeMeta = (() => {
+    const t = (latestAnalysis?.skinType ?? "").toLowerCase();
+    if (t.includes("oleo") || t === "oily")        return { bg: "#FEF3C7", color: "#D97706", label: "Oleosa",     dot: "#F59E0B" };
+    if (t.includes("sec") || t === "dry")           return { bg: "#EFF6FF", color: "#2563EB", label: "Seca",       dot: "#3B82F6" };
+    if (t.includes("mist") || t === "combination")  return { bg: "#F5F3FF", color: "#7C3AED", label: "Mista",      dot: "#8B5CF6" };
+    if (t.includes("sens"))                         return { bg: "#FFF1F2", color: "#E11D48", label: "Sensível",   dot: "#F43F5E" };
+    if (t.includes("norm") || t === "normal")       return { bg: "#F0FDF4", color: "#16A34A", label: "Normal",     dot: "#22C55E" };
+    return null;
+  })();
 
   const currentPeriod: "morning" | "night" = new Date().getHours() < 18 ? "morning" : "night";
   const periodLabel = currentPeriod === "morning" ? "Manha" : "Noite";
@@ -353,33 +363,74 @@ const Dashboard = () => {
         className="mx-6 mt-6 lg-surface-strong p-6 rounded-3xl"
       >
         {isLoading ? (
-          <div className="flex items-center justify-between">
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-3 w-36 mt-3" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-10 w-28" />
+              <Skeleton className="h-4 w-36" />
             </div>
-            <Skeleton className="w-[110px] h-[110px] rounded-full" />
+            <Skeleton className="w-[110px] h-[110px] rounded-full flex-shrink-0" />
           </div>
         ) : (
           <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <p className="fg-mono text-xs text-[var(--fg-ink-3)] font-semibold mb-1">SCORE · HOJE</p>
-              <div className="text-3xl font-bold text-[var(--fg-ink)] mb-2">
-                {latestAnalysis?.overallScore ?? 0}
+            <div className="flex-1 min-w-0">
+              {/* Label row + skin type badge */}
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <p className="fg-mono text-[11px] text-[var(--fg-ink-3)] font-semibold tracking-wide uppercase">Score geral</p>
+                {skinTypeMeta && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.25, type: "spring", stiffness: 300, damping: 20 }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                    style={{ background: skinTypeMeta.bg, color: skinTypeMeta.color }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: skinTypeMeta.dot }}
+                    />
+                    Pele {skinTypeMeta.label}
+                  </motion.span>
+                )}
               </div>
+
+              {/* Score number */}
+              <div className="flex items-baseline gap-1.5 mb-3">
+                <motion.span
+                  className="font-heading text-5xl font-bold leading-none text-[var(--fg-ink)]"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  {latestAnalysis?.overallScore ?? 0}
+                </motion.span>
+                <span className="text-base text-[var(--fg-ink-3)] font-medium">/100</span>
+              </div>
+
+              {/* Change indicator */}
               {scoreChange !== null ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-r from-coral to-pink flex items-center justify-center">
-                    <TrendingUp size={12} className="text-white" />
+                <motion.div
+                  className="flex items-center gap-1.5"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-coral to-pink flex items-center justify-center flex-shrink-0">
+                    <TrendingUp size={10} className="text-white" />
                   </div>
-                  <span className="text-xs font-bold text-green-600">
-                    {scoreChange > 0 ? "+" : ""}{scoreChange} ↑
+                  <span className="text-xs font-semibold" style={{ color: scoreChange >= 0 ? "#16A34A" : "#DC2626" }}>
+                    {scoreChange > 0 ? "+" : ""}{scoreChange} desde última análise
                   </span>
-                </div>
-              ) : null}
+                </motion.div>
+              ) : (
+                <p className="text-xs text-[var(--fg-ink-4)]">Primeira análise registrada</p>
+              )}
             </div>
-            <FGScoreOrb score={latestAnalysis?.overallScore ?? 0} size={120} variant="compact" />
+
+            <FGScoreOrb score={latestAnalysis?.overallScore ?? 0} size={110} variant="compact" />
           </div>
         )}
       </motion.div>

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -74,6 +74,13 @@
 
     --shadow-soft: 0 12px 40px -16px rgba(80, 40, 60, 0.18);
     --shadow-glow: 0 24px 80px -24px hsla(332, 70%, 65%, 0.45);
+
+    /* Semantic skin-app tokens */
+    --fg-sage:    #86EFAC;   /* step concluído / completion */
+    --fg-amber:   #FCD34D;   /* streak / motivação */
+    --fg-rose:    #FDA4AF;   /* skincare pink / feminino */
+    --fg-night:   #818CF8;   /* período noite */
+    --fg-morning: #FED7AA;   /* período manhã */
 
     --radius-sm: 0.75rem;
     --radius: 1.25rem;
@@ -199,7 +206,30 @@
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.8);
     border-radius: 1rem;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 14px -6px rgba(80, 40, 60, 0.1);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 4px 14px -6px rgba(80, 40, 60, 0.1),
+      0 1px 3px rgba(80, 40, 60, 0.05);
+  }
+
+  /* Step cards com shadow bilateral suave (Soft UI Evolution) */
+  .lg-surface-step {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 1.75rem;
+    box-shadow:
+      6px 6px 18px rgba(180, 120, 150, 0.1),
+      -4px -4px 12px rgba(255, 255, 255, 0.7),
+      inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    transition: box-shadow 0.2s ease, opacity 0.3s ease;
+  }
+  .lg-surface-step:has(button:active) {
+    box-shadow:
+      2px 2px 8px rgba(180, 120, 150, 0.08),
+      -1px -1px 4px rgba(255, 255, 255, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .lg-surface-strong {

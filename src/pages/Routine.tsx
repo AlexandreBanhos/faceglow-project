@@ -1953,7 +1953,7 @@ const Routine = () => {
 
                 const cardBg = pastelColors[(item.stepNumber - 1) % pastelColors.length];
                 return (
-                  <div key={item.key} className={`lg-surface rounded-[1.75rem] overflow-hidden transition-opacity duration-300 ${isChecked && !isEditing ? "opacity-55" : "opacity-100"}`}>
+                  <div key={item.key} className={`lg-surface-step overflow-hidden ${isChecked && !isEditing ? "opacity-55" : "opacity-100"}`}>
                     <div className="flex flex-col w-full">
                       {/* Edit mode controls */}
                       {isEditing && (

@@ -278,7 +278,7 @@ const Profile = () => {
           animate={{ opacity: 1, y: 0 }}
           className="lg-surface pt-14 pb-5 flex flex-col items-center text-center rounded-2xl"
         >
-          <p className="text-lg font-extrabold text-foreground">{displayName}</p>
+          <p className="font-heading text-xl font-bold text-foreground">{displayName}</p>
           <button
             onClick={() => setIsSkinProfileModalOpen(true)}
             className="mt-2 flex items-center gap-1 text-xs font-bold text-primary"

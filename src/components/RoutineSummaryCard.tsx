@@ -182,7 +182,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
         >
           {/* Title row */}
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-            <h3 className="text-xs sm:text-sm font-extrabold text-foreground truncate">
+            <h3 className="font-heading text-sm sm:text-base font-semibold text-foreground truncate">
               Sua Rotina
             </h3>
             <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
