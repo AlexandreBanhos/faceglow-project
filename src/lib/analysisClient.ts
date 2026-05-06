@@ -510,22 +510,38 @@ export const loadRoutineCustomizations = async (
 // STRUCTURED ROUTINE STEPS — nova API com imagens via produto ID
 // ============================================================
 
+export type SlotTier = "primary" | "alt_budget" | "alt_rated" | "user_custom";
+
+export type RoutineSlot = {
+  id: string;
+  tier: SlotTier;
+  isSelected: boolean;
+  productId: string | null;
+  productName: string | null;
+  imageUrl: string | null;
+  recommendationReason: string | null;
+  score: number | null;
+};
+
 export type RoutineStep = {
   id: string;
   analysisId: string;
   period: "morning" | "night";
   stepOrder: number;
-  category: string;
+  category: string;      // step_type_key (cleanser, serum, etc.)
+  stepTypeKey: string;   // same as category (v2 alias)
   productId: string | null;
   productName: string;
   imageUrl: string | null;
   recurrence: string;
   isExtra: boolean;
   isUserAdded: boolean;
-  selectedTier: "best" | "second" | "budget" | null;
+  selectedTier: SlotTier | null;
   overrideProductName: string | null;
   overrideImageUrl: string | null;
-  scheduleDays: string; // JSON array ex: "[\"mon\",\"tue\",\"wed\",\"thu\",\"fri\",\"sat\",\"sun\"]"
+  scheduleDays: string;
+  routineId?: string;
+  slots?: RoutineSlot[];
 };
 
 export const fetchRoutineSteps = async (analysisId: string): Promise<RoutineStep[]> => {
@@ -631,6 +647,31 @@ export const updateRoutineStep = async (
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(patch),
+      },
+      10_000,
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
+/** Select a specific product slot (primary / alt_budget / alt_rated / user_custom) */
+export const selectRoutineSlot = async (
+  analysisId: string,
+  stepId: string,
+  tier: SlotTier,
+  slotId?: string,
+): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps/${encodeURIComponent(stepId)}/select-slot`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ tier, slotId }),
       },
       10_000,
     );

@@ -139,20 +139,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<Database>();
 builder.Services.AddScoped<IImageAnalysisService, GeminiAnalysisService>();
 builder.Services.AddScoped<IBillingService, BillingService>();
-builder.Services.AddScoped<ISkinAnalysisService, SkinAnalysisService>();
-builder.Services.AddScoped<IRoutineService, RoutineService>();
-builder.Services.AddScoped<IAnalysisService>(sp =>
-{
-    var analysisServiceType = Type.GetType("SkinAnalysis.Api.Services.AnalysisService, SkinAnalysis.Api")
-        ?? throw new InvalidOperationException("AnalysisService type not found.");
-
-    return (IAnalysisService)ActivatorUtilities.CreateInstance(sp, analysisServiceType);
-});
-
-builder.Services.AddScoped<ProductRecommendationEngine>();
-builder.Services.AddScoped<RecommendationCacheService>();
-builder.Services.AddScoped<RecommendationTelemetryService>();
-builder.Services.AddScoped<RoutineBuilder>();
+builder.Services.AddScoped<RoutineGeneratorService>();
+builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<AdminService>();
 
 var app = builder.Build();
@@ -324,75 +312,36 @@ app.MapGet("/test-db", async (ClaimsPrincipal user, Database db) =>
 app.MapGet("/analysis/stats", async (ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
 {
     var parsedUserId = GetAuthenticatedUserId(user);
-    if (!parsedUserId.HasValue)
-    {
-        return Results.Unauthorized();
-    }
+    if (!parsedUserId.HasValue) return Results.Unauthorized();
 
-    var row = await dbContext.Analyses
+    var row = await dbContext.SkinAnalyses
         .AsNoTracking()
         .Where(a => a.UserId == parsedUserId.Value)
         .GroupBy(_ => 1)
-        .Select(g => new
-        {
-            Total = g.Count(),
-            Best = g.Max(a => a.OverallScore),
-        })
+        .Select(g => new { Total = g.Count() })
         .FirstOrDefaultAsync(cancellationToken);
 
     var totalAnalyses = row?.Total ?? 0;
-    var bestScore = row?.Best ?? 0;
 
-    // Streak: calculado a partir de routine_step_completions (step-level) com fallback
-    // para routine_completions (binary). UTC-3 para data local Brasil.
     var streakDays = 0;
     try
     {
         await dbContext.Database.OpenConnectionAsync(cancellationToken);
         var connection = dbContext.Database.GetDbConnection();
-
-        // Prefere step-level completions quando disponíveis
-        const string stepLevelSql = """
+        const string sql = """
             SELECT DISTINCT completed_date
-            FROM routine_step_completions
+            FROM step_completions
             WHERE user_id = @userId
             ORDER BY completed_date DESC
             LIMIT 365
             """;
-
-        var stepDays = (await connection.QueryAsync<DateOnly>(
-            new CommandDefinition(stepLevelSql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken))).ToList();
-
-        IEnumerable<DateOnly> allCompletedDays;
-
-        if (stepDays.Count > 0)
+        var days = (await connection.QueryAsync<DateOnly>(
+            new CommandDefinition(sql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken))).ToList();
+        if (days.Count > 0)
         {
-            allCompletedDays = stepDays;
-        }
-        else
-        {
-            // Fallback: routine_completions (binary morning/night)
-            const string fallbackSql = """
-                SELECT CAST(completion_date AS DATE)
-                FROM routine_completions
-                WHERE user_id = @userId
-                  AND (morning_completed = true OR night_completed = true)
-                ORDER BY completion_date DESC
-                LIMIT 365
-                """;
-            var legacyDays = await connection.QueryAsync<DateTime>(
-                new CommandDefinition(fallbackSql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken));
-            allCompletedDays = legacyDays.Select(d => DateOnly.FromDateTime(d));
-        }
-
-        var daysList = allCompletedDays.Distinct().OrderByDescending(d => d).ToList();
-        if (daysList.Count > 0)
-        {
-            // Usa data local Brasil (UTC-3) para comparação
             var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
-            var streak = 0;
-            var expected = today;
-            foreach (var day in daysList)
+            var streak = 0; var expected = today;
+            foreach (var day in days)
             {
                 if (day == expected) { streak++; expected = expected.AddDays(-1); }
                 else if (day < expected) break;
@@ -400,15 +349,12 @@ app.MapGet("/analysis/stats", async (ClaimsPrincipal user, AppDbContext dbContex
             streakDays = streak;
         }
     }
-    catch
-    {
-        streakDays = 0;
-    }
+    catch { streakDays = 0; }
 
     return Results.Ok(new AnalysisStatsResponseDto
     {
         TotalAnalyses = totalAnalyses,
-        BestScore = bestScore,
+        BestScore = 0,
         StreakDays = streakDays,
     });
 })
@@ -489,18 +435,17 @@ app.MapGet("/analysis/profile-summary", async (ClaimsPrincipal user, AppDbContex
     if (cache.TryGetValue(cacheKey, out var cached))
         return Results.Ok(cached);
 
-    // EF Core DbContext não suporta queries paralelas — executar sequencialmente
     var creditsRemaining = await dbContext.UserCredits
         .AsNoTracking()
         .Where(c => c.UserId == parsedUserId.Value)
         .Select(c => (int?)c.CreditsRemaining)
         .FirstOrDefaultAsync(cancellationToken) ?? 0;
 
-    var stats = await dbContext.Analyses
+    var stats = await dbContext.SkinAnalyses
         .AsNoTracking()
         .Where(a => a.UserId == parsedUserId.Value)
         .GroupBy(_ => 1)
-        .Select(g => new { Total = g.Count(), Best = g.Max(a => (int?)a.OverallScore) ?? 0 })
+        .Select(g => new { Total = g.Count(), Best = 0 })
         .FirstOrDefaultAsync(cancellationToken);
 
     var result = new
@@ -523,49 +468,21 @@ app.MapGet("/analysis/profile-summary", async (ClaimsPrincipal user, AppDbContex
 app.MapGet("/analysis/dashboard", async (ClaimsPrincipal user, AppDbContext dbContext, IMemoryCache cache, CancellationToken cancellationToken) =>
 {
     var parsedUserId = GetAuthenticatedUserId(user);
-    if (!parsedUserId.HasValue)
-    {
-        return Results.Unauthorized();
-    }
+    if (!parsedUserId.HasValue) return Results.Unauthorized();
 
-    // Check cache first (1 minute TTL)
     var cacheKey = $"dashboard_{parsedUserId.Value}";
-    if (cache.TryGetValue(cacheKey, out var cachedDashboard))
-    {
-        return Results.Ok(cachedDashboard);
-    }
+    if (cache.TryGetValue(cacheKey, out var cachedDashboard)) return Results.Ok(cachedDashboard);
 
-    // Optimized: No relationship navigation - grab only needed columns
-    var latestTwo = await dbContext.Analyses
+    var latestTwo = await dbContext.SkinAnalyses
         .AsNoTracking()
         .Where(a => a.UserId == parsedUserId.Value)
-        .OrderByDescending(a => a.CreatedAtUtc)
+        .OrderByDescending(a => a.CreatedAt)
         .Take(2)
-        .Select(a => new
-        {
-            a.Id,
-            a.UserId,
-            a.ImageUrl,
-            a.SkinType,
-            a.Summary,
-            a.RoutineJson,
-            a.AcneScore,
-            a.OilinessScore,
-            a.DarkSpotsScore,
-            a.HydrationScore,
-            a.SensitivityScore,
-            a.OverallScore,
-            a.CreatedAtUtc,
-        })
         .ToListAsync(cancellationToken);
 
     if (latestTwo.Count == 0)
     {
-        var emptyResult = new
-        {
-            latest = (object?)null,
-            previous = (object?)null,
-        };
+        var emptyResult = new { latest = (object?)null, previous = (object?)null };
         cache.Set(cacheKey, emptyResult, TimeSpan.FromMinutes(1));
         return Results.Ok(emptyResult);
     }
@@ -573,23 +490,22 @@ app.MapGet("/analysis/dashboard", async (ClaimsPrincipal user, AppDbContext dbCo
     var latest = latestTwo[0];
     var previous = latestTwo.Count > 1 ? latestTwo[1] : null;
 
-    // Load recommendations for latest analysis (needed for routine + images in UI)
-    var latestRecommendations = await dbContext.Recommendations
-        .AsNoTracking()
-        .Where(r => r.AnalysisId == latest.Id)
-        .ToListAsync(cancellationToken);
-
     var result = new
     {
         latest = new AnalysisResponseDto
         {
             Id = latest.Id,
             UserId = latest.UserId,
-            ImageUrl = latest.ImageUrl,
+            ImageUrl = latest.ImageUrl ?? string.Empty,
             SkinType = latest.SkinType,
             Summary = latest.Summary,
-            Conditions = new AnalysisConditionsDto(),
-            AdditionalRecommendations = string.Empty,
+            Conditions = new AnalysisConditionsDto
+            {
+                Acne = latest.HasActiveAcne,
+                Olheiras = latest.HasDarkCircles,
+                Poros = latest.HasEnlargedPores,
+            },
+            AdditionalRecommendations = latest.AdditionalNotes,
             Scores = new AnalysisScoresDto
             {
                 Acne = latest.AcneScore,
@@ -599,30 +515,15 @@ app.MapGet("/analysis/dashboard", async (ClaimsPrincipal user, AppDbContext dbCo
                 Sensitivity = latest.SensitivityScore,
             },
             OverallScore = latest.OverallScore,
-            CreatedAtUtc = latest.CreatedAtUtc,
-            Routine = ParseRoutineJson(latest.RoutineJson, latestRecommendations),
-            Recommendations = latestRecommendations.Select(r => new RecommendationDto
-            {
-                Type = r.Type,
-                Product = r.Product,
-                Reason = r.Description,
-                ImageUrl = r.ImageUrl,
-            }).ToList(),
-            HasRecommendations = latestRecommendations.Any(),
+            CreatedAtUtc = latest.CreatedAt,
+            Routine = new AnalysisRoutineDto { Morning = new(), Night = new() },
+            Recommendations = new(),
+            HasRecommendations = false,
         },
-        previous = previous is null
-            ? null
-            : new
-            {
-                previous.Id,
-                previous.OverallScore,
-                previous.CreatedAtUtc,
-            },
+        previous = previous is null ? null : new { previous.Id, previous.OverallScore, CreatedAtUtc = previous.CreatedAt },
     };
 
-    // Cache for 1 minute
     cache.Set(cacheKey, result, TimeSpan.FromMinutes(1));
-
     return Results.Ok(result);
 })
 .WithName("GetDashboardSummary")
@@ -651,64 +552,35 @@ app.MapGet("/analysis/summary", async (ClaimsPrincipal user, AppDbContext dbCont
         return Results.Ok(cachedResponse);
     }
 
-    // Single query: pagination + recommendation count in one go, ordered by created_at DESC
-    var analyses = await dbContext.Analyses
+    var analyses = await dbContext.SkinAnalyses
         .AsNoTracking()
         .Where(a => a.UserId == parsedUserId.Value)
-        .OrderByDescending(a => a.CreatedAtUtc)
+        .OrderByDescending(a => a.CreatedAt)
         .Skip(safeOffset)
         .Take(safeLimit)
-        .Select(a => new
-        {
-            a.Id,
-            a.UserId,
-            a.ImageUrl,
-            a.SkinType,
-            a.Summary,
-            a.AcneActive,
-            a.DarkCircles,
-            a.EnlargedPores,
-            a.PigmentationSpots,
-            a.DryLips,
-            a.AcneScore,
-            a.OilinessScore,
-            a.DarkSpotsScore,
-            a.HydrationScore,
-            a.SensitivityScore,
-            a.OverallScore,
-            a.CreatedAtUtc,
-            RecommendationCount = a.Recommendations.Count(),
-        })
         .ToListAsync(cancellationToken);
 
-    var response = analyses.Select(analysis => new AnalysisResponseDto
+    var response = analyses.Select(a => new AnalysisResponseDto
     {
-        Id = analysis.Id,
-        UserId = analysis.UserId,
-        ImageUrl = analysis.ImageUrl,
-        SkinType = analysis.SkinType,
-        Summary = analysis.Summary,
+        Id = a.Id,
+        UserId = a.UserId,
+        ImageUrl = a.ImageUrl ?? string.Empty,
+        SkinType = a.SkinType,
+        Summary = a.Summary,
         Conditions = new AnalysisConditionsDto
         {
-            Acne = analysis.AcneActive,
-            Olheiras = analysis.DarkCircles,
-            Poros = analysis.EnlargedPores,
-            Manchas = analysis.PigmentationSpots,
-            LabiosRessecados = analysis.DryLips
+            Acne = a.HasActiveAcne, Olheiras = a.HasDarkCircles, Poros = a.HasEnlargedPores,
         },
         AdditionalRecommendations = string.Empty,
         Scores = new AnalysisScoresDto
         {
-            Acne = analysis.AcneScore,
-            Oiliness = analysis.OilinessScore,
-            DarkSpots = analysis.DarkSpotsScore,
-            Hydration = analysis.HydrationScore,
-            Sensitivity = analysis.SensitivityScore,
+            Acne = a.AcneScore, Oiliness = a.OilinessScore, DarkSpots = a.DarkSpotsScore,
+            Hydration = a.HydrationScore, Sensitivity = a.SensitivityScore,
         },
-        OverallScore = analysis.OverallScore,
-        CreatedAtUtc = analysis.CreatedAtUtc,
-        Recommendations = new List<RecommendationDto>(),
-        HasRecommendations = analysis.RecommendationCount > 0,
+        OverallScore = a.OverallScore,
+        CreatedAtUtc = a.CreatedAt,
+        Recommendations = new(),
+        HasRecommendations = false,
     }).ToList();
 
     // Cache for 3 minutes (analyses don't change often, but not too stale)
@@ -732,59 +604,24 @@ app.MapGet("/analysis/{id:guid}/status", async (Guid id, ClaimsPrincipal user, A
 
     if (job is null)
     {
-        // Job not in memory (server restarted after dispatch) — check DB for a completed analysis.
-        var persisted = await dbContext.Analyses
+        var persisted = await dbContext.SkinAnalyses
             .AsNoTracking()
             .Where(a => a.Id == id && a.UserId == parsedUserId.Value)
-            .Include(a => a.Recommendations)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (persisted is null)
-        {
-            return Results.NotFound(new { error = "Análise não encontrada." });
-        }
+        if (persisted is null) return Results.NotFound(new { error = "Análise não encontrada." });
 
         var completedDto = new AnalysisResponseDto
         {
-            Id = persisted.Id,
-            UserId = persisted.UserId,
-            ImageUrl = persisted.ImageUrl,
-            SkinType = persisted.SkinType,
+            Id = persisted.Id, UserId = persisted.UserId,
+            ImageUrl = persisted.ImageUrl ?? string.Empty, SkinType = persisted.SkinType,
             Summary = persisted.Summary,
-            Conditions = new AnalysisConditionsDto
-            {
-                Acne = persisted.AcneActive,
-                Olheiras = persisted.DarkCircles,
-                Poros = persisted.EnlargedPores,
-                Manchas = persisted.PigmentationSpots,
-                LabiosRessecados = persisted.DryLips,
-            },
-            AdditionalRecommendations = persisted.AdditionalRecommendations,
-            Scores = new AnalysisScoresDto
-            {
-                Acne = persisted.AcneScore,
-                Oiliness = persisted.OilinessScore,
-                DarkSpots = persisted.DarkSpotsScore,
-                Hydration = persisted.HydrationScore,
-                Sensitivity = persisted.SensitivityScore,
-                Poros = persisted.Poros,
-                Olheiras = persisted.Olheiras,
-                LinhasFinas = persisted.LinhasFinas,
-                Vermelhidao = persisted.Vermelhidao,
-                EspinhasAtivas = persisted.EspinhasAtivas,
-                Cravos = persisted.Cravos,
-            },
-            OverallScore = persisted.OverallScore,
-            CreatedAtUtc = persisted.CreatedAtUtc,
-            Routine = ParseRoutineJson(persisted.RoutineJson, persisted.Recommendations),
-            Recommendations = persisted.Recommendations.Select(r => new RecommendationDto
-            {
-                Type = r.Type,
-                Product = r.Product,
-                Reason = r.Description,
-                ImageUrl = r.ImageUrl,
-            }).ToList(),
-            HasRecommendations = persisted.Recommendations.Any(),
+            Conditions = new AnalysisConditionsDto { Acne = persisted.HasActiveAcne, Olheiras = persisted.HasDarkCircles, Poros = persisted.HasEnlargedPores },
+            AdditionalRecommendations = persisted.AdditionalNotes,
+            Scores = new AnalysisScoresDto { Acne = persisted.AcneScore, Oiliness = persisted.OilinessScore, DarkSpots = persisted.DarkSpotsScore, Hydration = persisted.HydrationScore, Sensitivity = persisted.SensitivityScore, LinhasFinas = persisted.AgingScore, Vermelhidao = persisted.RednessScore },
+            OverallScore = persisted.OverallScore, CreatedAtUtc = persisted.CreatedAt,
+            Routine = new AnalysisRoutineDto { Morning = new(), Night = new() },
+            Recommendations = new(), HasRecommendations = false,
         };
 
         return Results.Ok(new { id, status = "completed", result = completedDto });
@@ -818,85 +655,30 @@ app.MapGet("/analysis/{id:guid}/routine/custom", () =>
 
 // (Routine step endpoints extracted to RoutineStepEndpoints.cs — registered via app.MapRoutineStepEndpoints())
 
-app.MapGet("/analysis/{id:guid}", async (Guid id, bool? includeRecommendations, ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
+app.MapGet("/analysis/{id:guid}", async (Guid id, ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
 {
     var parsedUserId = GetAuthenticatedUserId(user);
-    if (!parsedUserId.HasValue)
-    {
-        return Results.Unauthorized();
-    }
+    if (!parsedUserId.HasValue) return Results.Unauthorized();
 
-    var shouldIncludeRecommendations = includeRecommendations.GetValueOrDefault(true);
-
-    IQueryable<SkinAnalysis.Api.Models.Analysis> query = dbContext.Analyses
+    var analysis = await dbContext.SkinAnalyses
         .AsNoTracking()
-        .Where(a => a.UserId == parsedUserId.Value && a.Id == id);
+        .Where(a => a.UserId == parsedUserId.Value && a.Id == id)
+        .FirstOrDefaultAsync(cancellationToken);
 
-    if (shouldIncludeRecommendations)
+    if (analysis is null) return Results.NotFound(new { error = "Análise não encontrada." });
+
+    return Results.Ok(new AnalysisResponseDto
     {
-        query = query
-            .AsSplitQuery()
-            .Include(a => a.Recommendations);
-    }
-
-    var analysis = await query.FirstOrDefaultAsync(cancellationToken);
-
-    var analysisResponse = analysis is null
-        ? null
-        : new AnalysisResponseDto
-        {
-            Id = analysis.Id,
-            UserId = analysis.UserId,
-            ImageUrl = analysis.ImageUrl,
-            SkinType = analysis.SkinType,
-            Summary = analysis.Summary,
-            Conditions = new AnalysisConditionsDto
-            {
-                Acne = analysis.AcneActive,
-                Olheiras = analysis.DarkCircles,
-                Poros = analysis.EnlargedPores,
-                Manchas = analysis.PigmentationSpots,
-                LabiosRessecados = analysis.DryLips
-            },
-            AdditionalRecommendations = analysis.AdditionalRecommendations,
-            Scores = new AnalysisScoresDto
-            {
-                Acne = analysis.AcneScore,
-                Oiliness = analysis.OilinessScore,
-                DarkSpots = analysis.DarkSpotsScore,
-                Hydration = analysis.HydrationScore,
-                Sensitivity = analysis.SensitivityScore,
-                Poros = analysis.Poros,
-                Olheiras = analysis.Olheiras,
-                LinhasFinas = analysis.LinhasFinas,
-                Vermelhidao = analysis.Vermelhidao,
-                EspinhasAtivas = analysis.EspinhasAtivas,
-                Cravos = analysis.Cravos,
-            },
-            OverallScore = analysis.OverallScore,
-            CreatedAtUtc = analysis.CreatedAtUtc,
-            Recommendations = shouldIncludeRecommendations
-                ? analysis.Recommendations.Select(recommendation => new RecommendationDto
-                {
-                    Type = recommendation.Type,
-                    Product = recommendation.Product,
-                    Reason = recommendation.Description,
-                    ImageUrl = recommendation.ImageUrl
-                }).ToList()
-                : new List<RecommendationDto>(),
-            HasRecommendations = analysis.Recommendations.Any(),
-        };
-
-    if (analysis is not null && analysisResponse is not null)
-    {
-        analysisResponse.Routine = ParseRoutineJson(
-            analysis.RoutineJson,
-            shouldIncludeRecommendations ? analysis.Recommendations : Enumerable.Empty<SkinAnalysis.Api.Models.Recommendation>());
-    }
-
-    return analysisResponse is null
-        ? Results.NotFound(new { error = "Análise não encontrada." })
-        : Results.Ok(analysisResponse);
+        Id = analysis.Id, UserId = analysis.UserId,
+        ImageUrl = analysis.ImageUrl ?? string.Empty, SkinType = analysis.SkinType,
+        Summary = analysis.Summary,
+        Conditions = new AnalysisConditionsDto { Acne = analysis.HasActiveAcne, Olheiras = analysis.HasDarkCircles, Poros = analysis.HasEnlargedPores },
+        AdditionalRecommendations = analysis.AdditionalNotes,
+        Scores = new AnalysisScoresDto { Acne = analysis.AcneScore, Oiliness = analysis.OilinessScore, DarkSpots = analysis.DarkSpotsScore, Hydration = analysis.HydrationScore, Sensitivity = analysis.SensitivityScore },
+        OverallScore = analysis.OverallScore, CreatedAtUtc = analysis.CreatedAt,
+        Routine = new AnalysisRoutineDto { Morning = new(), Night = new() },
+        Recommendations = new(), HasRecommendations = false,
+    });
 })
 .WithName("GetAnalysisById")
 .WithOpenApi()
@@ -1072,7 +854,7 @@ app.MapPost("/analysis/{id:guid}/routine", async (Guid id, ClaimsPrincipal user,
     var userId = GetAuthenticatedUserId(user);
     if (!userId.HasValue) return Results.Unauthorized();
 
-    var exists = await dbContext.Analyses.AnyAsync(a => a.Id == id && a.UserId == userId.Value, cancellationToken);
+    var exists = await dbContext.SkinAnalyses.AnyAsync(a => a.Id == id && a.UserId == userId.Value, cancellationToken);
     if (!exists) return Results.NotFound(new { error = "Análise não encontrada." });
 
     var existing = AnalysisJobStore.Get(id);
@@ -1118,69 +900,24 @@ app.MapGet("/analysis", async (ClaimsPrincipal user, AppDbContext dbContext, int
     var safeOffset = Math.Max(0, requestedOffset);
     var shouldIncludeRecommendations = includeRecommendations.GetValueOrDefault(false);
 
-    List<SkinAnalysis.Api.Models.Analysis> analyses;
-    if (shouldIncludeRecommendations)
-    {
-        analyses = await dbContext.Analyses
-            .AsNoTracking()
-            .Where(a => a.UserId == parsedUserId.Value)
-            .OrderByDescending(a => a.CreatedAtUtc)
-            .Skip(safeOffset)
-            .Take(safeLimit)
-            .AsSplitQuery()
-            .Include(a => a.Recommendations)
-            .ToListAsync(cancellationToken);
-    }
-    else
-    {
-        analyses = await dbContext.Analyses
-            .AsNoTracking()
-            .Where(a => a.UserId == parsedUserId.Value)
-            .OrderByDescending(a => a.CreatedAtUtc)
-            .Skip(safeOffset)
-            .Take(safeLimit)
-            .ToListAsync(cancellationToken);
-    }
+    var analyses = await dbContext.SkinAnalyses
+        .AsNoTracking()
+        .Where(a => a.UserId == parsedUserId.Value)
+        .OrderByDescending(a => a.CreatedAt)
+        .Skip(safeOffset)
+        .Take(safeLimit)
+        .ToListAsync(cancellationToken);
 
-    var response = analyses.Select(analysis => new AnalysisResponseDto
+    var response = analyses.Select(a => new AnalysisResponseDto
     {
-        Id = analysis.Id,
-        UserId = analysis.UserId,
-        ImageUrl = analysis.ImageUrl,
-        SkinType = analysis.SkinType,
-        Summary = analysis.Summary,
-        Conditions = new AnalysisConditionsDto
-        {
-            Acne = analysis.AcneActive,
-            Olheiras = analysis.DarkCircles,
-            Poros = analysis.EnlargedPores,
-            Manchas = analysis.PigmentationSpots,
-            LabiosRessecados = analysis.DryLips
-        },
-        AdditionalRecommendations = analysis.AdditionalRecommendations,
-        Scores = new AnalysisScoresDto
-        {
-            Acne = analysis.AcneScore,
-            Oiliness = analysis.OilinessScore,
-            DarkSpots = analysis.DarkSpotsScore,
-            Hydration = analysis.HydrationScore,
-            Sensitivity = analysis.SensitivityScore,
-        },
-        OverallScore = analysis.OverallScore,
-        CreatedAtUtc = analysis.CreatedAtUtc,
-        Routine = ParseRoutineJson(
-            analysis.RoutineJson,
-            shouldIncludeRecommendations ? analysis.Recommendations : Enumerable.Empty<SkinAnalysis.Api.Models.Recommendation>()),
-        Recommendations = shouldIncludeRecommendations
-            ? analysis.Recommendations.Select(recommendation => new RecommendationDto
-            {
-                Type = recommendation.Type,
-                Product = recommendation.Product,
-                Reason = recommendation.Description,
-                ImageUrl = recommendation.ImageUrl
-            }).ToList()
-            : new List<RecommendationDto>(),
-        HasRecommendations = shouldIncludeRecommendations && analysis.Recommendations.Any(),
+        Id = a.Id, UserId = a.UserId,
+        ImageUrl = a.ImageUrl ?? string.Empty, SkinType = a.SkinType, Summary = a.Summary,
+        Conditions = new AnalysisConditionsDto { Acne = a.HasActiveAcne, Olheiras = a.HasDarkCircles, Poros = a.HasEnlargedPores },
+        AdditionalRecommendations = a.AdditionalNotes,
+        Scores = new AnalysisScoresDto { Acne = a.AcneScore, Oiliness = a.OilinessScore, DarkSpots = a.DarkSpotsScore, Hydration = a.HydrationScore, Sensitivity = a.SensitivityScore },
+        OverallScore = a.OverallScore, CreatedAtUtc = a.CreatedAt,
+        Routine = new AnalysisRoutineDto { Morning = new(), Night = new() },
+        Recommendations = new(), HasRecommendations = false,
     }).ToList();
 
     return Results.Ok(response);
@@ -1216,45 +953,39 @@ app.MapPost("/routine/mark-complete", async (MarkRoutineCompleteRequest request,
         today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
     }
 
-    // Check if record exists for today
-    var existingToday = await dbContext.RoutineCompletions
-        .Where(r => r.UserId == userId.Value && r.CompletionDate == today.ToDateTime(TimeOnly.MinValue))
-        .FirstOrDefaultAsync(cancellationToken);
+    // Legacy mark-complete: find active routine steps for this period and mark them done
+    var activeSteps = await dbContext.RoutineSteps
+        .AsNoTracking()
+        .Where(s => s.Routine.UserId == userId.Value
+                 && s.Routine.Period == request.Period
+                 && s.Routine.IsActive
+                 && s.IsActive)
+        .Include(s => s.Routine)
+        .ToListAsync(cancellationToken);
 
-    if (existingToday == null)
+    foreach (var step in activeSteps)
     {
-        // Create new record for today
-        var newRecord = new RoutineCompletion
+        var exists = await dbContext.StepCompletions
+            .AnyAsync(c => c.StepId == step.Id && c.CompletedDate == today, cancellationToken);
+        if (!exists)
         {
-            UserId = userId.Value,
-            CompletionDate = today.ToDateTime(TimeOnly.MinValue),
-            MorningCompleted = request.Period == "morning" || request.Period == "both",
-            NightCompleted = request.Period == "night" || request.Period == "both",
-            CreatedAtUtc = DateTime.UtcNow,
-        };
-        dbContext.RoutineCompletions.Add(newRecord);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        existingToday = newRecord;
+            dbContext.StepCompletions.Add(new SkinAnalysis.Api.Models.StepCompletion
+            {
+                UserId = userId.Value,
+                RoutineId = step.Routine.Id,
+                StepId = step.Id,
+                CompletedDate = today,
+            });
+        }
     }
-    else
-    {
-        // Update existing record for today
-        if (request.Period == "morning" || request.Period == "both")
-            existingToday.MorningCompleted = true;
-        
-        if (request.Period == "night" || request.Period == "both")
-            existingToday.NightCompleted = true;
-        
-        dbContext.RoutineCompletions.Update(existingToday);
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
+    if (activeSteps.Count > 0) await dbContext.SaveChangesAsync(cancellationToken);
 
     return Results.Ok(new
     {
         message = "Routine completion marked successfully",
         completionDate = today.ToString("yyyy-MM-dd"),
-        morningCompleted = existingToday.MorningCompleted,
-        nightCompleted = existingToday.NightCompleted,
+        morningCompleted = request.Period is "morning" or "both",
+        nightCompleted = request.Period is "night" or "both",
         userId = userId.Value,
     });
 })
@@ -1727,12 +1458,14 @@ app.MapGet("/admin/products", async (HttpContext httpContext, ClaimsPrincipal us
 
         var search = httpContext.Request.Query["search"].FirstOrDefault()?.Trim().ToLowerInvariant();
 
-        var query = dbContext.Products.Where(p => !p.IsUserProduct);
+        var query = dbContext.Products
+            .Include(p => p.PrimaryImage)
+            .AsQueryable();
         if (!string.IsNullOrEmpty(search))
             query = query.Where(p => p.Name.ToLower().Contains(search) || p.Brand.ToLower().Contains(search));
 
         var products = await query
-            .OrderByDescending(p => p.Priority)
+            .OrderByDescending(p => p.CurationScore)
             .ThenByDescending(p => p.CreatedAt)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -1776,40 +1509,37 @@ app.MapPost("/admin/products", async (CreateAdminProductDto request, ClaimsPrinc
     {
         Name = request.Name,
         Brand = request.Brand,
-        Category = request.Category,
-        SkinTypes = request.SkinTypes ?? Array.Empty<string>(),
-        Concerns = request.Concerns ?? Array.Empty<string>(),
-        Actives = request.Actives ?? Array.Empty<string>(),
-        StrengthLevel = request.StrengthLevel,
-        Period = request.Period ?? Array.Empty<string>(),
+        StepTypeKey = request.StepTypeKey,
+        CompatibleSkinTypes = request.CompatibleSkinTypes ?? [],
+        TargetsConcerns = request.TargetsConcerns ?? [],
+        StrengthLevel = request.StrengthLevel ?? "mild",
+        SuitablePeriods = request.SuitablePeriods?.Length > 0 ? request.SuitablePeriods : ["morning","night"],
         PriceRange = request.PriceRange,
         PriceAvg = request.PriceAvg,
-        Priority = request.Priority,
+        CurationScore = request.CurationScore,
         IsActive = request.IsActive,
-        ImageUrl = request.ImageUrl,
-        IsUserProduct = false,
+        Tagline = request.Tagline,
         CreatedAt = DateTime.UtcNow
     };
 
     dbContext.Products.Add(product);
     await dbContext.SaveChangesAsync(cancellationToken);
 
+    if (!string.IsNullOrWhiteSpace(request.ImageUrl))
+    {
+        var img = new ProductImage { ProductId = product.Id, PublicUrl = request.ImageUrl, Source = "uploaded" };
+        dbContext.ProductImages.Add(img);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        product.PrimaryImageId = img.Id;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     var dto = new AdminProductDto(
-        product.Id,
-        product.Name,
-        product.Brand,
-        product.Category,
-        product.SkinTypes,
-        product.Concerns,
-        product.Actives,
-        product.StrengthLevel,
-        product.Period,
-        product.PriceRange,
-        product.PriceAvg,
-        product.Priority,
-        product.IsActive,
-        product.ImageUrl,
-        product.CreatedAt
+        product.Id, product.Name, product.Brand, product.StepTypeKey,
+        product.CompatibleSkinTypes, product.TargetsConcerns, product.StrengthLevel,
+        product.SuitablePeriods, product.PriceRange, product.PriceAvg,
+        product.CurationScore, product.IsActive,
+        product.PrimaryImage?.PublicUrl, product.CreatedAt
     );
 
     return Results.Created($"/admin/products/{product.Id}", dto);
@@ -1832,14 +1562,14 @@ app.MapPut("/admin/products-test/{id:guid}", async (Guid id, AppDbContext dbCont
             return Results.NotFound();
 
         logger.LogInformation("[TEST] About to update product at {Time}", DateTime.UtcNow);
-        product.Priority = product.Priority + 1;
-        
+        product.CurationScore = Math.Min(100, product.CurationScore + 1);
+
         logger.LogInformation("[TEST] About to SaveChangesAsync at {Time}", DateTime.UtcNow);
         var changes = await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation("[TEST] SaveChangesAsync completed at {Time}, changes={Changes}", DateTime.UtcNow, changes);
-        
+
         logger.LogInformation("[TEST] Returning OK at {Time}", DateTime.UtcNow);
-        return Results.Ok(new { id = product.Id, priority = product.Priority });
+        return Results.Ok(new { id = product.Id, curationScore = product.CurationScore });
     }
     catch (Exception ex)
     {
@@ -1889,17 +1619,17 @@ app.MapPut("/admin/products/{id:guid}", async (Guid id, UpdateAdminProductDto re
             
         product.Name = request.Name ?? product.Name;
         product.Brand = request.Brand ?? product.Brand;
-        product.Category = request.Category ?? product.Category;
-        product.SkinTypes = request.SkinTypes ?? product.SkinTypes;
-        product.Concerns = request.Concerns ?? product.Concerns;
-        product.Actives = request.Actives ?? product.Actives;
+        product.StepTypeKey = request.StepTypeKey ?? product.StepTypeKey;
+        product.CompatibleSkinTypes = request.CompatibleSkinTypes ?? product.CompatibleSkinTypes;
+        product.TargetsConcerns = request.TargetsConcerns ?? product.TargetsConcerns;
         product.StrengthLevel = request.StrengthLevel ?? product.StrengthLevel;
-        product.Period = request.Period ?? product.Period;
+        product.SuitablePeriods = request.SuitablePeriods ?? product.SuitablePeriods;
         product.PriceRange = request.PriceRange ?? product.PriceRange;
         product.PriceAvg = request.PriceAvg ?? product.PriceAvg;
-        product.Priority = request.Priority;
+        product.CurationScore = request.CurationScore;
         product.IsActive = request.IsActive;
-        product.ImageUrl = request.ImageUrl;
+        product.Tagline = request.Tagline ?? product.Tagline;
+        product.UpdatedAt = DateTime.UtcNow;
 
         logger.LogInformation("[PUT AdminProducts] Properties assigned, about to save for {ProductId}", id);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -1907,21 +1637,11 @@ app.MapPut("/admin/products/{id:guid}", async (Guid id, UpdateAdminProductDto re
 
         logger.LogInformation("[PUT AdminProducts] Creating DTO for {ProductId}", id);
         var dto = new AdminProductDto(
-            product.Id,
-            product.Name,
-            product.Brand,
-            product.Category,
-            product.SkinTypes,
-            product.Concerns,
-            product.Actives,
-            product.StrengthLevel,
-            product.Period,
-            product.PriceRange,
-            product.PriceAvg,
-            product.Priority,
-            product.IsActive,
-            product.ImageUrl,
-            product.CreatedAt
+            product.Id, product.Name, product.Brand, product.StepTypeKey,
+            product.CompatibleSkinTypes, product.TargetsConcerns, product.StrengthLevel,
+            product.SuitablePeriods, product.PriceRange, product.PriceAvg,
+            product.CurationScore, product.IsActive,
+            product.PrimaryImage?.PublicUrl, product.CreatedAt
         );
         logger.LogInformation("[PUT AdminProducts] DTO created, returning response for {ProductId}", id);
 
@@ -1969,9 +1689,6 @@ app.MapDelete("/admin/products/{id:guid}", async (Guid id, ClaimsPrincipal user,
 // Map admin endpoints (authorization, user promotion, CRUD operations)
 app.MapAdminEndpoints();
 
-// Map v2 recommendation endpoints (scoring + cache + telemetry)
-app.MapRecommendationEndpoints();
-
 // Map routine step endpoints (structured CRUD + lazy population + reorder + migrate)
 app.MapRoutineStepEndpoints();
 
@@ -1997,41 +1714,7 @@ static bool ShouldSkipRequestTiming(string path)
 
 // (NormalizeRecurrence moved to RoutineStepEndpoints.cs)
 
-static AnalysisRoutineDto ParseRoutineJson(string routineJson, IEnumerable<SkinAnalysis.Api.Models.Recommendation> recommendations)
-{
-    if (!string.IsNullOrWhiteSpace(routineJson))
-    {
-        try
-        {
-            var parsed = JsonSerializer.Deserialize<AnalysisRoutineDto>(routineJson) ?? new AnalysisRoutineDto();
-            if (parsed.Morning.Count > 0 || parsed.Night.Count > 0)
-                return parsed;
-        }
-        catch { /* fallback to recommendations below */ }
-    }
-
-    var morning = new List<string>();
-    var night = new List<string>();
-    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-    foreach (var rec in recommendations)
-    {
-        if (string.IsNullOrWhiteSpace(rec.Product)) continue;
-
-        var category = string.IsNullOrWhiteSpace(rec.Type) ? "Passo" : rec.Type.Trim();
-        var product = rec.Product.Trim();
-        var step = $"{category}: {product}";
-        var key = $"{category.ToLowerInvariant()}::{product.ToLowerInvariant()}";
-        if (!seen.Add(key)) continue;
-
-        if (category.Equals("Protetor", StringComparison.OrdinalIgnoreCase)) { morning.Add(step); continue; }
-        if (category.StartsWith("Retino", StringComparison.OrdinalIgnoreCase)) { night.Add(step); continue; }
-        morning.Add(step);
-        night.Add(step);
-    }
-
-    return new AnalysisRoutineDto { Morning = morning, Night = night };
-}
+// ParseRoutineJson removed — routines now served from routine_steps + step_product_slots tables
 
 // (BuildStepsFromRoutineJson moved to RoutineStepEndpoints.cs)
 

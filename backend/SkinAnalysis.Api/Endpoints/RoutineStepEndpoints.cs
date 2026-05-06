@@ -1,10 +1,11 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using SkinAnalysis.Api.Data;
 using SkinAnalysis.Api.DTOs;
 using SkinAnalysis.Api.Models;
+using SkinAnalysis.Api.Services;
 
 namespace SkinAnalysis.Api.Endpoints;
 
@@ -16,272 +17,296 @@ public static class RoutineStepEndpoints
             .WithTags("Routine Steps")
             .WithOpenApi();
 
-        group.MapGet("/{id:guid}/steps", GetRoutineStepsHandler)
+        // Main endpoint: GET routine steps by analysis ID
+        // Returns same shape as before for frontend compatibility
+        group.MapGet("/{id:guid}/steps", GetStepsHandler)
             .WithName("GetRoutineSteps")
-            .WithDescription("Get structured routine steps for an analysis (with lazy population)")
             .RequireAuthorization();
 
-        group.MapPost("/{id:guid}/steps", AddRoutineStepHandler)
+        group.MapPost("/{id:guid}/steps", AddStepHandler)
             .WithName("AddRoutineStep")
-            .WithDescription("Add a custom routine step")
             .RequireAuthorization();
 
-        group.MapPatch("/{id:guid}/steps/{stepId:guid}", PatchRoutineStepHandler)
+        group.MapPatch("/{id:guid}/steps/{stepId:guid}", PatchStepHandler)
             .WithName("PatchRoutineStep")
-            .WithDescription("Update a routine step (tier, product override, image)")
             .RequireAuthorization();
 
-        group.MapDelete("/{id:guid}/steps/{stepId:guid}", DeleteRoutineStepHandler)
+        group.MapDelete("/{id:guid}/steps/{stepId:guid}", DeleteStepHandler)
             .WithName("DeleteRoutineStep")
-            .WithDescription("Soft delete a routine step")
             .RequireAuthorization();
 
         group.MapPut("/{id:guid}/steps/reorder", ReorderStepsHandler)
             .WithName("ReorderSteps")
-            .WithDescription("Reorder routine steps within a period by updating step_order")
             .RequireAuthorization();
 
-        group.MapPost("/{id:guid}/steps/migrate", MigrateFromCustomizationsHandler)
-            .WithName("MigrateFromCustomizations")
-            .WithDescription("One-time migration: applies routineOrder and schedule from customizations_json to structured steps")
+        // New: select a specific slot (primary/alt_budget/alt_rated/user_custom)
+        group.MapPatch("/{id:guid}/steps/{stepId:guid}/select-slot", SelectSlotHandler)
+            .WithName("SelectStepSlot")
             .RequireAuthorization();
+
+        // New: restore to a previous version
+        app.MapPost("/routines/{routineId:guid}/restore/{version:int}", RestoreVersionHandler)
+            .WithName("RestoreRoutineVersion")
+            .RequireAuthorization()
+            .WithTags("Routine Steps")
+            .WithOpenApi();
     }
 
     private static (Guid userId, bool valid) GetUserId(ClaimsPrincipal user)
     {
         var claim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (Guid.TryParse(claim, out var id)) return (id, true);
-        return (Guid.Empty, false);
+        return Guid.TryParse(claim, out var id) ? (id, true) : (Guid.Empty, false);
     }
 
-    // ========== GET STRUCTURED ROUTINE STEPS (with images) ==========
-    private static async Task<IResult> GetRoutineStepsHandler(
-        Guid id,
-        ClaimsPrincipal user,
-        AppDbContext dbContext,
-        IMemoryCache cache,
-        ILogger<Program> logger,
-        CancellationToken cancellationToken)
+    // ── GET /analysis/{id}/steps ──────────────────────────────────────────
+    // Returns steps from the active routines associated with this analysis
+    // Shape kept compatible with old response for frontend
+    private static async Task<IResult> GetStepsHandler(
+        Guid id, ClaimsPrincipal user, AppDbContext db,
+        IMemoryCache cache, CancellationToken ct)
     {
         var (userId, valid) = GetUserId(user);
         if (!valid) return Results.Unauthorized();
 
-        var cacheKey = $"steps_{id}_{userId}";
+        var cacheKey = $"v2_steps_{id}_{userId}";
         if (cache.TryGetValue(cacheKey, out var cached)) return Results.Ok(cached);
 
-        var steps = await dbContext.AnalysisRoutineSteps
+        // Find analysis, then profile, then routines
+        var analysis = await db.SkinAnalyses
             .AsNoTracking()
-            .Where(s => s.AnalysisId == id && s.UserId == userId && s.IsActive)
-            .Include(s => s.Product)
-            .Include(s => s.Recommendation)
-            .OrderBy(s => s.Period)
+            .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId, ct);
+
+        if (analysis is null) return Results.NotFound(new { error = "Análise não encontrada." });
+
+        var profile = await db.SkinProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.AnalysisId == id && p.UserId == userId, ct);
+
+        if (profile is null) return Results.Ok(Array.Empty<object>());
+
+        var steps = await db.RoutineSteps
+            .AsNoTracking()
+            .Where(s => s.Routine.SkinProfileId == profile.Id
+                     && s.Routine.UserId == userId
+                     && s.Routine.IsActive
+                     && s.IsActive)
+            .Include(s => s.Routine)
+            .Include(s => s.Slots)
+                .ThenInclude(sl => sl.Product)
+                    .ThenInclude(p => p!.PrimaryImage)
+            .Include(s => s.Slots)
+                .ThenInclude(sl => sl.UserProduct)
+            .OrderBy(s => s.Routine.Period)
             .ThenBy(s => s.StepOrder)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(ct);
 
-        // Lazy populate: if no steps exist yet, generate from routine_json
-        if (steps.Count == 0)
+        var dto = steps.Select(s =>
         {
-            var analysis = await dbContext.Analyses
-                .AsNoTracking()
-                .Include(a => a.Recommendations)
-                .Where(a => a.Id == id && a.UserId == userId)
-                .FirstOrDefaultAsync(cancellationToken);
+            var selected = s.Slots.FirstOrDefault(sl => sl.IsSelected);
+            var productName = selected?.Product?.Name
+                ?? selected?.UserProduct?.DisplayName
+                ?? string.Empty;
+            var imageUrl = selected?.Product?.PrimaryImage?.PublicUrl
+                ?? selected?.UserProduct?.DisplayImageUrl;
+            var scheduleDays = s.ScheduleDays.Length > 0
+                ? JsonSerializer.Serialize(MapDaysToNames(s.ScheduleDays))
+                : "[\"mon\",\"tue\",\"wed\",\"thu\",\"fri\",\"sat\",\"sun\"]";
 
-            if (analysis is null) return Results.NotFound(new { error = "Análise não encontrada." });
-
-            var generated = BuildStepsFromRoutineJson(analysis, analysis.Recommendations.ToList());
-            if (generated.Count > 0)
+            return new
             {
-                try
+                s.Id,
+                AnalysisId = id,
+                Period = s.Routine.Period,
+                StepOrder = s.StepOrder,
+                Category = s.StepTypeKey,
+                ProductId = selected?.ProductId,
+                ProductName = productName,
+                imageUrl,
+                Recurrence = s.Recurrence,
+                IsExtra = false,
+                s.IsUserAdded,
+                SelectedTier = selected?.Tier,
+                OverrideProductName = (string?)null,
+                OverrideImageUrl = (string?)null,
+                scheduleDays,
+                // Extra v2 fields
+                RoutineId = s.RoutineId,
+                StepTypeKey = s.StepTypeKey,
+                Slots = s.Slots.Select(sl => new
                 {
-                    dbContext.AnalysisRoutineSteps.AddRange(generated);
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    steps = generated;
-                    logger.LogInformation("[GET /steps] Populados {Count} passos para análise {Id}", generated.Count, id);
-                }
-                catch (Microsoft.EntityFrameworkCore.DbUpdateException)
-                {
-                    // Race condition: outro request já populou os steps (unique constraint)
-                    // Re-fetch do banco para retornar os steps corretos
-                    dbContext.ChangeTracker.Clear();
-                    steps = await dbContext.AnalysisRoutineSteps
-                        .AsNoTracking()
-                        .Where(s => s.AnalysisId == id && s.UserId == userId && s.IsActive)
-                        .Include(s => s.Product)
-                        .Include(s => s.Recommendation)
-                        .OrderBy(s => s.Period)
-                        .ThenBy(s => s.StepOrder)
-                        .ToListAsync(cancellationToken);
-                    logger.LogInformation("[GET /steps] Race condition detectada, re-fetch retornou {Count} passos para análise {Id}", steps.Count, id);
-                }
-            }
-        }
-
-        static string? ResolveImage(AnalysisRoutineStep s)
-            => s.OverrideImageUrl
-            ?? s.Product?.ImageUrl
-            ?? s.Recommendation?.ImageUrl
-            ?? s.ImageUrl;
-
-        var dto = steps.Select(s => new
-        {
-            s.Id,
-            s.AnalysisId,
-            s.Period,
-            s.StepOrder,
-            s.Category,
-            s.ProductId,
-            s.ProductName,
-            imageUrl = ResolveImage(s),
-            s.Recurrence,
-            s.IsExtra,
-            s.IsUserAdded,
-            s.SelectedTier,
-            s.OverrideProductName,
-            s.OverrideImageUrl,
-            scheduleDays = s.ScheduleDays ?? "[\"mon\",\"tue\",\"wed\",\"thu\",\"fri\",\"sat\",\"sun\"]",
+                    sl.Id,
+                    sl.Tier,
+                    sl.IsSelected,
+                    ProductId = sl.ProductId,
+                    ProductName = sl.Product?.Name ?? sl.UserProduct?.DisplayName,
+                    ImageUrl = sl.Product?.PrimaryImage?.PublicUrl ?? sl.UserProduct?.DisplayImageUrl,
+                    sl.RecommendationReason,
+                    Score = sl.ScoreAtGeneration,
+                }).ToList()
+            };
         }).ToList();
 
         cache.Set(cacheKey, dto, TimeSpan.FromSeconds(30));
         return Results.Ok(dto);
     }
 
-    // ========== ADD CUSTOM ROUTINE STEP ==========
-    private static async Task<IResult> AddRoutineStepHandler(
-        Guid id,
-        AddRoutineStepRequest request,
-        ClaimsPrincipal user,
-        AppDbContext dbContext,
-        IMemoryCache cache,
-        CancellationToken cancellationToken)
+    // ── POST /analysis/{id}/steps ─────────────────────────────────────────
+    private static async Task<IResult> AddStepHandler(
+        Guid id, AddRoutineStepRequest request, ClaimsPrincipal user,
+        AppDbContext db, IMemoryCache cache, CancellationToken ct)
     {
         var (userId, valid) = GetUserId(user);
         if (!valid) return Results.Unauthorized();
 
-        var exists = await dbContext.Analyses.AnyAsync(a => a.Id == id && a.UserId == userId, cancellationToken);
-        if (!exists) return Results.NotFound(new { error = "Análise não encontrada." });
+        var profile = await db.SkinProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.AnalysisId == id && p.UserId == userId, ct);
+        if (profile is null) return Results.NotFound(new { error = "Análise não encontrada." });
 
-        var maxOrder = await dbContext.AnalysisRoutineSteps
-            .Where(s => s.AnalysisId == id && s.Period == request.Period)
-            .MaxAsync(s => (int?)s.StepOrder, cancellationToken) ?? -1;
+        var routine = await db.Routines
+            .FirstOrDefaultAsync(r => r.SkinProfileId == profile.Id
+                                   && r.Period == request.Period
+                                   && r.IsActive, ct);
+        if (routine is null) return Results.NotFound(new { error = "Rotina não encontrada para esse período." });
 
-        var step = new AnalysisRoutineStep
+        var maxOrder = await db.RoutineSteps
+            .Where(s => s.RoutineId == routine.Id && s.IsActive)
+            .MaxAsync(s => (int?)s.StepOrder, ct) ?? -1;
+
+        var step = new UserRoutineStep
         {
-            AnalysisId = id,
-            UserId = userId,
-            Period = request.Period,
+            RoutineId = routine.Id,
+            StepTypeKey = request.Category ?? "spot_treatment",
             StepOrder = maxOrder + 1,
-            Category = request.Category ?? "Personalizado",
-            ProductName = request.ProductName,
-            ImageUrl = request.ImageUrl,
-            OverrideImageUrl = request.ImageUrl,
-            Recurrence = NormalizeRecurrence(request.Recurrence) ?? "daily",
             IsUserAdded = true,
+            Recurrence = request.Recurrence ?? "daily",
         };
+        db.RoutineSteps.Add(step);
+        await db.SaveChangesAsync(ct);
 
-        try
+        // Add user_custom slot with product name
+        db.StepProductSlots.Add(new StepProductSlot
         {
-            dbContext.AnalysisRoutineSteps.Add(step);
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+            StepId = step.Id,
+            Tier = "user_custom",
+            UserProductId = null,
+            ProductId = null,
+            IsSelected = true,
+            RecommendationReason = request.ProductName,
+        });
+        // Temporary: store custom product as UserProduct
+        var userProduct = new UserProduct
         {
-            // Produto já existe nesse período (unique constraint) — reativar se estava soft-deleted
-            dbContext.ChangeTracker.Clear();
-            var existing = await dbContext.AnalysisRoutineSteps
-                .FirstOrDefaultAsync(s => s.AnalysisId == id && s.UserId == userId
-                    && s.Period == request.Period
-                    && EF.Functions.ILike(s.ProductName, request.ProductName), cancellationToken);
+            UserId = userId,
+            CustomName = request.ProductName,
+            CustomImageUrl = request.ImageUrl,
+            StepTypeKey = request.Category ?? "spot_treatment",
+        };
+        db.UserProducts.Add(userProduct);
+        await db.SaveChangesAsync(ct);
 
-            if (existing is not null && !existing.IsActive)
-            {
-                existing.IsActive = true;
-                existing.UpdatedAt = DateTime.UtcNow;
-                await dbContext.SaveChangesAsync(cancellationToken);
-                cache.Remove($"steps_{id}_{userId}");
-                return Results.Ok(new { existing.Id, existing.Period, existing.ProductName, existing.Category, reactivated = true });
-            }
+        // Update slot with user product id
+        var slot = await db.StepProductSlots.FirstAsync(s => s.StepId == step.Id, ct);
+        slot.UserProductId = userProduct.Id;
+        slot.ProductId = null;
+        await db.SaveChangesAsync(ct);
 
-            return Results.Conflict(new { error = "Esse produto já existe nessa etapa da rotina." });
-        }
+        routine.IsCustomized = true;
+        routine.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
 
-        cache.Remove($"steps_{id}_{userId}");
-        return Results.Created($"/analysis/{id}/steps/{step.Id}", new { step.Id, step.Period, step.ProductName, step.Category });
+        cache.Remove($"v2_steps_{id}_{userId}");
+        return Results.Created($"/analysis/{id}/steps/{step.Id}",
+            new { step.Id, step.StepOrder, request.Period, request.ProductName, step.StepTypeKey });
     }
 
-    // ========== UPDATE ROUTINE STEP (tier, product override, image) ==========
-    private static async Task<IResult> PatchRoutineStepHandler(
-        Guid id,
-        Guid stepId,
-        PatchRoutineStepRequest request,
-        ClaimsPrincipal user,
-        AppDbContext dbContext,
-        IMemoryCache cache,
-        CancellationToken cancellationToken)
+    // ── PATCH /analysis/{id}/steps/{stepId} ───────────────────────────────
+    private static async Task<IResult> PatchStepHandler(
+        Guid id, Guid stepId, PatchRoutineStepRequest request,
+        ClaimsPrincipal user, AppDbContext db,
+        IMemoryCache cache, CancellationToken ct)
     {
         var (userId, valid) = GetUserId(user);
         if (!valid) return Results.Unauthorized();
 
-        var step = await dbContext.AnalysisRoutineSteps
-            .Where(s => s.Id == stepId && s.AnalysisId == id && s.UserId == userId)
-            .FirstOrDefaultAsync(cancellationToken);
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .Include(s => s.Slots)
+            .FirstOrDefaultAsync(s => s.Id == stepId
+                && s.Routine.UserId == userId
+                && s.Routine.SkinProfile.AnalysisId == id, ct);
 
         if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
 
-        if (request.SelectedTier is not null) step.SelectedTier = request.SelectedTier;
-        if (request.OverrideProductName is not null) step.OverrideProductName = request.OverrideProductName;
-        if (request.OverrideImageUrl is not null) step.OverrideImageUrl = request.OverrideImageUrl;
-        if (request.ProductId.HasValue) step.ProductId = request.ProductId;
-        if (request.ScheduleDays is not null) step.ScheduleDays = request.ScheduleDays;
+        // If SelectedTier provided, switch which slot is selected
+        if (request.SelectedTier is not null)
+        {
+            foreach (var sl in step.Slots) sl.IsSelected = sl.Tier == request.SelectedTier;
+        }
+
+        // If ScheduleDays provided, update
+        if (request.ScheduleDays is not null)
+        {
+            step.ScheduleDays = ParseScheduleDays(request.ScheduleDays);
+        }
+
         step.UpdatedAt = DateTime.UtcNow;
+        step.Routine.IsCustomized = true;
+        step.Routine.UpdatedAt = DateTime.UtcNow;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        cache.Remove($"steps_{id}_{userId}");
+        await db.SaveChangesAsync(ct);
+        cache.Remove($"v2_steps_{id}_{userId}");
 
-        return Results.Ok(new { step.Id, step.SelectedTier, step.OverrideProductName, step.OverrideImageUrl });
+        return Results.Ok(new { step.Id, SelectedTier = request.SelectedTier });
     }
 
-    // ========== SOFT DELETE ROUTINE STEP ==========
-    private static async Task<IResult> DeleteRoutineStepHandler(
-        Guid id,
-        Guid stepId,
-        ClaimsPrincipal user,
-        AppDbContext dbContext,
-        IMemoryCache cache,
-        CancellationToken cancellationToken)
+    // ── DELETE /analysis/{id}/steps/{stepId} ──────────────────────────────
+    private static async Task<IResult> DeleteStepHandler(
+        Guid id, Guid stepId, ClaimsPrincipal user,
+        AppDbContext db, IMemoryCache cache, CancellationToken ct)
     {
         var (userId, valid) = GetUserId(user);
         if (!valid) return Results.Unauthorized();
 
-        var step = await dbContext.AnalysisRoutineSteps
-            .Where(s => s.Id == stepId && s.AnalysisId == id && s.UserId == userId)
-            .FirstOrDefaultAsync(cancellationToken);
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .FirstOrDefaultAsync(s => s.Id == stepId
+                && s.Routine.UserId == userId, ct);
 
         if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
 
         step.IsActive = false;
         step.UpdatedAt = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
-        cache.Remove($"steps_{id}_{userId}");
+        step.Routine.IsCustomized = true;
+        step.Routine.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        cache.Remove($"v2_steps_{id}_{userId}");
 
         return Results.Ok(new { message = "Passo removido." });
     }
 
-    // ========== REORDER STEPS ==========
+    // ── PUT /analysis/{id}/steps/reorder ──────────────────────────────────
     private static async Task<IResult> ReorderStepsHandler(
-        Guid id,
-        ReorderStepsRequest request,
-        ClaimsPrincipal user,
-        AppDbContext dbContext,
-        IMemoryCache cache,
-        CancellationToken cancellationToken)
+        Guid id, ReorderStepsRequest request, ClaimsPrincipal user,
+        AppDbContext db, IMemoryCache cache, CancellationToken ct)
     {
         var (userId, valid) = GetUserId(user);
         if (!valid) return Results.Unauthorized();
 
-        var steps = await dbContext.AnalysisRoutineSteps
-            .Where(s => s.AnalysisId == id && s.UserId == userId && s.IsActive && s.Period == request.Period)
-            .ToListAsync(cancellationToken);
+        var profile = await db.SkinProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.AnalysisId == id && p.UserId == userId, ct);
+        if (profile is null) return Results.NotFound(new { error = "Análise não encontrada." });
+
+        var routine = await db.Routines
+            .FirstOrDefaultAsync(r => r.SkinProfileId == profile.Id
+                                   && r.Period == request.Period
+                                   && r.IsActive, ct);
+        if (routine is null) return Results.NotFound(new { error = "Rotina não encontrada." });
+
+        var steps = await db.RoutineSteps
+            .Where(s => s.RoutineId == routine.Id && s.IsActive)
+            .ToListAsync(ct);
 
         var stepMap = steps.ToDictionary(s => s.Id);
         for (int i = 0; i < request.StepIds.Count; i++)
@@ -293,194 +318,153 @@ public static class RoutineStepEndpoints
             }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        cache.Remove($"steps_{id}_{userId}");
+        routine.IsCustomized = true;
+        routine.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        cache.Remove($"v2_steps_{id}_{userId}");
+
         return Results.Ok(new { updated = request.StepIds.Count });
     }
 
-    // ========== MIGRATE FROM CUSTOMIZATIONS JSON (one-time) ==========
-    private static async Task<IResult> MigrateFromCustomizationsHandler(
-        Guid id,
-        ClaimsPrincipal user,
-        AppDbContext dbContext,
-        IMemoryCache cache,
-        ILogger<Program> logger,
-        CancellationToken cancellationToken)
+    // ── PATCH /analysis/{id}/steps/{stepId}/select-slot ──────────────────
+    private static async Task<IResult> SelectSlotHandler(
+        Guid id, Guid stepId, SelectSlotRequest request,
+        ClaimsPrincipal user, AppDbContext db,
+        IMemoryCache cache, CancellationToken ct)
     {
         var (userId, valid) = GetUserId(user);
         if (!valid) return Results.Unauthorized();
 
-        var analysis = await dbContext.Analyses
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .Include(s => s.Slots)
+            .FirstOrDefaultAsync(s => s.Id == stepId
+                && s.Routine.UserId == userId, ct);
+
+        if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
+
+        var targetSlot = step.Slots.FirstOrDefault(sl => sl.Id == request.SlotId || sl.Tier == request.Tier);
+        if (targetSlot is null) return Results.NotFound(new { error = "Slot não encontrado." });
+
+        foreach (var sl in step.Slots) sl.IsSelected = sl.Id == targetSlot.Id;
+        step.UpdatedAt = DateTime.UtcNow;
+        step.Routine.IsCustomized = true;
+        step.Routine.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        cache.Remove($"v2_steps_{id}_{userId}");
+
+        return Results.Ok(new { stepId, selectedSlotId = targetSlot.Id, tier = targetSlot.Tier });
+    }
+
+    // ── POST /routines/{routineId}/restore/{version} ──────────────────────
+    private static async Task<IResult> RestoreVersionHandler(
+        Guid routineId, int version, ClaimsPrincipal user,
+        AppDbContext db, IMemoryCache cache,
+        RoutineGeneratorService routineGen, CancellationToken ct)
+    {
+        var (userId, valid) = GetUserId(user);
+        if (!valid) return Results.Unauthorized();
+
+        var routine = await db.Routines
+            .Include(r => r.SkinProfile)
+            .FirstOrDefaultAsync(r => r.Id == routineId && r.UserId == userId, ct);
+        if (routine is null) return Results.NotFound(new { error = "Rotina não encontrada." });
+
+        var versionRecord = await db.RoutineVersions
             .AsNoTracking()
-            .Where(a => a.Id == id && a.UserId == userId)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(v => v.RoutineId == routineId && v.Version == version, ct);
+        if (versionRecord is null) return Results.NotFound(new { error = "Versão não encontrada." });
 
-        if (analysis is null) return Results.NotFound(new { error = "Análise não encontrada." });
-        if (string.IsNullOrWhiteSpace(analysis.CustomizationsJson) || analysis.CustomizationsJson == "{}")
-            return Results.Ok(new { migrated = false, reason = "Sem customizações para migrar." });
+        // Save current state before restoring
+        var newVersion = routine.CurrentVersion + 1;
+        await routineGen.SaveVersionSnapshotAsync(routine, newVersion, "manual_edit", ct,
+            "user", $"restored from v{version}");
 
-        var steps = await dbContext.AnalysisRoutineSteps
-            .Where(s => s.AnalysisId == id && s.UserId == userId && s.IsActive)
-            .ToListAsync(cancellationToken);
+        // Apply snapshot: rebuild steps + slots from JSON
+        await RestoreFromSnapshotAsync(routine, versionRecord.Snapshot, db, ct);
+        routine.CurrentVersion = newVersion + 1;
+        routine.IsCustomized = true;
+        routine.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
 
-        if (steps.Count == 0)
-            return Results.Ok(new { migrated = false, reason = "Sem steps estruturados para atualizar." });
+        var analysisId = routine.SkinProfile.AnalysisId;
+        if (analysisId.HasValue)
+            cache.Remove($"v2_steps_{analysisId.Value}_{userId}");
 
-        MigrationCustomizations? cust;
-        try { cust = System.Text.Json.JsonSerializer.Deserialize<MigrationCustomizations>(analysis.CustomizationsJson); }
-        catch { return Results.Ok(new { migrated = false, reason = "CustomizationsJson inválido." }); }
-
-        if (cust is null) return Results.Ok(new { migrated = false, reason = "CustomizationsJson vazio." });
-
-        int updated = 0;
-
-        // Apply routineOrder → step_order
-        void ApplyOrder(string period, List<string>? order)
-        {
-            if (order is null || order.Count == 0) return;
-            var periodSteps = steps.Where(s => s.Period == period).ToList();
-            var stepByKey = periodSteps.ToDictionary(
-                s => $"{s.Period}::{s.ProductName.Trim().ToLowerInvariant()}", s => s);
-            for (int i = 0; i < order.Count; i++)
-            {
-                if (stepByKey.TryGetValue(order[i].ToLowerInvariant(), out var step))
-                {
-                    step.StepOrder = i;
-                    step.UpdatedAt = DateTime.UtcNow;
-                    updated++;
-                }
-            }
-        }
-
-        ApplyOrder("morning", cust.RoutineOrder?.Morning);
-        ApplyOrder("night", cust.RoutineOrder?.Night);
-
-        // Apply schedule.daysByItem → schedule_days per step
-        if (cust.Schedule?.DaysByItem is not null)
-        {
-            var stepByKey = steps.ToDictionary(
-                s => $"{s.Period}::{s.ProductName.Trim().ToLowerInvariant()}", s => s);
-            foreach (var (key, days) in cust.Schedule.DaysByItem)
-            {
-                var normalizedKey = key.ToLowerInvariant();
-                if (stepByKey.TryGetValue(normalizedKey, out var step) && days is not null)
-                {
-                    step.ScheduleDays = System.Text.Json.JsonSerializer.Serialize(days);
-                    step.UpdatedAt = DateTime.UtcNow;
-                    updated++;
-                }
-            }
-        }
-
-        if (updated > 0)
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-            cache.Remove($"steps_{id}_{userId}");
-            logger.LogInformation("[Migrate] Migrados {Count} steps para análise {Id}", updated, id);
-        }
-
-        return Results.Ok(new { migrated = true, stepsUpdated = updated });
+        return Results.Ok(new { restoredTo = version, newVersion = routine.CurrentVersion });
     }
 
-    private record MigrationCustomizations(
-        [property: System.Text.Json.Serialization.JsonPropertyName("routineOrder")] MigrationOrder? RoutineOrder,
-        [property: System.Text.Json.Serialization.JsonPropertyName("schedule")] MigrationSchedule? Schedule
-    );
-    private record MigrationOrder(
-        [property: System.Text.Json.Serialization.JsonPropertyName("morning")] List<string>? Morning,
-        [property: System.Text.Json.Serialization.JsonPropertyName("night")] List<string>? Night
-    );
-    private record MigrationSchedule(
-        [property: System.Text.Json.Serialization.JsonPropertyName("daysByItem")] Dictionary<string, List<string>>? DaysByItem
-    );
-
-    // ========== Helper methods ==========
-
-    private static string NormalizeRecurrence(string? raw)
+    // ── Helpers ────────────────────────────────────────────────────────────
+    private static async Task RestoreFromSnapshotAsync(
+        UserRoutine routine, string snapshotJson, AppDbContext db, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(raw)) return "daily";
-        var lower = raw.Trim().ToLowerInvariant();
-        return lower switch
+        // Soft-delete current steps
+        await db.RoutineSteps
+            .Where(s => s.RoutineId == routine.Id && s.IsActive)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IsActive, false), ct);
+
+        using var doc = System.Text.Json.JsonDocument.Parse(snapshotJson);
+        var stepsEl = doc.RootElement.GetProperty("steps");
+
+        foreach (var stepEl in stepsEl.EnumerateArray())
         {
-            "morning" or "night" or "both" => "daily",
-            "daily" or "as_needed" or "weekly" => lower,
-            "2x_semana" or "3x_semana" or "2x_week" or "3x_week" => lower,
-            _ when lower.StartsWith("2-3x") || lower.StartsWith("3x") || lower.StartsWith("2x") => lower,
-            _ => "daily",
-        };
-    }
-
-    private static List<AnalysisRoutineStep> BuildStepsFromRoutineJson(
-        Analysis analysis,
-        List<Recommendation> recommendations)
-    {
-        var steps = new List<AnalysisRoutineStep>();
-        if (string.IsNullOrWhiteSpace(analysis.RoutineJson)) return steps;
-
-        AnalysisRoutineDto? routine;
-        try { routine = System.Text.Json.JsonSerializer.Deserialize<AnalysisRoutineDto>(analysis.RoutineJson); }
-        catch { return steps; }
-        if (routine is null) return steps;
-
-        var recByName = recommendations
-            .Where(r => !string.IsNullOrWhiteSpace(r.Product))
-            .GroupBy(r => r.Product.Trim().ToLowerInvariant())
-            .ToDictionary(g => g.Key, g => g.First());
-
-        static (string category, string productName, string recurrence) ParseStep(string raw)
-        {
-            var sep = raw.IndexOf(':');
-            var category = sep > 0 ? raw[..sep].Trim() : "Passo";
-            var rest = sep > 0 ? raw[(sep + 1)..].Trim() : raw.Trim();
-
-            string recurrence = "daily";
-            var match = System.Text.RegularExpressions.Regex.Match(rest, @"\(([^)]+)\)\s*$");
-            if (match.Success)
+            var newStep = new UserRoutineStep
             {
-                recurrence = match.Groups[1].Value.Trim().ToLowerInvariant();
-                rest = rest[..match.Index].Trim();
-            }
+                RoutineId = routine.Id,
+                StepTypeKey = stepEl.GetProperty("stepType").GetString() ?? "cleanser",
+                StepOrder = stepEl.GetProperty("order").GetInt32(),
+                Recurrence = stepEl.GetProperty("recurrence").GetString() ?? "daily",
+            };
+            db.RoutineSteps.Add(newStep);
+            await db.SaveChangesAsync(ct);
 
-            return (category, rest, recurrence);
-        }
-
-        static bool IsExtraCategory(string cat)
-        {
-            var n = cat.ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
-            n = System.Text.RegularExpressions.Regex.Replace(n, @"\p{M}", "");
-            return n is "extras" or "extra" or "adicional";
-        }
-
-        void AddSteps(IList<string> rawSteps, string period)
-        {
-            var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            for (int i = 0; i < rawSteps.Count; i++)
+            foreach (var slotEl in stepEl.GetProperty("slots").EnumerateArray())
             {
-                var (category, productName, rawRec) = ParseStep(rawSteps[i]);
-                if (string.IsNullOrWhiteSpace(productName)) continue;
-                if (!seenTitles.Add(productName.ToLowerInvariant())) continue;
+                var tier = slotEl.GetProperty("tier").GetString() ?? "primary";
+                var isSelected = slotEl.GetProperty("isSelected").GetBoolean();
+                Guid? productId = slotEl.TryGetProperty("productId", out var pidEl)
+                    && pidEl.ValueKind != System.Text.Json.JsonValueKind.Null
+                    ? pidEl.GetGuid() : null;
 
-                recByName.TryGetValue(productName.ToLowerInvariant(), out var rec);
-
-                steps.Add(new AnalysisRoutineStep
+                db.StepProductSlots.Add(new StepProductSlot
                 {
-                    AnalysisId = analysis.Id,
-                    UserId = analysis.UserId,
-                    Period = period,
-                    StepOrder = i,
-                    Category = category,
-                    RecommendationId = rec?.Id,
-                    ProductName = productName,
-                    ImageUrl = rec?.ImageUrl,
-                    Recurrence = NormalizeRecurrence(rawRec),
-                    IsExtra = IsExtraCategory(category),
-                    IsActive = true,
+                    StepId = newStep.Id,
+                    Tier = tier,
+                    ProductId = productId,
+                    IsSelected = isSelected,
                 });
             }
+            await db.SaveChangesAsync(ct);
         }
-
-        AddSteps(routine.Morning, "morning");
-        AddSteps(routine.Night, "night");
-        return steps;
     }
+
+    private static int[] ParseScheduleDays(string json)
+    {
+        try
+        {
+            var names = System.Text.Json.JsonSerializer.Deserialize<string[]>(json) ?? [];
+            return names.Select(d => d.ToLowerInvariant() switch
+            {
+                "sun" or "dom" => 0,
+                "mon" or "seg" => 1,
+                "tue" or "ter" => 2,
+                "wed" or "qua" => 3,
+                "thu" or "qui" => 4,
+                "fri" or "sex" => 5,
+                "sat" or "sab" => 6,
+                _ => -1,
+            }).Where(d => d >= 0).ToArray();
+        }
+        catch { return [0, 1, 2, 3, 4, 5, 6]; }
+    }
+
+    private static string[] MapDaysToNames(int[] days) => days.Select(d => d switch
+    {
+        0 => "sun", 1 => "mon", 2 => "tue", 3 => "wed",
+        4 => "thu", 5 => "fri", 6 => "sat", _ => "mon"
+    }).ToArray();
 }
+
+// Request DTOs
+public record SelectSlotRequest(Guid? SlotId = null, string? Tier = null);
