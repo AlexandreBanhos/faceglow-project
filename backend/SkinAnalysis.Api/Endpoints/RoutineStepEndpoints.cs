@@ -119,6 +119,7 @@ public static class RoutineStepEndpoints
                 Period = s.Routine.Period,
                 StepOrder = s.StepOrder,
                 Category = s.StepTypeKey,
+                CategoryDisplayName = StepDisplayName(s.StepTypeKey),
                 ProductId = selected?.ProductId,
                 ProductName = productName,
                 imageUrl,
@@ -459,6 +460,8 @@ public static class RoutineStepEndpoints
         catch { return [0, 1, 2, 3, 4, 5, 6]; }
     }
 
+    private static string StepDisplayName(string key) => StepDisplayNames.Get(key);
+
     private static string[] MapDaysToNames(int[] days) => days.Select(d => d switch
     {
         0 => "sun", 1 => "mon", 2 => "tue", 3 => "wed",
@@ -468,3 +471,23 @@ public static class RoutineStepEndpoints
 
 // Request DTOs
 public record SelectSlotRequest(Guid? SlotId = null, string? Tier = null);
+
+// Step type key → display name in Portuguese
+file static class StepDisplayNames
+{
+    private static readonly Dictionary<string, string> _map = new()
+    {
+        ["cleanser"]      = "Limpeza",
+        ["toner"]         = "Tônico",
+        ["serum"]         = "Sérum",
+        ["acid"]          = "Ácido",
+        ["retinoid"]      = "Retinol/Retinoide",
+        ["eye_cream"]     = "Creme para Olhos",
+        ["moisturizer"]   = "Hidratante",
+        ["oil"]           = "Óleo Facial",
+        ["sunscreen"]     = "Protetor Solar",
+        ["spot_treatment"]= "Tratamento Pontual",
+    };
+    public static string Get(string key) =>
+        _map.TryGetValue(key, out var name) ? name : key;
+}

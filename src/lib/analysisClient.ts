@@ -528,8 +528,9 @@ export type RoutineStep = {
   analysisId: string;
   period: "morning" | "night";
   stepOrder: number;
-  category: string;      // step_type_key (cleanser, serum, etc.)
-  stepTypeKey: string;   // same as category (v2 alias)
+  category: string;              // step_type_key (cleanser, serum, etc.)
+  categoryDisplayName?: string;  // "Limpeza", "Sérum", etc.
+  stepTypeKey: string;           // same as category (v2 alias)
   productId: string | null;
   productName: string;
   imageUrl: string | null;
