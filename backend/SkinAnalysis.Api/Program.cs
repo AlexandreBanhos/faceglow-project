@@ -490,6 +490,42 @@ app.MapGet("/analysis/dashboard", async (ClaimsPrincipal user, AppDbContext dbCo
     var latest = latestTwo[0];
     var previous = latestTwo.Count > 1 ? latestTwo[1] : null;
 
+    // Build routine strings from active routine_steps for this user
+    var morningSteps = new List<string>();
+    var nightSteps = new List<string>();
+    try
+    {
+        var activeProfile = await dbContext.SkinProfiles
+            .AsNoTracking()
+            .Where(p => p.UserId == parsedUserId.Value && p.IsCurrent)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (activeProfile is not null)
+        {
+            var routineSteps = await dbContext.RoutineSteps
+                .AsNoTracking()
+                .Where(s => s.Routine.SkinProfileId == activeProfile.Id
+                         && s.Routine.UserId == parsedUserId.Value
+                         && s.Routine.IsActive
+                         && s.IsActive)
+                .Include(s => s.Routine)
+                .Include(s => s.Slots).ThenInclude(sl => sl.Product)
+                .OrderBy(s => s.Routine.Period).ThenBy(s => s.StepOrder)
+                .ToListAsync(cancellationToken);
+
+            foreach (var step in routineSteps)
+            {
+                var selected = step.Slots.FirstOrDefault(sl => sl.IsSelected);
+                var displayName = SkinAnalysis.Api.Endpoints.StepDisplayNames.Get(step.StepTypeKey);
+                var productName = selected?.Product?.Name ?? step.StepTypeKey;
+                var line = $"{displayName}: {productName}";
+                if (step.Routine.Period == "morning") morningSteps.Add(line);
+                else nightSteps.Add(line);
+            }
+        }
+    }
+    catch { /* Routine build is best-effort — don't fail dashboard if routine query fails */ }
+
     var result = new
     {
         latest = new AnalysisResponseDto
@@ -516,7 +552,7 @@ app.MapGet("/analysis/dashboard", async (ClaimsPrincipal user, AppDbContext dbCo
             },
             OverallScore = latest.OverallScore,
             CreatedAtUtc = latest.CreatedAt,
-            Routine = new AnalysisRoutineDto { Morning = new(), Night = new() },
+            Routine = new AnalysisRoutineDto { Morning = morningSteps, Night = nightSteps },
             Recommendations = new(),
             HasRecommendations = false,
         },

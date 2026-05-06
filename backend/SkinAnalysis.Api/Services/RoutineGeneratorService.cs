@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Dapper;
 using Microsoft.EntityFrameworkCore;
 using SkinAnalysis.Api.Data;
 using SkinAnalysis.Api.Models;
@@ -68,44 +67,30 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
         logger.LogInformation("[Engine] Routines generated for profile {ProfileId}", profile.Id);
     }
 
-    // ── Template selection ─────────────────────────────────────────────────
-    private async Task<RoutineTemplateRow?> SelectTemplateAsync(SkinProfile profile, string period, CancellationToken ct)
+    // ── Template selection (EF Core — handles text[] arrays correctly) ────────
+    private async Task<RoutineTemplateEntity?> SelectTemplateAsync(SkinProfile profile, string period, CancellationToken ct)
     {
-        var conn = db.Database.GetDbConnection();
-        await db.Database.OpenConnectionAsync(ct);
+        // Load all active templates for this period, then filter in C#
+        // (avoids Dapper text[] mapping issues with PostgreSQL arrays)
+        var candidates = await db.RoutineTemplates
+            .AsNoTracking()
+            .Where(t => t.Period == period && t.IsActive)
+            .OrderBy(t => t.SpecificityScore)
+            .ToListAsync(ct);
 
-        const string sql = """
-            SELECT id, name, step_type_keys, specificity_score
-            FROM routine_templates
-            WHERE period = @period
-              AND is_active = true
-              AND (match_skin_types IS NULL OR @skinType = ANY(match_skin_types))
-              AND (match_concerns IS NULL OR match_concerns && @concerns)
-              AND (min_acne_score IS NULL OR @acneScore >= min_acne_score)
-              AND (min_oiliness_score IS NULL OR @oilinessScore >= min_oiliness_score)
-              AND (min_sensitivity IS NULL OR @sensitivityScore >= min_sensitivity)
-              AND (require_flags IS NULL OR (
-                    (NOT 'has_active_acne'    = ANY(require_flags) OR @hasActiveAcne) AND
-                    (NOT 'has_dark_circles'   = ANY(require_flags) OR @hasDarkCircles) AND
-                    (NOT 'has_enlarged_pores' = ANY(require_flags) OR @hasEnlargedPores)
-                  ))
-            ORDER BY specificity_score ASC
-            LIMIT 1
-            """;
-
-        return await conn.QueryFirstOrDefaultAsync<RoutineTemplateRow>(
-            new CommandDefinition(sql, new
+        return candidates.FirstOrDefault(t =>
+            (t.MatchSkinTypes == null || t.MatchSkinTypes.Contains(profile.SkinType)) &&
+            (t.MatchConcerns == null || t.MatchConcerns.Intersect(profile.PrimaryConcerns).Any()) &&
+            (t.MinAcneScore == null || profile.AcneScore >= t.MinAcneScore) &&
+            (t.MinOilinessScore == null || profile.OilinessScore >= t.MinOilinessScore) &&
+            (t.MinSensitivity == null || profile.SensitivityScore >= t.MinSensitivity) &&
+            (t.RequireFlags == null || t.RequireFlags.All(flag => flag switch
             {
-                period,
-                skinType = profile.SkinType,
-                concerns = profile.PrimaryConcerns,
-                acneScore = profile.AcneScore,
-                oilinessScore = profile.OilinessScore,
-                sensitivityScore = profile.SensitivityScore,
-                hasActiveAcne = profile.HasActiveAcne,
-                hasDarkCircles = profile.HasDarkCircles,
-                hasEnlargedPores = profile.HasEnlargedPores,
-            }, cancellationToken: ct));
+                "has_active_acne"    => profile.HasActiveAcne,
+                "has_dark_circles"   => profile.HasDarkCircles,
+                "has_enlarged_pores" => profile.HasEnlargedPores,
+                _                    => true,
+            })));
     }
 
     // ── Slot population ────────────────────────────────────────────────────
@@ -265,6 +250,4 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
         _ => "daily",
     };
 
-    // Internal DTOs for Dapper queries
-    private sealed record RoutineTemplateRow(Guid Id, string Name, string[] StepTypeKeys, int SpecificityScore);
 }

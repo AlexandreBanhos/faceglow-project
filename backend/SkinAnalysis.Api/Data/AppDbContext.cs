@@ -16,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<StepProductSlot> StepProductSlots => Set<StepProductSlot>();
     public DbSet<RoutineVersion> RoutineVersions => Set<RoutineVersion>();
     public DbSet<StepCompletion> StepCompletions => Set<StepCompletion>();
+    public DbSet<RoutineTemplateEntity> RoutineTemplates => Set<RoutineTemplateEntity>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<UserCredit> UserCredits => Set<UserCredit>();
 
@@ -288,6 +289,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.UpdatedAtUtc).HasColumnName("updated_at_utc");
             e.HasIndex(x => x.UserId);
             e.HasIndex(x => x.ExternalReference).IsUnique();
+        });
+
+        // ── routine_templates ─────────────────────────────────────
+        mb.Entity<RoutineTemplateEntity>(e =>
+        {
+            e.ToTable("routine_templates");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name");
+            e.Property(x => x.Period).HasColumnName("period");
+            e.Property(x => x.MatchSkinTypes).HasColumnName("match_skin_types").HasColumnType("text[]");
+            e.Property(x => x.MatchConcerns).HasColumnName("match_concerns").HasColumnType("text[]");
+            e.Property(x => x.RequireFlags).HasColumnName("require_flags").HasColumnType("text[]");
+            e.Property(x => x.MinAcneScore).HasColumnName("min_acne_score");
+            e.Property(x => x.MinOilinessScore).HasColumnName("min_oiliness_score");
+            e.Property(x => x.MinSensitivity).HasColumnName("min_sensitivity");
+            e.Property(x => x.StepTypeKeys).HasColumnName("step_type_keys").HasColumnType("text[]");
+            e.Property(x => x.SpecificityScore).HasColumnName("specificity_score");
+            e.Property(x => x.IsActive).HasColumnName("is_active");
         });
 
         // ── user_credits ───────────────────────────────────────

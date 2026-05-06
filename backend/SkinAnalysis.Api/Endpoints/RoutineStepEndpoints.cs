@@ -473,7 +473,7 @@ public static class RoutineStepEndpoints
 public record SelectSlotRequest(Guid? SlotId = null, string? Tier = null);
 
 // Step type key → display name in Portuguese
-file static class StepDisplayNames
+internal static class StepDisplayNames
 {
     private static readonly Dictionary<string, string> _map = new()
     {
