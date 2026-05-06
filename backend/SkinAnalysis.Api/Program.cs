@@ -1459,7 +1459,7 @@ app.MapGet("/admin/products", async (HttpContext httpContext, ClaimsPrincipal us
         var search = httpContext.Request.Query["search"].FirstOrDefault()?.Trim().ToLowerInvariant();
 
         var query = dbContext.Products
-            .Include(p => p.PrimaryImage)
+            .Include(p => p.Images)
             .AsQueryable();
         if (!string.IsNullOrEmpty(search))
             query = query.Where(p => p.Name.ToLower().Contains(search) || p.Brand.ToLower().Contains(search));
@@ -1527,10 +1527,8 @@ app.MapPost("/admin/products", async (CreateAdminProductDto request, ClaimsPrinc
 
     if (!string.IsNullOrWhiteSpace(request.ImageUrl))
     {
-        var img = new ProductImage { ProductId = product.Id, PublicUrl = request.ImageUrl, Source = "uploaded" };
+        var img = new ProductImage { ProductId = product.Id, PublicUrl = request.ImageUrl, Position = 0, Source = "uploaded" };
         dbContext.ProductImages.Add(img);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        product.PrimaryImageId = img.Id;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -1539,7 +1537,7 @@ app.MapPost("/admin/products", async (CreateAdminProductDto request, ClaimsPrinc
         product.CompatibleSkinTypes, product.TargetsConcerns, product.StrengthLevel,
         product.SuitablePeriods, product.PriceRange, product.PriceAvg,
         product.CurationScore, product.IsActive,
-        product.PrimaryImage?.PublicUrl, product.CreatedAt
+        product.PrimaryImageUrl, product.CreatedAt
     );
 
     return Results.Created($"/admin/products/{product.Id}", dto);
@@ -1641,7 +1639,7 @@ app.MapPut("/admin/products/{id:guid}", async (Guid id, UpdateAdminProductDto re
             product.CompatibleSkinTypes, product.TargetsConcerns, product.StrengthLevel,
             product.SuitablePeriods, product.PriceRange, product.PriceAvg,
             product.CurationScore, product.IsActive,
-            product.PrimaryImage?.PublicUrl, product.CreatedAt
+            product.PrimaryImageUrl, product.CreatedAt
         );
         logger.LogInformation("[PUT AdminProducts] DTO created, returning response for {ProductId}", id);
 

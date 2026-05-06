@@ -35,7 +35,7 @@ public static class UserProductEndpoints
         var products = await db.UserProducts
             .AsNoTracking()
             .Where(p => p.UserId == userId)
-            .Include(p => p.CatalogProduct).ThenInclude(cp => cp!.PrimaryImage)
+            .Include(p => p.CatalogProduct).ThenInclude(cp => cp!.Images)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(ct);
 

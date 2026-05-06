@@ -93,7 +93,7 @@ public static class RoutineStepEndpoints
             .Include(s => s.Routine)
             .Include(s => s.Slots)
                 .ThenInclude(sl => sl.Product)
-                    .ThenInclude(p => p!.PrimaryImage)
+                    .ThenInclude(p => p!.Images)
             .Include(s => s.Slots)
                 .ThenInclude(sl => sl.UserProduct)
             .OrderBy(s => s.Routine.Period)
@@ -106,7 +106,7 @@ public static class RoutineStepEndpoints
             var productName = selected?.Product?.Name
                 ?? selected?.UserProduct?.DisplayName
                 ?? string.Empty;
-            var imageUrl = selected?.Product?.PrimaryImage?.PublicUrl
+            var imageUrl = selected?.Product?.PrimaryImageUrl
                 ?? selected?.UserProduct?.DisplayImageUrl;
             var scheduleDays = s.ScheduleDays.Length > 0
                 ? JsonSerializer.Serialize(MapDaysToNames(s.ScheduleDays))
@@ -140,7 +140,7 @@ public static class RoutineStepEndpoints
                     sl.IsSelected,
                     ProductId = sl.ProductId,
                     ProductName = sl.Product?.Name ?? sl.UserProduct?.DisplayName,
-                    ImageUrl = sl.Product?.PrimaryImage?.PublicUrl ?? sl.UserProduct?.DisplayImageUrl,
+                    ImageUrl = sl.Product?.PrimaryImageUrl ?? sl.UserProduct?.DisplayImageUrl,
                     sl.RecommendationReason,
                     Score = sl.ScoreAtGeneration,
                 }).ToList()

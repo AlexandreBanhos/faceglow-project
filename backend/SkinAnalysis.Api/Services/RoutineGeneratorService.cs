@@ -156,7 +156,7 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
     {
         var query = db.Products
             .AsNoTracking()
-            .Include(p => p.PrimaryImage)
+            .Include(p => p.Images)
             .Where(p => p.StepTypeKey == stepKey
                      && p.IsActive
                      && p.SuitablePeriods.Contains(period));
@@ -219,7 +219,7 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
             .Where(s => s.RoutineId == routine.Id && s.IsActive)
             .Include(s => s.Slots)
                 .ThenInclude(sl => sl.Product)
-                    .ThenInclude(p => p!.PrimaryImage)
+                    .ThenInclude(p => p!.Images)
             .OrderBy(s => s.StepOrder)
             .ToListAsync(ct);
 
@@ -239,7 +239,7 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
                     isSelected = sl.IsSelected,
                     productId = sl.ProductId,
                     productName = sl.Product?.Name,
-                    imageUrl = sl.Product?.PrimaryImage?.PublicUrl,
+                    imageUrl = sl.Product?.PrimaryImageUrl,
                     score = sl.ScoreAtGeneration,
                 })
             })

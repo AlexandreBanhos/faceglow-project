@@ -8,7 +8,6 @@ public sealed class Product
     public string StepTypeKey { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? Tagline { get; set; }
-    public Guid? PrimaryImageId { get; set; }
 
     public string[] CompatibleSkinTypes { get; set; } = [];
     public string[] TargetsConcerns { get; set; } = [];
@@ -28,9 +27,12 @@ public sealed class Product
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public ProductImage? PrimaryImage { get; set; }
+    // Images loaded via ProductId FK (position=0 is the primary image)
     public ICollection<ProductImage> Images { get; set; } = new List<ProductImage>();
     public ICollection<StepProductSlot> Slots { get; set; } = new List<StepProductSlot>();
+
+    // Resolved at runtime from Images collection (no circular FK)
+    public string? PrimaryImageUrl => Images.OrderBy(i => i.Position).FirstOrDefault()?.PublicUrl;
 }
 
 public sealed class ProductImage

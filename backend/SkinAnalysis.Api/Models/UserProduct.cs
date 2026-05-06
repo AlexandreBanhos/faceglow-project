@@ -16,5 +16,5 @@ public sealed class UserProduct
     public Product? CatalogProduct { get; set; }
 
     public string DisplayName => CatalogProduct?.Name ?? CustomName ?? "Produto";
-    public string? DisplayImageUrl => CatalogProduct?.PrimaryImage?.PublicUrl ?? CustomImageUrl;
+    public string? DisplayImageUrl => CatalogProduct?.PrimaryImageUrl ?? CustomImageUrl;
 }

@@ -106,7 +106,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.StepTypeKey).HasColumnName("step_type_key");
             e.Property(x => x.Description).HasColumnName("description");
             e.Property(x => x.Tagline).HasColumnName("tagline");
-            e.Property(x => x.PrimaryImageId).HasColumnName("primary_image_id");
+            // PrimaryImageId: exists in DB (DEFERRABLE FK) but not mapped as EF Core navigation
+            // to avoid circular dependency. Use Product.PrimaryImageUrl (from Images) instead.
             e.Property(x => x.CompatibleSkinTypes).HasColumnName("compatible_skin_types").HasColumnType("text[]");
             e.Property(x => x.TargetsConcerns).HasColumnName("targets_concerns").HasColumnType("text[]");
             e.Property(x => x.SuitablePeriods).HasColumnName("suitable_periods").HasColumnType("text[]");
@@ -122,7 +123,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             e.HasMany(x => x.Images).WithOne(x => x.Product).HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(x => x.PrimaryImage).WithMany().HasForeignKey(x => x.PrimaryImageId).OnDelete(DeleteBehavior.SetNull).IsRequired(false);
+            e.Ignore(x => x.PrimaryImageUrl); // computed property, not a column
             e.HasIndex(x => new { x.StepTypeKey, x.IsActive });
             e.HasIndex(x => x.CompatibleSkinTypes).HasMethod("GIN").HasDatabaseName("idx_products_skin_types");
             e.HasIndex(x => x.TargetsConcerns).HasMethod("GIN").HasDatabaseName("idx_products_concerns");
