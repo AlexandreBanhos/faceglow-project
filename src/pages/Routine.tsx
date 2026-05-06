@@ -22,6 +22,7 @@ import { getUserCatalog } from "@/lib/userCatalog";
 import { createMyProduct } from "@/lib/userProducts";
 import { apiBaseUrl } from "@/lib/api";
 import { AuroraBackdrop } from "@/components/shared";
+import { ProductSwitchSheet } from "@/components/routine/ProductSwitchSheet";
 
 const weekDays = [
   { key: "mon", label: "Seg" },
@@ -2322,8 +2323,10 @@ const Routine = () => {
 
 
 
-                      {/* Product Selection (if analyzed and selecting) */}
-                      {selectingProductItem === item.key && hasRoutineFromAnalysis && (() => {
+                      {/* Product Selection (inline panel — only for legacy steps without slots) */}
+                      {selectingProductItem === item.key && hasRoutineFromAnalysis
+                        && !apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === item.key)?.slots?.length
+                        && (() => {
                         const current = resolvedProductByItem.get(item.key);
                         return (
                           <div className="mx-3 mb-3 rounded-xl border border-border/60 bg-background p-3 space-y-3">
@@ -2965,6 +2968,44 @@ const Routine = () => {
           </button>
         </motion.div>
       </div>
+
+      {/* Product Switch Sheet — v2 bottom sheet, shows when step has slots[] */}
+      {(() => {
+        const sheetItem = selectingProductItem
+          ? [...orderedItems.morning, ...orderedItems.night].find(i => i.key === selectingProductItem)
+          : null;
+        const sheetStep = sheetItem
+          ? apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === sheetItem.key)
+          : null;
+        // Only use sheet for v2 steps that have slots; fallback to inline for legacy steps
+        const useSheet = !!sheetStep?.slots?.length;
+
+        if (!useSheet || !sheetItem) return null;
+
+        const sheetOptions = productOptionsByItem.get(sheetItem.key) ?? [];
+        const selectedKey = selectedOptionByItem[sheetItem.key] ?? sheetOptions[0]?.key ?? null;
+
+        return (
+          <ProductSwitchSheet
+            open={!!selectingProductItem && useSheet}
+            onClose={() => setSelectingProductItem(null)}
+            stepLabel={sheetItem.stepLabel}
+            stepCategory={sheetItem.type}
+            period={sheetItem.period}
+            options={sheetOptions}
+            selectedKey={selectedKey}
+            pendingKey={pendingOptionByItem[sheetItem.key] ?? null}
+            pendingScope={pendingScopeByItem[sheetItem.key] ?? "both"}
+            onSelectOption={(key) => setPendingOptionByItem(prev => ({ ...prev, [sheetItem.key]: key }))}
+            onScopeChange={(scope) => setPendingScopeByItem(prev => ({ ...prev, [sheetItem.key]: scope }))}
+            onSave={() => saveProductSelection(sheetItem.key)}
+            onCancel={() => cancelProductSelection(sheetItem.key)}
+            onSaveCustom={(name, imageUrl) => {
+              saveCustomProductFromCatalog(sheetItem.key, name, imageUrl);
+            }}
+          />
+        );
+      })()}
 
       <BottomNav />
     </div>

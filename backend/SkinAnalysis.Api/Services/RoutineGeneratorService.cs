@@ -107,16 +107,29 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
             .ToList();
 
         var primary   = scored[0];
-        var altBudget = scored.FirstOrDefault(x => x.product.Id != primary.product.Id
-                            && x.product.PriceRange is "low" or "medium");
-        var altRated  = scored.FirstOrDefault(x => x.product.Id != primary.product.Id
-                            && x.product.Id != altBudget.product?.Id);
+        // All slots must have DISTINCT products
+        var usedIds = new HashSet<Guid> { primary.product.Id };
 
-        await AddSlotAsync(step, "primary",    primary.product,   primary.score,   "Melhor para seu perfil", ct);
+        // alt_budget: cheapest option that's not primary
+        var altBudget = scored.FirstOrDefault(x =>
+            !usedIds.Contains(x.product.Id) &&
+            x.product.PriceRange is "low" or "medium");
+        if (altBudget.product is not null) usedIds.Add(altBudget.product.Id);
+
+        // alt_rated: highest curation score among remaining distinct products
+        var altRated = scored
+            .Where(x => !usedIds.Contains(x.product.Id))
+            .OrderByDescending(x => x.product.CurationScore)
+            .ThenByDescending(x => x.score)
+            .FirstOrDefault();
+
+        await AddSlotAsync(step, "primary", primary.product, primary.score, "Melhor para seu perfil", ct);
+
         if (altBudget.product is not null)
             await AddSlotAsync(step, "alt_budget", altBudget.product, altBudget.score, "Melhor custo-benefício", ct);
+
         if (altRated.product is not null)
-            await AddSlotAsync(step, "alt_rated",  altRated.product,  altRated.score,  "Mais bem avaliado", ct);
+            await AddSlotAsync(step, "alt_rated", altRated.product, altRated.score, "Mais bem avaliado", ct);
     }
 
     private async Task AddSlotAsync(
