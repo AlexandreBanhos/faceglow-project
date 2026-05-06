@@ -10,7 +10,7 @@
 - **Pagamentos**: Stripe (cartão) + MercadoPago (PIX)
 
 ## URLs locais
-- Frontend: `http://localhost:5173`
+- Frontend: `http://localhost:8080` (`vite.config.ts` porta 8080)
 - Backend: `http://localhost:5172`
 
 ## Convenções de código
@@ -22,7 +22,7 @@
 - Serviços em `Services/` — injetados como `Scoped`
 - Background tasks usam `IServiceScopeFactory` para criar escopo próprio
 - `AnalysisJobStore` — store in-memory para jobs assíncronos de análise (evicção 10min)
-- Produto catalog cache — `AnalysisService.SetProductCatalogCache()` (pre-warm no startup)
+- `RoutineGeneratorService` — engine de geração de rotinas (template + scoring + slots)
 
 ### Frontend
 - Rotas em `src/pages/`
