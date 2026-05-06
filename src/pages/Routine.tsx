@@ -8,8 +8,9 @@ import BottomNav from "@/components/BottomNav";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
   getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache,
-  addRoutineStep, updateRoutineStep,
+  addRoutineStep, updateRoutineStep, selectRoutineSlot,
   type RoutineStep as ApiRoutineStep,
+  type SlotTier,
 } from "@/lib/analysisClient";
 import { useRoutineSteps, useRoutineComplete } from "@/features/routine";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
@@ -446,15 +447,16 @@ const Routine = () => {
     loadTodayProgress();
   }, [stepsLoading, apiSteps, todayStr]);
 
-  // Sync tiers da API para selectedOptionByItem quando steps carregam (hook gerencia o fetch)
+  // Sync tiers da API para selectedOptionByItem quando steps carregam
   useEffect(() => {
     if (stepsLoading || apiSteps.length === 0) return;
     const tierMap: Record<string, string> = {};
     apiSteps.forEach((s) => {
-      if (s.selectedTier) {
-        const key = `${s.period}::${s.productName.toLowerCase()}`;
-        tierMap[key] = `${key}::${s.selectedTier}`;
-      }
+      const key = `${s.period}::${s.productName.toLowerCase()}`;
+      // v2: use selected slot's tier
+      const selectedSlot = s.slots?.find(sl => sl.isSelected);
+      const tier = selectedSlot?.tier ?? s.selectedTier;
+      if (tier) tierMap[key] = `${key}::${tier}`;
     });
     if (Object.keys(tierMap).length > 0) {
       setSelectedOptionByItem((prev) => ({ ...prev, ...tierMap }));
@@ -476,16 +478,21 @@ const Routine = () => {
 
       const toRoutineItem = (s: ApiRoutineStep, idx: number): RoutineItem => {
         const rec = recommendationByName.get(s.productName.toLowerCase());
+        // v2: use selected slot's product data when available
+        const selectedSlot = s.slots?.find(sl => sl.isSelected);
+        const displayName = selectedSlot?.productName ?? s.overrideProductName ?? s.productName;
+        const displayImage = selectedSlot?.imageUrl ?? s.overrideImageUrl ?? s.imageUrl ?? rec?.imageUrl;
+        const displayReason = selectedSlot?.recommendationReason ?? rec?.reason ?? "";
         return {
-          key: `${s.period}::${s.productName.toLowerCase()}`,
+          key: `${s.period}::${s.productName.toLowerCase()}`, // stable key = primary product name
           period: s.period as "morning" | "night",
           stepNumber: s.stepOrder + 1,
-          stepLabel: s.category,
-          title: s.overrideProductName ?? s.productName,
+          stepLabel: s.categoryDisplayName ?? s.category,
+          title: displayName,
           type: s.category,
           recurrence: s.recurrence,
-          note: rec?.reason ?? "",
-          imageUrl: s.overrideImageUrl ?? s.imageUrl ?? rec?.imageUrl,
+          note: displayReason,
+          imageUrl: displayImage ?? undefined,
           isCustom: s.isUserAdded,
         };
       };
@@ -546,9 +553,34 @@ const Routine = () => {
     };
   }, [analysis?.recommendations, routine.morning, routine.night, loadedAnalysis?.recommendations, apiSteps, stepsLoaded]);
 
+  const tierLabel = (tier: string): string => {
+    if (tier === "primary") return "Melhor para sua pele";
+    if (tier === "alt_budget") return "Melhor custo-benefício";
+    if (tier === "alt_rated") return "Mais avaliado";
+    return "Meu produto";
+  };
+
   const productOptionsByItem = useMemo(() => {
+    // ── v2: use slots[] from API steps when available ──────────────────────
+    if (stepsLoaded && apiSteps.length > 0 && apiSteps.some(s => (s.slots?.length ?? 0) > 0)) {
+      const result = new Map<string, ProductOption[]>();
+      apiSteps.forEach(step => {
+        const itemKey = `${step.period}::${step.productName.toLowerCase()}`;
+        const slots = step.slots ?? [];
+        if (slots.length === 0) return;
+        result.set(itemKey, slots.map(slot => ({
+          key: `${itemKey}::${slot.tier}`,
+          label: tierLabel(slot.tier),
+          productName: slot.productName ?? step.productName,
+          reason: slot.recommendationReason ?? "",
+          imageUrl: slot.imageUrl ?? undefined,
+        })));
+      });
+      if (result.size > 0) return result;
+    }
+
+    // ── legacy fallback: build from analysis.recommendations ───────────────
     const recommendations = analysis?.recommendations ?? [];
-    // Include all products (main and extras/additional)
     const recommendationGroups = new Map<string, AnalysisRecommendation[]>();
 
     recommendations.forEach((item) => {
@@ -1196,16 +1228,20 @@ const Routine = () => {
 
   useEffect(() => {
     localStorage.setItem(getSelectionStorageKey(analysis?.id), JSON.stringify(selectedOptionByItem));
-    // Sync tier selections to API steps
+    // Sync tier selections to API steps (only for legacy steps without slots)
     if (!analysis?.id || apiSteps.length === 0) return;
+    const v2Tiers: SlotTier[] = ["primary", "alt_budget", "alt_rated", "user_custom"];
     Object.entries(selectedOptionByItem).forEach(([itemKey, selectionKey]) => {
-      const tier = selectionKey.split("::").pop() as "best" | "second" | "budget" | undefined;
-      if (!tier || !["best", "second", "budget"].includes(tier)) return;
-      const step = apiSteps.find(
-        (s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey
-      );
-      if (step && step.selectedTier !== tier) {
-        updateRoutineStep(analysis.id, step.id, { selectedTier: tier });
+      const tier = selectionKey.split("::").pop();
+      if (!tier) return;
+      const step = apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === itemKey);
+      if (!step) return;
+      // v2 steps with slots: selectRoutineSlot already called in saveProductSelection
+      if (step.slots?.length) return;
+      // Legacy steps without slots: use updateRoutineStep
+      const legacyTier = tier === "primary" ? "best" : tier === "alt_rated" ? "second" : tier === "alt_budget" ? "budget" : tier;
+      if (["best", "second", "budget"].includes(legacyTier) && step.selectedTier !== legacyTier) {
+        updateRoutineStep(analysis.id, step.id, { selectedTier: legacyTier });
       }
     });
   }, [analysis?.id, selectedOptionByItem, apiSteps]);
@@ -1429,6 +1465,7 @@ const Routine = () => {
   const saveProductSelection = (itemKey: string) => {
     const optionKey = pendingOptionByItem[itemKey];
     if (optionKey) {
+      const tier = optionKey.split("::").pop() ?? "primary";
       const scope = pendingScopeByItem[itemKey] ?? "both";
       const currentPeriod = itemKey.startsWith("night::") ? "night" : "morning";
       const otherPeriod = currentPeriod === "morning" ? "night" : "morning";
@@ -1440,11 +1477,29 @@ const Routine = () => {
       const otherKey = counterpartItem?.key ?? null;
 
       setSelectedOptionByItem((prev) => {
-        const suffix = optionKey.split("::").pop() ?? "best";
         const next = { ...prev, [itemKey]: optionKey };
-        if (scope === "both" && otherKey) next[otherKey] = `${otherKey}::${suffix}`;
+        if (scope === "both" && otherKey) next[otherKey] = `${otherKey}::${tier}`;
         return next;
       });
+
+      // v2: call selectRoutineSlot for steps with slots
+      if (analysis?.id) {
+        const step = apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === itemKey);
+        if (step?.slots?.length) {
+          const v2Tiers: SlotTier[] = ["primary", "alt_budget", "alt_rated", "user_custom"];
+          const v2Tier = v2Tiers.includes(tier as SlotTier)
+            ? tier as SlotTier
+            : tier === "best" ? "primary" : tier === "second" ? "alt_rated" : "alt_budget";
+          selectRoutineSlot(analysis.id, step.id, v2Tier).then(() => reloadApiSteps());
+          // counterpart (other period)
+          if (scope === "both" && otherKey) {
+            const otherStep = apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === otherKey);
+            if (otherStep?.slots?.length) {
+              selectRoutineSlot(analysis.id, otherStep.id, v2Tier);
+            }
+          }
+        }
+      }
     }
     setSelectingProductItem(null);
     setPendingOptionByItem((prev) => { const p = { ...prev }; delete p[itemKey]; return p; });

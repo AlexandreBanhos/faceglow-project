@@ -9,8 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import DashboardSkeleton from "@/components/skeletons/DashboardSkeleton";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
 import { type AnalysisResponse } from "@/lib/analysis";
-import { fetchDashboardSummary } from "@/lib/analysisClient";
-import { getCurrentUser } from "@/lib/auth";
+import { fetchDashboardSummary, fetchRoutineSteps } from "@/lib/analysisClient";
+import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
+import { apiBaseUrl } from "@/lib/api";
 import { fetchBillingStatus } from "@/lib/billing";
 import { staleWhileRevalidate } from "@/shared/services/cache/CacheService";
 import { AuroraBackdrop, FGScoreOrb, FGMetricBar } from "@/components/shared";
@@ -85,6 +86,8 @@ const Dashboard = () => {
   const [avatarLetter, setAvatarLetter] = useState("U");
   const [userReady, setUserReady] = useState(false);
   const [isPremiumBlocked, setIsPremiumBlocked] = useState(true);
+  const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
+  const [routineSteps, setRoutineSteps] = useState<Array<{ id: string; period: string; productName: string }>>([]);
 
   // Efeito 1: Carregar dados do usuário
   useEffect(() => {
@@ -173,6 +176,35 @@ const Dashboard = () => {
       });
   }, []);
 
+  // Efeito 2.6: Carregar steps da rotina + progresso de hoje do backend
+  useEffect(() => {
+    if (!latestAnalysis?.id) return;
+    let cancelled = false;
+
+    const loadProgress = async () => {
+      try {
+        // Load routine steps for completion tracking
+        const steps = await fetchRoutineSteps(latestAnalysis.id);
+        if (!cancelled) setRoutineSteps(steps.map(s => ({ id: s.id, period: s.period, productName: s.productName })));
+
+        // Load today's completed step IDs
+        const token = await getAccessTokenWithWait(3000);
+        if (!token || cancelled) return;
+        const today = new Date();
+        const localDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        const res = await fetch(`${apiBaseUrl}/routine/progress/today?localDate=${localDate}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const { completedStepIds: ids } = await res.json() as { completedStepIds: string[] };
+        if (!cancelled) setCompletedStepIds(ids ?? []);
+      } catch { /* silent — usa localStorage como fallback */ }
+    };
+
+    loadProgress();
+    return () => { cancelled = true; };
+  }, [latestAnalysis?.id]);
+
   // Efeito 3: Carregar imagem da última análise como avatar padrão (se usuário não tem avatar customizado)
   useEffect(() => {
     let mounted = true;
@@ -242,12 +274,7 @@ const Dashboard = () => {
 
   const routineSummary = useMemo(() => {
     if (!latestAnalysis) {
-      return {
-        total: 0,
-        pending: 0,
-        done: 0,
-        items: [] as Array<{ title: string; done: boolean }>,
-      };
+      return { total: 0, pending: 0, done: 0, items: [] as Array<{ title: string; done: boolean }> };
     }
 
     const todayWeekDay = getTodayWeekDay();
@@ -256,28 +283,24 @@ const Dashboard = () => {
     let selectedByItem: Record<string, string> = {};
     const rawToParse = rawDisplay ?? rawSelection;
     if (rawToParse) {
-      try {
-        selectedByItem = JSON.parse(rawToParse) as Record<string, string>;
-      } catch {
-        selectedByItem = {};
-      }
+      try { selectedByItem = JSON.parse(rawToParse) as Record<string, string>; } catch { selectedByItem = {}; }
     }
 
-    const items = parseRoutineForPeriod(latestAnalysis, currentPeriod, todayWeekDay).map((item) => ({
-      title: selectedByItem[`${currentPeriod}::${item.title.toLowerCase()}`] || item.title,
-      done: item.done,
-    }));
+    const completedSet = new Set(completedStepIds);
+    const stepByKey = new Map(routineSteps.map(s => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
 
-    const done = items.filter((item) => item.done).length;
+    const items = parseRoutineForPeriod(latestAnalysis, currentPeriod, todayWeekDay).map((item) => {
+      const title = selectedByItem[`${currentPeriod}::${item.title.toLowerCase()}`] || item.title;
+      // Use backend completion when available, fall back to localStorage
+      const stepId = stepByKey.get(item.key);
+      const doneFromBackend = stepId ? completedSet.has(stepId) : false;
+      return { title, done: doneFromBackend || item.done };
+    });
+
+    const done = items.filter(i => i.done).length;
     const total = items.length;
-
-    return {
-      total,
-      done,
-      pending: Math.max(total - done, 0),
-      items,
-    };
-  }, [currentPeriod, latestAnalysis]);
+    return { total, done, pending: Math.max(total - done, 0), items };
+  }, [currentPeriod, latestAnalysis, completedStepIds, routineSteps]);
 
   const motivationText = (() => {
     if (!latestAnalysis) {
