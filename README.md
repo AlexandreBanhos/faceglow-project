@@ -1,8 +1,8 @@
 # FaceGlow Deploy Guide
 
-## ?? Documentação
+## ?? Documentaï¿½ï¿½o
 
-Documentação de setup e referência está em `docs/` (local apenas, não versionada).
+Documentaï¿½ï¿½o de setup e referï¿½ncia estï¿½ em `docs/` (local apenas, nï¿½o versionada).
 
 - **Payment Setup**: `docs/payment-setup/`
 - **Guides**: `docs/guides/`
@@ -80,8 +80,23 @@ After DNS propagation, set final URLs in backend env:
 - `Frontend__PremiumCancelUrl=https://app.faceglow-soora.me/premium/cancel`
 - `Cors__AllowedOrigins__0=https://app.faceglow-soora.me`
 
-## 5) Production Safety Notes
+## 5) Security & Secrets Management
+
+âš ï¸ **CRITICAL**: Never commit `.env` files with real credentials!
+
+For security policies and credential rotation:
+- ğŸ” [SECURITY_POLICY.md](./SECURITY_POLICY.md) â€” Security guidelines and best practices
+- ğŸ”‘ [CREDENTIALS_ROTATION.md](./CREDENTIALS_ROTATION.md) â€” How to rotate exposed credentials
+
+**Quick setup for new developers:**
+```bash
+cp .env.example .env
+# Fill .env with test/sandbox credentials (never production keys!)
+```
+
+## 6) Production Safety Notes
 
 - For production payments, keep backend always available (avoid sleeping instances).
 - Do not use local URLs (`localhost`) in production Stripe/Mercado Pago callback settings.
 - Keep tokens only in platform secrets, never in committed files.
+- Rotate credentials if accidental exposure occurs â€” see [CREDENTIALS_ROTATION.md](./CREDENTIALS_ROTATION.md)
