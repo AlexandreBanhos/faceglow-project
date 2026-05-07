@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronRight, Package, Upload, X } from "lucide-react";
+import { Check, ChevronRight, Moon, Package, Sun, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -215,21 +215,27 @@ export const ProductSwitchSheet = ({
           {/* Scope selector (applies to both periods?) */}
           {hasCounterpart && options.length > 0 && (
             <div className="rounded-2xl border border-border/40 p-3 bg-muted/20">
-              <p className="text-xs text-muted-foreground mb-2 font-medium">Aplicar em:</p>
+              <p className="text-xs text-muted-foreground mb-2.5 font-medium">Aplicar em:</p>
               <div className="flex gap-2">
-                {(["both", "morning", "night"] as Scope[]).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => onScopeChange(s)}
-                    className={`flex-1 h-8 rounded-lg text-xs font-semibold transition-all ${
-                      pendingScope === s
-                        ? "bg-primary text-white shadow-sm"
-                        : "bg-background border border-border/50 text-muted-foreground"
-                    }`}
-                  >
-                    {s === "both" ? "Manhã e noite" : s === "morning" ? "Só manhã" : "Só noite"}
-                  </button>
-                ))}
+                {([
+                  { scope: "morning" as Scope, icon: <Sun size={14} />,  label: "Manhã",    active: "bg-amber-400 text-white" },
+                  { scope: "both"    as Scope, icon: <><Sun size={12} /><Moon size={12} /></>, label: "Ambos", active: "bg-primary text-white" },
+                  { scope: "night"   as Scope, icon: <Moon size={14} />, label: "Noite",    active: "bg-indigo-500 text-white" },
+                ]).map(({ scope, icon, label, active }) => {
+                  const isActive = pendingScope === scope;
+                  return (
+                    <button
+                      key={scope}
+                      onClick={() => onScopeChange(scope)}
+                      className={`flex-1 h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all ${
+                        isActive ? active + " shadow-sm" : "bg-background border border-border/50 text-muted-foreground"
+                      }`}
+                    >
+                      <span className="flex items-center gap-0.5">{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

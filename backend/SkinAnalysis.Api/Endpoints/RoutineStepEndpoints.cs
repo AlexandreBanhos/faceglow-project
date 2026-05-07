@@ -239,10 +239,17 @@ public static class RoutineStepEndpoints
 
         if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
 
-        // If SelectedTier provided, switch which slot is selected
+        // If SelectedTier provided, switch slot — two-phase to avoid unique constraint violation
         if (request.SelectedTier is not null)
         {
-            foreach (var sl in step.Slots) sl.IsSelected = sl.Tier == request.SelectedTier;
+            foreach (var sl in step.Slots) sl.IsSelected = false;
+            step.UpdatedAt = DateTime.UtcNow;
+            step.Routine.IsCustomized = true;
+            step.Routine.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            var targetSlot = step.Slots.FirstOrDefault(sl => sl.Tier == request.SelectedTier);
+            if (targetSlot is not null) { targetSlot.IsSelected = true; await db.SaveChangesAsync(ct); }
         }
 
         // If ScheduleDays provided, update
@@ -251,11 +258,13 @@ public static class RoutineStepEndpoints
             step.ScheduleDays = ParseScheduleDays(request.ScheduleDays);
         }
 
-        step.UpdatedAt = DateTime.UtcNow;
-        step.Routine.IsCustomized = true;
-        step.Routine.UpdatedAt = DateTime.UtcNow;
-
-        await db.SaveChangesAsync(ct);
+        if (request.SelectedTier is null) // only save again if tier wasn't already saved above
+        {
+            step.UpdatedAt = DateTime.UtcNow;
+            step.Routine.IsCustomized = true;
+            step.Routine.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
         cache.Remove($"v2_steps_{id}_{userId}");
 
         return Results.Ok(new { step.Id, SelectedTier = request.SelectedTier });
@@ -347,11 +356,17 @@ public static class RoutineStepEndpoints
         var targetSlot = step.Slots.FirstOrDefault(sl => sl.Id == request.SlotId || sl.Tier == request.Tier);
         if (targetSlot is null) return Results.NotFound(new { error = "Slot não encontrado." });
 
-        foreach (var sl in step.Slots) sl.IsSelected = sl.Id == targetSlot.Id;
+        // Two-phase update to avoid violating the unique partial index
+        // idx_slot_single_selection: UNIQUE (step_id) WHERE is_selected = true
+        // Phase 1: deselect all slots first
+        foreach (var sl in step.Slots) sl.IsSelected = false;
         step.UpdatedAt = DateTime.UtcNow;
         step.Routine.IsCustomized = true;
         step.Routine.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
 
+        // Phase 2: select the target slot
+        targetSlot.IsSelected = true;
         await db.SaveChangesAsync(ct);
         cache.Remove($"v2_steps_{id}_{userId}");
 
