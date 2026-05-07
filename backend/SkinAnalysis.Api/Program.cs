@@ -140,6 +140,7 @@ builder.Services.AddScoped<Database>();
 builder.Services.AddScoped<IImageAnalysisService, GeminiAnalysisService>();
 builder.Services.AddScoped<IBillingService, BillingService>();
 builder.Services.AddScoped<RoutineGeneratorService>();
+builder.Services.AddScoped<RoutineSuggestionService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<AdminService>();
 
@@ -1731,6 +1732,9 @@ app.MapRoutineCompletionEndpoints();
 
 // ── User Products — migrado para UserProductEndpoints.cs (tabela user_products)
 app.MapUserProductEndpoints();
+
+// ── Routine change suggestions
+app.MapSuggestionEndpoints();
 
 app.Run();
 

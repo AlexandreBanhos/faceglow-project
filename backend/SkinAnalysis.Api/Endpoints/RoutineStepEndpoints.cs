@@ -84,12 +84,7 @@ public static class RoutineStepEndpoints
 
         if (profile is null) return Results.Ok(Array.Empty<object>());
 
-        var steps = await db.RoutineSteps
-            .AsNoTracking()
-            .Where(s => s.Routine.SkinProfileId == profile.Id
-                     && s.Routine.UserId == userId
-                     && s.Routine.IsActive
-                     && s.IsActive)
+        var includeSteps = (IQueryable<UserRoutineStep> q) => q
             .Include(s => s.Routine)
             .Include(s => s.Slots)
                 .ThenInclude(sl => sl.Product)
@@ -97,8 +92,28 @@ public static class RoutineStepEndpoints
             .Include(s => s.Slots)
                 .ThenInclude(sl => sl.UserProduct)
             .OrderBy(s => s.Routine.Period)
-            .ThenBy(s => s.StepOrder)
+            .ThenBy(s => s.StepOrder);
+
+        // Primary: steps tied to this analysis's profile
+        var steps = await includeSteps(db.RoutineSteps
+            .AsNoTracking()
+            .Where(s => s.Routine.SkinProfileId == profile.Id
+                     && s.Routine.UserId == userId
+                     && s.Routine.IsActive
+                     && s.IsActive))
             .ToListAsync(ct);
+
+        // Fallback: new analysis in "suggestions mode" — no routine generated for new profile yet.
+        // Show the user's current active routine so the page isn't blank.
+        if (steps.Count == 0)
+        {
+            steps = await includeSteps(db.RoutineSteps
+                .AsNoTracking()
+                .Where(s => s.Routine.UserId == userId
+                         && s.Routine.IsActive
+                         && s.IsActive))
+                .ToListAsync(ct);
+        }
 
         var dto = steps.Select(s =>
         {
@@ -174,10 +189,12 @@ public static class RoutineStepEndpoints
             .Where(s => s.RoutineId == routine.Id && s.IsActive)
             .MaxAsync(s => (int?)s.StepOrder, ct) ?? -1;
 
+        var resolvedKey = StepDisplayNames.ResolveKey(request.Category);
+
         var step = new UserRoutineStep
         {
             RoutineId = routine.Id,
-            StepTypeKey = request.Category ?? "spot_treatment",
+            StepTypeKey = resolvedKey,
             StepOrder = maxOrder + 1,
             IsUserAdded = true,
             Recurrence = request.Recurrence ?? "daily",
@@ -185,32 +202,33 @@ public static class RoutineStepEndpoints
         db.RoutineSteps.Add(step);
         await db.SaveChangesAsync(ct);
 
-        // Add user_custom slot with product name
+        // 1. Upsert UserProduct — reuse existing if same name to avoid catalog duplicates
+        var userProduct = await db.UserProducts.FirstOrDefaultAsync(
+            p => p.UserId == userId && p.CustomName == request.ProductName, ct);
+
+        if (userProduct is null)
+        {
+            userProduct = new UserProduct
+            {
+                UserId = userId,
+                CustomName = request.ProductName,
+                CustomImageUrl = request.ImageUrl,
+                StepTypeKey = resolvedKey,
+            };
+            db.UserProducts.Add(userProduct);
+            await db.SaveChangesAsync(ct);
+        }
+
+        // 2. Now create slot with UserProductId already set (satisfies exactly_one_product CHECK)
         db.StepProductSlots.Add(new StepProductSlot
         {
             StepId = step.Id,
             Tier = "user_custom",
-            UserProductId = null,
+            UserProductId = userProduct.Id,
             ProductId = null,
             IsSelected = true,
             RecommendationReason = request.ProductName,
         });
-        // Temporary: store custom product as UserProduct
-        var userProduct = new UserProduct
-        {
-            UserId = userId,
-            CustomName = request.ProductName,
-            CustomImageUrl = request.ImageUrl,
-            StepTypeKey = request.Category ?? "spot_treatment",
-        };
-        db.UserProducts.Add(userProduct);
-        await db.SaveChangesAsync(ct);
-
-        // Update slot with user product id
-        var slot = await db.StepProductSlots.FirstAsync(s => s.StepId == step.Id, ct);
-        slot.UserProductId = userProduct.Id;
-        slot.ProductId = null;
-        await db.SaveChangesAsync(ct);
 
         routine.IsCustomized = true;
         routine.UpdatedAt = DateTime.UtcNow;
@@ -487,10 +505,10 @@ public static class RoutineStepEndpoints
 // Request DTOs
 public record SelectSlotRequest(Guid? SlotId = null, string? Tier = null);
 
-// Step type key → display name in Portuguese
+// Step type key → display name in Portuguese (and reverse)
 internal static class StepDisplayNames
 {
-    private static readonly Dictionary<string, string> _map = new()
+    private static readonly Dictionary<string, string> _keyToName = new()
     {
         ["cleanser"]      = "Limpeza",
         ["toner"]         = "Tônico",
@@ -503,6 +521,49 @@ internal static class StepDisplayNames
         ["sunscreen"]     = "Protetor Solar",
         ["spot_treatment"]= "Tratamento Pontual",
     };
+
+    // Label variations → canonical key (case-insensitive)
+    private static readonly Dictionary<string, string> _labelToKey = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["limpeza"]            = "cleanser",
+        ["tônico"]             = "toner",
+        ["tonico"]             = "toner",
+        ["sérum"]              = "serum",
+        ["serum"]              = "serum",
+        ["ácido"]              = "acid",
+        ["acido"]              = "acid",
+        ["esfoliante"]         = "acid",
+        ["retinol/retinoide"]  = "retinoid",
+        ["retinol"]            = "retinoid",
+        ["retinoide"]          = "retinoid",
+        ["creme para olhos"]   = "eye_cream",
+        ["contorno dos olhos"] = "eye_cream",
+        ["hidratante"]         = "moisturizer",
+        ["óleo facial"]        = "oil",
+        ["oleo facial"]        = "oil",
+        ["protetor solar"]     = "sunscreen",
+        ["fps"]                = "sunscreen",
+        ["tratamento pontual"] = "spot_treatment",
+        ["máscara"]            = "spot_treatment",
+        ["mascara"]            = "spot_treatment",
+        // already-valid keys pass through
+        ["cleanser"]      = "cleanser",
+        ["toner"]         = "toner",
+        ["serum"]         = "serum",
+        ["acid"]          = "acid",
+        ["retinoid"]      = "retinoid",
+        ["eye_cream"]     = "eye_cream",
+        ["moisturizer"]   = "moisturizer",
+        ["oil"]           = "oil",
+        ["sunscreen"]     = "sunscreen",
+        ["spot_treatment"]= "spot_treatment",
+    };
+
     public static string Get(string key) =>
-        _map.TryGetValue(key, out var name) ? name : key;
+        _keyToName.TryGetValue(key, out var name) ? name : key;
+
+    public static string ResolveKey(string? label) =>
+        !string.IsNullOrWhiteSpace(label) && _labelToKey.TryGetValue(label.Trim(), out var key)
+            ? key
+            : "spot_treatment";
 }

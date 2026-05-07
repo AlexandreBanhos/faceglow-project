@@ -700,3 +700,62 @@ export const removeRoutineStep = async (analysisId: string, stepId: string): Pro
     return false;
   }
 };
+
+// ── Routine Change Suggestions ─────────────────────────────────────────────
+
+export type SuggestionType = "add_step" | "remove_step" | "swap_product";
+
+export type RoutineSuggestion = {
+  id: string;
+  suggestionType: SuggestionType;
+  stepTypeKey: string;
+  stepDisplayName: string;
+  stepPeriod: "morning" | "night" | "both" | null;
+  currentProductName: string | null;
+  suggestedProductId: string | null;
+  suggestedProductName: string | null;
+  suggestedImageUrl: string | null;
+  reason: string;
+  priority: number;
+  analysisId: string;
+};
+
+export const fetchRoutineSuggestions = async (): Promise<RoutineSuggestion[]> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return [];
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/routine/suggestions`,
+      { headers: { Authorization: `Bearer ${token}` } },
+      10_000,
+    );
+    if (!response.ok) return [];
+    return (await response.json()) as RoutineSuggestion[];
+  } catch { return []; }
+};
+
+export const acceptRoutineSuggestion = async (id: string): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/routine/suggestions/${encodeURIComponent(id)}/accept`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+      10_000,
+    );
+    return response.ok;
+  } catch { return false; }
+};
+
+export const rejectRoutineSuggestion = async (id: string): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/routine/suggestions/${encodeURIComponent(id)}/reject`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } },
+      10_000,
+    );
+    return response.ok;
+  } catch { return false; }
+};

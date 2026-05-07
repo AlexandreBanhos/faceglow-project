@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<RoutineTemplateEntity> RoutineTemplates => Set<RoutineTemplateEntity>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<UserCredit> UserCredits => Set<UserCredit>();
+    public DbSet<RoutineChangeSuggestion> RoutineChangeSuggestions => Set<RoutineChangeSuggestion>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -318,6 +319,32 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.UserId).HasColumnName("user_id");
             e.Property(x => x.CreditsRemaining).HasColumnName("credits_remaining").HasDefaultValue(5);
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+        });
+
+        // ── routine_change_suggestions ─────────────────────────
+        mb.Entity<RoutineChangeSuggestion>(e =>
+        {
+            e.ToTable("routine_change_suggestions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.AnalysisId).HasColumnName("analysis_id");
+            e.Property(x => x.SuggestionType).HasColumnName("suggestion_type");
+            e.Property(x => x.StepTypeKey).HasColumnName("step_type_key");
+            e.Property(x => x.StepPeriod).HasColumnName("step_period");
+            e.Property(x => x.CurrentProductName).HasColumnName("current_product_name");
+            e.Property(x => x.SuggestedProductId).HasColumnName("suggested_product_id");
+            e.Property(x => x.SuggestedProductName).HasColumnName("suggested_product_name");
+            e.Property(x => x.SuggestedImageUrl).HasColumnName("suggested_image_url");
+            e.Property(x => x.Reason).HasColumnName("reason");
+            e.Property(x => x.Priority).HasColumnName("priority");
+            e.Property(x => x.Status).HasColumnName("status");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.ResolvedAt).HasColumnName("resolved_at");
+            e.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.Analysis).WithMany().HasForeignKey(s => s.AnalysisId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.SuggestedProduct).WithMany().HasForeignKey(s => s.SuggestedProductId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => new { x.UserId, x.Status });
         });
     }
 }

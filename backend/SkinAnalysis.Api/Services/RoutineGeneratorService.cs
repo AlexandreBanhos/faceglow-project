@@ -16,9 +16,9 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
 
     public async Task GenerateForProfileAsync(SkinProfile profile, CancellationToken ct = default)
     {
-        // Deactivate any existing routines for this user
+        // Deactivate only routines tied to THIS profile — do not touch other profiles' routines
         await db.Routines
-            .Where(r => r.UserId == profile.UserId && r.IsActive)
+            .Where(r => r.SkinProfileId == profile.Id && r.IsActive)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.IsActive, false), ct);
 
         foreach (var period in new[] { "morning", "night" })
@@ -253,6 +253,20 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
             Snapshot = JsonSerializer.Serialize(snapshot),
         });
         await db.SaveChangesAsync(ct);
+    }
+
+    // ── Internal helpers for RoutineSuggestionService ─────────────────────
+    internal async Task<RoutineTemplateEntity?> SelectTemplateForSuggestionsAsync(SkinProfile profile, string period, CancellationToken ct)
+        => await SelectTemplateAsync(profile, period, ct);
+
+    internal async Task<Product?> GetBestProductForStepAsync(string stepKey, string period, SkinProfile profile, CancellationToken ct)
+    {
+        var candidates = await GetCandidatesAsync(stepKey, period, profile, ct);
+        if (candidates.Count == 0) return null;
+        return candidates
+            .Select(p => (product: p, score: ScoreProduct(p, profile, period)))
+            .OrderByDescending(x => x.score)
+            .FirstOrDefault().product;
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

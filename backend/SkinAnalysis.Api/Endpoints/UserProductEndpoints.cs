@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SkinAnalysis.Api.Data;
+using SkinAnalysis.Api.Endpoints;
 using SkinAnalysis.Api.Models;
 
 namespace SkinAnalysis.Api.Endpoints;
@@ -65,7 +66,9 @@ public static class UserProductEndpoints
             CustomName = request.Name.Trim(),
             CustomBrand = request.Brand?.Trim(),
             CustomImageUrl = request.ImageUrl?.Trim(),
-            StepTypeKey = request.Category?.Trim(),
+            StepTypeKey = string.IsNullOrWhiteSpace(request.Category)
+                ? null
+                : StepDisplayNames.ResolveKey(request.Category),
         };
 
         db.UserProducts.Add(product);
@@ -88,7 +91,10 @@ public static class UserProductEndpoints
 
         if (request.Name is not null) product.CustomName = request.Name.Trim();
         if (request.Brand is not null) product.CustomBrand = request.Brand.Trim();
-        if (request.Category is not null) product.StepTypeKey = request.Category.Trim();
+        if (request.Category is not null)
+            product.StepTypeKey = string.IsNullOrWhiteSpace(request.Category)
+                ? null
+                : StepDisplayNames.ResolveKey(request.Category);
         if (request.ImageUrl is not null) product.CustomImageUrl = request.ImageUrl.Trim();
         product.UpdatedAt = DateTime.UtcNow;
 

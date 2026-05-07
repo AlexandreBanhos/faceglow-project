@@ -149,25 +149,31 @@ const Results = () => {
         return;
       }
 
-      console.debug("[Results] Iniciando criação de rotina para análise:", analysisToPass.id);
+      // 1️⃣ Check if routine steps already exist for this analysis
+      const stepsCheck = await fetch(`${apiBaseUrl}/analysis/${analysisToPass.id}/steps`, {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (stepsCheck.ok) {
+        const existingSteps = await stepsCheck.json() as unknown[];
+        if (existingSteps.length > 0) {
+          // Routine already exists — navigate directly without regenerating
+          navigate("/routine", { state: { analysis: analysisToPass } });
+          return;
+        }
+      }
 
-      // 1️⃣ Enviar request para CRIAR rotina (assíncrono no backend)
+      // 2️⃣ No existing routine — generate one (only for this analysis's profile)
       const createResponse = await fetch(`${apiBaseUrl}${apiRoutes.analysis}/${analysisToPass.id}/routine`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
       });
 
       if (createResponse.status === 202 || createResponse.status === 200) {
-        // Rotina está sendo processada ou já foi completada
-        console.debug("[Results] Rotina iniciada, aguardando conclusão...");
-
-        // 2️⃣ Aguardar conclusão da rotina (polling /status endpoint)
         let updatedAnalysis: unknown;
         try {
           updatedAnalysis = await waitForRoutineCompletion(analysisToPass.id, token);
         } catch (pollError) {
           console.warn("[Results] Timeout ou erro no polling, usando análise do cache:", pollError);
-          // Fallback: Buscar análise com endpoint GET
           const getResponse = await fetch(`${apiBaseUrl}${apiRoutes.analysis}/${analysisToPass.id}`, {
             headers: { "Authorization": `Bearer ${token}` },
           });
@@ -179,15 +185,7 @@ const Results = () => {
         }
 
         const fullAnalysis = normalizeAnalysis(updatedAnalysis);
-        if (!fullAnalysis) {
-          throw new Error("Falha ao normalizar análise completa");
-        }
-
-        console.debug("[Results] Rotina criada, navegando para rotina com análise:", {
-          id: fullAnalysis.id,
-          hasRoutine: !!fullAnalysis.routine?.morning?.length,
-          hasRecommendations: !!fullAnalysis.recommendations?.length,
-        });
+        if (!fullAnalysis) throw new Error("Falha ao normalizar análise completa");
 
         navigate("/routine", { state: { analysis: fullAnalysis } });
       } else {
@@ -831,24 +829,53 @@ const Results = () => {
               </div>
             )}
 
-            {routineState === "idle" && !isPremiumBlocked && (
-              <button onClick={handleLoadRoutine}
-                className="coral-button w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 mb-4">
-                <Sparkles size={18} /> Ver rotina completa
-              </button>
-            )}
+            {routineState === "idle" && !isPremiumBlocked && (() => {
+              const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
+              return isLatest ? (
+                <button onClick={handleLoadRoutine}
+                  className="coral-button w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 mb-4">
+                  <Sparkles size={18} /> Ver rotina completa
+                </button>
+              ) : (
+                <div className="space-y-2 mb-4">
+                  <button
+                    disabled
+                    className="w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 bg-muted/60 text-muted-foreground cursor-not-allowed opacity-60"
+                  >
+                    <Sparkles size={18} /> Ver rotina completa
+                  </button>
+                  <p className="text-center text-xs text-muted-foreground">
+                    Análise anterior — a rotina reflete sempre a análise mais recente
+                  </p>
+                  <button
+                    onClick={() => navigate("/routine")}
+                    className="liquiglass-button w-full py-3 rounded-2xl text-foreground font-semibold text-sm flex items-center justify-center gap-2"
+                  >
+                    <BookOpen size={16} /> Ver rotina atual
+                  </button>
+                </div>
+              );
+            })()}
           </motion.div>
         </div>
       )}
 
       {/* Footer buttons - Always visible */}
       <div className="space-y-3 mt-8">
-        {routineState === "done" && !isPremiumBlocked && (
-          <button onClick={handleLoadRoutine}
-            className="coral-button w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2">
-            <BookOpen size={18} /> Ver Rotina Recomendada
-          </button>
-        )}
+        {routineState === "done" && !isPremiumBlocked && (() => {
+          const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
+          return isLatest ? (
+            <button onClick={handleLoadRoutine}
+              className="coral-button w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2">
+              <BookOpen size={18} /> Ver Rotina Recomendada
+            </button>
+          ) : (
+            <button onClick={() => navigate("/routine")}
+              className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base flex items-center justify-center gap-2">
+              <BookOpen size={18} /> Ver rotina atual
+            </button>
+          );
+        })()}
         <button onClick={() => navigate("/dashboard")}
           className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base">
           Voltar ao Início

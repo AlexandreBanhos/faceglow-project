@@ -11,6 +11,7 @@ public class AnalysisService(
     AppDbContext db,
     IImageAnalysisService imageAnalyzer,
     RoutineGeneratorService routineGenerator,
+    RoutineSuggestionService suggestionService,
     ILogger<AnalysisService> logger) : IAnalysisService
 {
     public async Task<AnalysisResponseDto> CreateQuickAnalysisAsync(
@@ -82,25 +83,32 @@ public class AnalysisService(
             .FirstOrDefaultAsync(a => a.Id == analysisId, ct)
             ?? throw new InvalidOperationException("Analysis not found.");
 
-        // Ensure skin profile exists
         var profile = await db.SkinProfiles
             .FirstOrDefaultAsync(p => p.AnalysisId == analysisId && p.UserId == record.UserId, ct);
 
         if (profile is null)
         {
-            // Deactivate previous current profile
             await db.SkinProfiles
                 .Where(p => p.UserId == record.UserId && p.IsCurrent)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsCurrent, false), ct);
-
             profile = BuildProfile(record);
             db.SkinProfiles.Add(profile);
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("[ANALYSIS] Created SkinProfile {ProfileId}", profile.Id);
         }
 
-        // Generate routines
-        await routineGenerator.GenerateForProfileAsync(profile, ct);
+        // Try to generate suggestions instead of full replacement
+        var hadExistingRoutine = await suggestionService.TryGenerateSuggestionsAsync(analysisId, profile, ct);
+
+        if (!hadExistingRoutine)
+        {
+            // First time — generate full routine
+            await routineGenerator.GenerateForProfileAsync(profile, ct);
+            logger.LogInformation("[ANALYSIS] Full routine generated for profile {ProfileId}", profile.Id);
+        }
+        else
+        {
+            logger.LogInformation("[ANALYSIS] Suggestions generated for profile {ProfileId} (existing routine preserved)", profile.Id);
+        }
 
         return MapToDto(record, BuildConditionsFromRecord(record), BuildScoresFromRecord(record));
     }

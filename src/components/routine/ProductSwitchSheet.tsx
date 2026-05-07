@@ -212,30 +212,40 @@ export const ProductSwitchSheet = ({
             )}
           </AnimatePresence>
 
-          {/* Scope selector (applies to both periods?) */}
+          {/* Scope selector — segmented pill */}
           {hasCounterpart && options.length > 0 && (
             <div className="rounded-2xl border border-border/40 p-3 bg-muted/20">
               <p className="text-xs text-muted-foreground mb-2.5 font-medium">Aplicar em:</p>
-              <div className="flex gap-2">
+              <div className="relative flex rounded-full bg-muted/50 p-1">
+                <div
+                  className={`absolute top-1 bottom-1 rounded-full shadow-sm transition-all duration-300 ease-out ${
+                    pendingScope === "morning" ? "bg-amber-400" :
+                    pendingScope === "night"   ? "bg-indigo-500" : "bg-primary"
+                  }`}
+                  style={{
+                    width: "calc((100% - 8px) / 3)",
+                    left: "4px",
+                    transform: `translateX(calc(${
+                      pendingScope === "morning" ? 0 : pendingScope === "both" ? 1 : 2
+                    } * 100%))`,
+                  }}
+                />
                 {([
-                  { scope: "morning" as Scope, icon: <Sun size={14} />,  label: "Manhã",    active: "bg-amber-400 text-white" },
-                  { scope: "both"    as Scope, icon: <><Sun size={12} /><Moon size={12} /></>, label: "Ambos", active: "bg-primary text-white" },
-                  { scope: "night"   as Scope, icon: <Moon size={14} />, label: "Noite",    active: "bg-indigo-500 text-white" },
-                ]).map(({ scope, icon, label, active }) => {
-                  const isActive = pendingScope === scope;
-                  return (
-                    <button
-                      key={scope}
-                      onClick={() => onScopeChange(scope)}
-                      className={`flex-1 h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all ${
-                        isActive ? active + " shadow-sm" : "bg-background border border-border/50 text-muted-foreground"
-                      }`}
-                    >
-                      <span className="flex items-center gap-0.5">{icon}</span>
-                      <span>{label}</span>
-                    </button>
-                  );
-                })}
+                  { scope: "morning" as Scope, icon: <Sun size={13} />, label: "Manhã" },
+                  { scope: "both"    as Scope, icon: <span className="flex items-center gap-0.5"><Sun size={11} /><Moon size={11} /></span>, label: "Ambos" },
+                  { scope: "night"   as Scope, icon: <Moon size={13} />, label: "Noite" },
+                ] as const).map(({ scope, icon, label }) => (
+                  <button
+                    key={scope}
+                    onClick={() => onScopeChange(scope)}
+                    className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 h-10 text-[10px] font-semibold z-10 transition-colors ${
+                      pendingScope === scope ? "text-white" : "text-muted-foreground"
+                    }`}
+                  >
+                    <span className="flex items-center gap-0.5">{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
             </div>
           )}

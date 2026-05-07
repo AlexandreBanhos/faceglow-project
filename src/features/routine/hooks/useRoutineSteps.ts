@@ -13,7 +13,7 @@ import {
 export type UseRoutineStepsReturn = {
   steps: RoutineStep[];
   isLoading: boolean;
-  reload: () => Promise<void>;
+  reload: (silent?: boolean) => Promise<void>;
   addStep: (data: { period: string; productName: string; category?: string; imageUrl?: string }) => Promise<void>;
   patchStep: (stepId: string, patch: Parameters<typeof updateRoutineStep>[2]) => Promise<void>;
   deleteStep: (stepId: string) => Promise<void>;
@@ -24,9 +24,9 @@ export function useRoutineSteps(analysisId: string | undefined): UseRoutineSteps
   const [steps, setSteps] = useState<RoutineStep[]>([]);
   const [isLoading, setIsLoading] = useState(true); // começa carregando
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (silent = false) => {
     if (!analysisId) return;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     try {
       const fresh = await fetchRoutineSteps(analysisId);
       setSteps(fresh);
@@ -38,7 +38,7 @@ export function useRoutineSteps(analysisId: string | undefined): UseRoutineSteps
         localStorage.setItem(migKey, "1");
       }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [analysisId]);
 
