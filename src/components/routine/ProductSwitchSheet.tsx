@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Check, ChevronRight, Loader2, Moon, Package, Sun, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Check, ChevronRight, Loader2, Moon, Package, Search, Sun, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
+import { fetchCatalogProducts, type CatalogProduct } from "@/lib/analysisClient";
 
 type ProductOption = {
   key: string;
@@ -19,7 +20,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   stepLabel: string;
-  stepCategory: string;
+  stepCategory: string;  // step_type_key (cleanser, serum…) for catalog search
   period: "morning" | "night";
   options: ProductOption[];
   selectedKey: string | null;
@@ -57,21 +58,44 @@ export const ProductSwitchSheet = ({
   const [customName, setCustomName] = useState("");
   const [customImg, setCustomImg] = useState("");
 
+  // Catalog search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CatalogProduct[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (searchQuery.trim().length < 2) { setSearchResults([]); return; }
+    setIsSearching(true);
+    searchTimerRef.current = setTimeout(async () => {
+      const results = await fetchCatalogProducts(stepCategory, searchQuery.trim());
+      setSearchResults(results);
+      setIsSearching(false);
+    }, 350);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery, stepCategory]);
+
   const activeKey = pendingKey ?? selectedKey;
   const hasCounterpart = stepCategory !== "sunscreen"; // protetor só de manhã — sem counterpart
 
-  const handleClose = () => {
+  const resetLocalState = () => {
     setShowCustom(false);
     setCustomName("");
     setCustomImg("");
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleClose = () => {
+    resetLocalState();
     onCancel();
     onClose();
   };
 
   const handleSave = () => {
-    setShowCustom(false);
-    setCustomName("");
-    setCustomImg("");
+    resetLocalState();
     onSave();
     onClose();
   };
@@ -86,7 +110,7 @@ export const ProductSwitchSheet = ({
   };
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }} >
       <SheetContent
         side="bottom"
         className="rounded-t-3xl px-0 pb-8 pt-0 max-h-[88vh] overflow-hidden flex flex-col"
@@ -114,6 +138,64 @@ export const ProductSwitchSheet = ({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto px-6 space-y-3 pb-2">
+
+          {/* Search bar */}
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar produto no catálogo…"
+              className="w-full h-10 rounded-xl border border-border/60 bg-muted/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {isSearching && (
+              <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />
+            )}
+          </div>
+
+          {/* Search results */}
+          <AnimatePresence>
+            {searchResults.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden space-y-2"
+              >
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide px-0.5">
+                  Encontrados no catálogo
+                </p>
+                {searchResults.map((p) => (
+                  <motion.button
+                    key={p.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      onSaveCustom(p.name, p.imageUrl ?? undefined);
+                      resetLocalState();
+                      onClose();
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl border border-border/40 bg-background hover:border-primary/40 hover:bg-primary/5 text-left transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-muted/60 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
+                      ) : (
+                        <Package size={18} className="text-muted-foreground/50" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{p.brand}{p.tagline ? ` · ${p.tagline}` : ""}</p>
+                    </div>
+                    <Check size={14} className="text-primary flex-shrink-0 opacity-0 group-hover:opacity-100" />
+                  </motion.button>
+                ))}
+                <div className="h-px bg-border/30 my-1" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Product options */}
           {options.map((opt) => {
             const tier = getTier(opt.key);

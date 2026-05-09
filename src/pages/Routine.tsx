@@ -2128,6 +2128,19 @@ const Routine = () => {
                       setTouchStartY((prev) => { const p = { ...prev }; delete p[item.key]; return p; });
                     }}
                   >
+                    {/* Skeleton enquanto produto está sendo salvo */}
+                    {savingProductItem && selectingProductItem === item.key ? (
+                      <div className="flex items-center gap-3 p-3 animate-pulse">
+                        <div className="w-[120px] h-[120px] rounded-xl bg-muted/60 flex-shrink-0" />
+                        <div className="flex-1 space-y-2.5">
+                          <div className="h-3 bg-muted/60 rounded-full w-1/3" />
+                          <div className="h-4 bg-muted/60 rounded-full w-4/5" />
+                          <div className="h-3 bg-muted/40 rounded-full w-3/5" />
+                          <div className="h-3 bg-muted/40 rounded-full w-2/5 mt-2" />
+                        </div>
+                        <div className="w-9 h-9 rounded-full bg-muted/60 flex-shrink-0" />
+                      </div>
+                    ) : (
                     <div className="flex flex-col w-full">
                       {/* Edit mode controls */}
                       {isEditing && (
@@ -2763,6 +2776,7 @@ const Routine = () => {
                         );
                       })()}
                     </div>
+                    )} {/* end skeleton conditional */}
                   </div>
                 );
               })}
