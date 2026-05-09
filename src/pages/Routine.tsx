@@ -336,6 +336,7 @@ const Routine = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<"morning" | "night">("morning");
   const [expandedItemKey, setExpandedItemKey] = useState<string | null>(null);
   const [selectingProductItem, setSelectingProductItem] = useState<string | null>(null);
+  const [savingProductItem, setSavingProductItem] = useState(false);
   const [editingDaysItem, setEditingDaysItem] = useState<string | null>(null);
   const [selectedOptionByItem, setSelectedOptionByItem] = useState<Record<string, string>>(() => {
     try {
@@ -368,6 +369,8 @@ const Routine = () => {
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
   const [isAdvancingToNight, setIsAdvancingToNight] = useState(false);
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const [touchStartX, setTouchStartX] = useState<Record<string, number>>({});
 
   const {
     steps: apiSteps,
@@ -768,6 +771,20 @@ const Routine = () => {
     return "both";
   };
 
+  const resolveStepTypeKey = (label: string): string => {
+    const normalized = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const map: Record<string, string> = {
+      "limpeza": "cleanser", "hidratante": "moisturizer", "serum": "serum", "sero": "serum",
+      "protetor solar": "sunscreen", "tonico": "toner", "tonico facial": "toner",
+      "acido": "acid", "esfoliante": "acid",
+      "retinol": "retinoid", "retinoide": "retinoid", "retinol/retinoide": "retinoid",
+      "creme para olhos": "eye_cream", "contorno dos olhos": "eye_cream",
+      "oleo facial": "oil",
+      "tratamento pontual": "spot_treatment", "mascara": "spot_treatment",
+    };
+    return map[normalized] ?? "spot_treatment";
+  };
+
   const handleCategorySelect = async (cat: string) => {
     setNewStepLabel(cat);
     setNewStepLabelOpen(false);
@@ -908,6 +925,25 @@ const Routine = () => {
         reorderApiSteps(period, orderedIds);
       }
     }
+  };
+
+  const handleDrop = (targetKey: string) => {
+    if (!draggingKey || draggingKey === targetKey || !analysis?.id) return;
+    const period: "morning" | "night" = targetKey.startsWith("night::") ? "night" : "morning";
+    const items = orderedItems[period];
+    const fromIdx = items.findIndex((i) => i.key === draggingKey);
+    const toIdx = items.findIndex((i) => i.key === targetKey);
+    if (fromIdx < 0 || toIdx < 0) { setDraggingKey(null); return; }
+    const reordered = [...items];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const nextKeys = reordered.map((i) => i.key);
+    persistRoutineOrder({ ...routineOrder, [period]: nextKeys });
+    const periodSteps = apiSteps.filter((s) => s.period === period);
+    const stepByKey = new Map(periodSteps.map((s) => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
+    const orderedIds = nextKeys.map((k) => stepByKey.get(k)).filter((id): id is string => !!id);
+    if (orderedIds.length > 0) reorderApiSteps(period, orderedIds);
+    setDraggingKey(null);
   };
 
   const confirmDeleteStep = async () => {
@@ -1469,6 +1505,7 @@ const Routine = () => {
       setSelectingProductItem(null);
       return;
     }
+    setSavingProductItem(true);
 
     const tier = optionKey.split("::").pop() ?? "primary";
     const currentPeriod: "morning" | "night" = itemKey.startsWith("night::") ? "night" : "morning";
@@ -1524,6 +1561,7 @@ const Routine = () => {
     }
 
     await reloadApiSteps(true);
+    setSavingProductItem(false);
     setSelectingProductItem(null);
     setPendingOptionByItem(prev => { const p = { ...prev }; delete p[itemKey]; return p; });
     setPendingScopeByItem(prev => { const p = { ...prev }; delete p[itemKey]; return p; });
@@ -1842,6 +1880,26 @@ const Routine = () => {
           </div>
         )}
 
+        {stepsLoading && analysis && (
+          <div className="lg-surface-strong rounded-[1.75rem] p-4 space-y-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-5 w-32 rounded-full bg-muted/60 animate-pulse" />
+              <div className="h-8 w-14 rounded-full bg-muted/60 animate-pulse" />
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted/60 animate-pulse mb-4" />
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 py-2">
+                <div className="w-9 h-9 rounded-full bg-muted/60 animate-pulse flex-shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 rounded-full bg-muted/60 animate-pulse" style={{ width: `${60 + i * 12}%` }} />
+                  <div className="h-2.5 rounded-full bg-muted/40 animate-pulse w-2/5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!stepsLoading && (
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="lg-surface-strong rounded-[1.75rem] p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -2037,7 +2095,23 @@ const Routine = () => {
 
                 const cardBg = pastelColors[(item.stepNumber - 1) % pastelColors.length];
                 return (
-                  <div key={item.key} className={`lg-surface-step overflow-hidden ${isChecked && !isEditing ? "opacity-55" : "opacity-100"}`}>
+                  <div
+                    key={item.key}
+                    className={`lg-surface-step overflow-hidden ${isChecked && !isEditing ? "opacity-55" : "opacity-100"} ${draggingKey === item.key ? "opacity-40" : ""}`}
+                    draggable={isEditing}
+                    onDragStart={() => setDraggingKey(item.key)}
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDrop={(e) => { e.preventDefault(); handleDrop(item.key); }}
+                    onTouchStart={(e) => setTouchStartX((prev) => ({ ...prev, [item.key]: e.touches[0].clientX }))}
+                    onTouchEnd={(e) => {
+                      const startX = touchStartX[item.key];
+                      if (startX !== undefined) {
+                        const deltaX = e.changedTouches[0].clientX - startX;
+                        if (deltaX > 80 && !isEditing) toggleChecklist(item.key);
+                      }
+                      setTouchStartX((prev) => { const p = { ...prev }; delete p[item.key]; return p; });
+                    }}
+                  >
                     <div className="flex flex-col w-full">
                       {/* Edit mode controls */}
                       {isEditing && (
@@ -2719,6 +2793,7 @@ const Routine = () => {
             </div>
           )}
         </motion.section>
+        )}
 
         {/* Editar Rotina CTA - always visible at bottom */}
         <motion.div
@@ -2779,6 +2854,7 @@ const Routine = () => {
             pendingScope={pendingScopeByItem[sheetItem.key] ?? sheetItem.period}
             onSelectOption={(key) => setPendingOptionByItem(prev => ({ ...prev, [sheetItem.key]: key }))}
             onScopeChange={(scope) => setPendingScopeByItem(prev => ({ ...prev, [sheetItem.key]: scope }))}
+            isSaving={savingProductItem}
             onSave={() => saveProductSelection(sheetItem.key)}
             onCancel={() => cancelProductSelection(sheetItem.key)}
             onSaveCustom={(name, imageUrl) => {

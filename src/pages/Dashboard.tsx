@@ -12,7 +12,7 @@ import { type AnalysisResponse } from "@/lib/analysis";
 import { fetchDashboardSummary, fetchRoutineSteps } from "@/lib/analysisClient";
 import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
-import { fetchBillingStatus } from "@/lib/billing";
+import { useIsPremium } from "@/hooks/useIsPremium";
 import { staleWhileRevalidate } from "@/shared/services/cache/CacheService";
 import { AuroraBackdrop, FGScoreOrb, FGMetricBar } from "@/components/shared";
 
@@ -85,7 +85,8 @@ const Dashboard = () => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [avatarLetter, setAvatarLetter] = useState("U");
   const [userReady, setUserReady] = useState(false);
-  const [isPremiumBlocked, setIsPremiumBlocked] = useState(true);
+  const { isPremium } = useIsPremium();
+  const isPremiumBlocked = !isPremium;
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
   const [routineSteps, setRoutineSteps] = useState<Array<{ id: string; period: string; productName: string }>>([]);
 
@@ -164,17 +165,7 @@ const Dashboard = () => {
     };
   }, [location.pathname]);
 
-  // Efeito 2.5: Verificar status premium
-  useEffect(() => {
-    fetchBillingStatus({ forceRefresh: true })
-      .then((s) => {
-        setIsPremiumBlocked(!s.isActive || s.planKey !== "monthly");
-      })
-      .catch((err) => {
-        console.error("[Dashboard] Failed to load billing status:", err);
-        setIsPremiumBlocked(true);
-      });
-  }, []);
+  // Premium status é lido diretamente do UserContext (já hidratado pelo RequireAuth)
 
   // Efeito 2.6: Carregar steps da rotina + progresso de hoje do backend
   useEffect(() => {

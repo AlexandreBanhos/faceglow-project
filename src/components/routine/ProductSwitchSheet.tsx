@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronRight, Moon, Package, Sun, X } from "lucide-react";
+import { Check, ChevronRight, Loader2, Moon, Package, Sun, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -27,13 +27,13 @@ interface Props {
   pendingScope: Scope;
   onSelectOption: (key: string) => void;
   onScopeChange: (scope: Scope) => void;
+  isSaving?: boolean;
   onSave: () => void;
   onCancel: () => void;
   // custom product
   onSaveCustom: (name: string, imageUrl?: string) => void;
 }
 
-const fallbackImg = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=400&q=70";
 
 const tierBadge: Record<string, { bg: string; text: string; label: string }> = {
   primary:    { bg: "bg-primary/10",  text: "text-primary",  label: "Melhor para sua pele" },
@@ -49,6 +49,7 @@ export const ProductSwitchSheet = ({
   stepLabel, stepCategory, period,
   options, selectedKey, pendingKey, pendingScope,
   onSelectOption, onScopeChange,
+  isSaving = false,
   onSave, onCancel,
   onSaveCustom,
 }: Props) => {
@@ -129,14 +130,22 @@ export const ProductSwitchSheet = ({
                     : "border-border/40 bg-background hover:border-border"
                 }`}
               >
-                {/* Product image */}
-                <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted flex-shrink-0">
-                  <img
-                    src={opt.imageUrl || fallbackImg}
-                    alt={opt.productName}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).src = fallbackImg; }}
-                  />
+                {/* Product image or icon placeholder */}
+                <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted/60 flex-shrink-0 flex items-center justify-center">
+                  {opt.imageUrl ? (
+                    <img
+                      src={opt.imageUrl}
+                      alt={opt.productName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const t = e.target as HTMLImageElement;
+                        t.style.display = "none";
+                        t.parentElement?.classList.add("no-img");
+                      }}
+                    />
+                  ) : (
+                    <Package size={22} className="text-muted-foreground/50" />
+                  )}
                 </div>
 
                 {/* Info */}
@@ -261,10 +270,12 @@ export const ProductSwitchSheet = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={!pendingKey}
-            className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm disabled:opacity-40 transition-opacity"
+            disabled={!pendingKey || isSaving}
+            className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
           >
-            Salvar
+            {isSaving ? (
+              <><Loader2 size={16} className="animate-spin" /> Salvando…</>
+            ) : "Salvar"}
           </button>
         </div>
       </SheetContent>
