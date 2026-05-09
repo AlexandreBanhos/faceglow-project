@@ -582,7 +582,7 @@ const Routine = () => {
         const slots = step.slots ?? [];
         if (slots.length === 0) return;
         result.set(itemKey, slots.map(slot => ({
-          key: `${itemKey}::${slot.tier}`,
+          key: `${itemKey}::${slot.id}`,   // slot UUID garante unicidade mesmo com tiers repetidos
           label: tierLabel(slot.tier),
           productName: slot.productName ?? step.productName,
           reason: slot.recommendationReason ?? "",
@@ -1527,17 +1527,19 @@ const Routine = () => {
     }
     setSavingProductItem(true);
 
-    const tier = optionKey.split("::").pop() ?? "primary";
+    // Key format: "${stepId}::${slotId}" — extract the slot UUID
+    const slotId = optionKey.split("::")[1] ?? null;
+
     const currentStep = apiSteps.find(s => s.id === itemKey);
     const currentPeriod: "morning" | "night" = currentStep?.period ?? "morning";
     const otherPeriod: "morning" | "night" = currentPeriod === "morning" ? "night" : "morning";
     const scope = pendingScopeByItem[itemKey] ?? currentPeriod;
 
-    // Resolve v2 tier
+    // Resolve tier from the slot — look up in currentStep.slots by slot id
+    const selectedSlot = currentStep?.slots?.find(sl => sl.id === slotId);
+    const tier = selectedSlot?.tier ?? "primary";
     const v2Tiers: SlotTier[] = ["primary", "alt_budget", "alt_rated", "user_custom"];
-    const v2Tier: SlotTier = v2Tiers.includes(tier as SlotTier)
-      ? tier as SlotTier
-      : "primary";
+    const v2Tier: SlotTier = v2Tiers.includes(tier as SlotTier) ? tier as SlotTier : "primary";
 
     if (currentStep?.slots?.length) {
       // Find counterpart step by matching stepTypeKey in the other period
@@ -1546,8 +1548,8 @@ const Routine = () => {
       );
 
       if (scope === currentPeriod) {
-        // Apply only to current period step
-        await selectRoutineSlot(analysis.id, currentStep.id, v2Tier);
+        // Apply only to current period step — pass slotId for precise selection
+        await selectRoutineSlot(analysis.id, currentStep.id, v2Tier, slotId ?? undefined);
 
       } else if (scope === "both") {
         // Apply to current step
@@ -1586,11 +1588,14 @@ const Routine = () => {
     setPendingScopeByItem(prev => { const p = { ...prev }; delete p[itemKey]; return p; });
   };
 
-  const addCatalogProductToStep = async (stepId: string, productId: string) => {
+  const addCatalogProductToStep = async (
+    stepId: string,
+    payload: { productId?: string; productName?: string; imageUrl?: string },
+  ) => {
     if (!analysis?.id) return;
     setSavingProductItem(true);
     setSelectingProductItem(stepId);
-    await addCatalogSlot(analysis.id, stepId, productId);
+    await addCatalogSlot(analysis.id, stepId, payload);
     await reloadApiSteps(true);
     setSavingProductItem(false);
     setSelectingProductItem(null);
@@ -2921,10 +2926,11 @@ const Routine = () => {
             onSave={() => saveProductSelection(sheetItem.key)}
             onCancel={() => cancelProductSelection(sheetItem.key)}
             onSaveCustom={(name, imageUrl) => {
-              saveCustomProductFromCatalog(sheetItem.key, name, imageUrl);
+              // Persiste no banco como user_custom slot (não apenas estado local)
+              void addCatalogProductToStep(sheetItem.key, { productName: name, imageUrl });
             }}
             onAddCatalogProduct={(productId, _name, _imageUrl) => {
-              void addCatalogProductToStep(sheetItem.key, productId);
+              void addCatalogProductToStep(sheetItem.key, { productId });
             }}
           />
         );

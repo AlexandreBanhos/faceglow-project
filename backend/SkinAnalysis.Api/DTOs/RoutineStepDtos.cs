@@ -22,4 +22,9 @@ public record ReorderStepsRequest(
     List<Guid> StepIds  // IDs na nova ordem desejada
 );
 
-public record AddCatalogSlotRequest(Guid ProductId);
+// ProductId OR (ProductName) must be set
+public record AddCatalogSlotRequest(
+    Guid? ProductId = null,
+    string? ProductName = null,
+    string? ImageUrl = null
+);

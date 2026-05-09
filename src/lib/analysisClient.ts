@@ -565,7 +565,7 @@ export const fetchRoutineSteps = async (analysisId: string): Promise<RoutineStep
 export const addCatalogSlot = async (
   analysisId: string,
   stepId: string,
-  productId: string,
+  payload: { productId?: string; productName?: string; imageUrl?: string },
 ): Promise<boolean> => {
   const token = await getAccessTokenWithWait(5000);
   if (!token) return false;
@@ -575,7 +575,7 @@ export const addCatalogSlot = async (
       {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ productId }),
+        body: JSON.stringify(payload),
       },
       10_000,
     );

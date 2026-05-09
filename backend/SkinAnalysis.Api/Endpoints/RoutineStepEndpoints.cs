@@ -483,29 +483,93 @@ public static class RoutineStepEndpoints
                 && s.IsActive, ct);
         if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
 
-        // Check for existing slot with this catalog product
-        var existingSlot = step.Slots.FirstOrDefault(sl => sl.ProductId == request.ProductId);
+        if (!request.ProductId.HasValue && string.IsNullOrWhiteSpace(request.ProductName))
+            return Results.BadRequest(new { error = "ProductId ou ProductName obrigatório." });
 
         // Phase 1: deselect all
         foreach (var sl in step.Slots) sl.IsSelected = false;
         await db.SaveChangesAsync(ct);
 
-        // Phase 2: select or create slot
-        if (existingSlot is not null)
+        // Phase 2: find existing slot or reuse user_custom slot (never duplicate a tier)
+        if (request.ProductId.HasValue)
         {
-            existingSlot.IsSelected = true;
+            // Catalog product
+            var existingSlot = step.Slots.FirstOrDefault(sl => sl.ProductId == request.ProductId);
+            if (existingSlot is not null)
+            {
+                existingSlot.IsSelected = true;
+            }
+            else
+            {
+                // Reuse existing user_custom slot if present (avoids duplicate tiers)
+                var reuseSlot = step.Slots.FirstOrDefault(sl => sl.Tier == "user_custom");
+                if (reuseSlot is not null)
+                {
+                    reuseSlot.ProductId = request.ProductId.Value;
+                    reuseSlot.UserProductId = null;
+                    reuseSlot.IsSelected = true;
+                    reuseSlot.RecommendationReason = "Adicionado manualmente";
+                }
+                else
+                {
+                    db.StepProductSlots.Add(new StepProductSlot
+                    {
+                        StepId = step.Id,
+                        Tier = "user_custom",        // Never "primary" — avoids tier collision
+                        ProductId = request.ProductId.Value,
+                        UserProductId = null,
+                        IsSelected = true,
+                        RecommendationReason = "Adicionado manualmente",
+                    });
+                }
+            }
         }
         else
         {
-            db.StepProductSlots.Add(new StepProductSlot
+            // Custom product: upsert UserProduct
+            var userProduct = await db.UserProducts.FirstOrDefaultAsync(
+                p => p.UserId == userId && p.CustomName == request.ProductName, ct);
+            if (userProduct is null)
             {
-                StepId = step.Id,
-                Tier = "primary",
-                ProductId = request.ProductId,
-                UserProductId = null,
-                IsSelected = true,
-                RecommendationReason = "Adicionado manualmente",
-            });
+                userProduct = new UserProduct
+                {
+                    UserId = userId,
+                    CustomName = request.ProductName!,
+                    CustomImageUrl = request.ImageUrl,
+                    StepTypeKey = step.StepTypeKey,
+                };
+                db.UserProducts.Add(userProduct);
+                await db.SaveChangesAsync(ct);
+            }
+
+            var existingUserSlot = step.Slots.FirstOrDefault(sl => sl.UserProductId == userProduct.Id);
+            if (existingUserSlot is not null)
+            {
+                existingUserSlot.IsSelected = true;
+            }
+            else
+            {
+                var reuseSlot = step.Slots.FirstOrDefault(sl => sl.Tier == "user_custom");
+                if (reuseSlot is not null)
+                {
+                    reuseSlot.ProductId = null;
+                    reuseSlot.UserProductId = userProduct.Id;
+                    reuseSlot.IsSelected = true;
+                    reuseSlot.RecommendationReason = request.ProductName;
+                }
+                else
+                {
+                    db.StepProductSlots.Add(new StepProductSlot
+                    {
+                        StepId = step.Id,
+                        Tier = "user_custom",
+                        ProductId = null,
+                        UserProductId = userProduct.Id,
+                        IsSelected = true,
+                        RecommendationReason = request.ProductName,
+                    });
+                }
+            }
         }
 
         step.Routine.IsCustomized = true;
@@ -513,7 +577,7 @@ public static class RoutineStepEndpoints
         await db.SaveChangesAsync(ct);
 
         cache.Remove($"v2_steps_{id}_{userId}");
-        return Results.Ok(new { message = "Produto do catálogo adicionado." });
+        return Results.Ok(new { message = "Produto adicionado ao passo." });
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
