@@ -177,6 +177,7 @@ const humanizeRecurrence = (value: string) => {
   if (value === "daily" || value === "morning" || value === "night") return "Diário";
   if (value === "as_needed") return "Quando necessário";
   if (value === "weekly") return "Semanal";
+  if (value === "2-3x_week") return "2-3x/semana";
   if (value === "2x_week") return "2x semana";
   if (value === "3x_week") return "3x semana";
   return value;
@@ -767,6 +768,8 @@ const Routine = () => {
   const newStepFileInputRef = useRef<HTMLInputElement>(null);
   const [catalogProductsByCategory, setCatalogProductsByCategory] = useState<CatalogProduct[]>([]);
   const [newStepCatalogProductId, setNewStepCatalogProductId] = useState<string | null>(null);
+  const [newStepRecurrence, setNewStepRecurrence] = useState<"daily" | "2-3x_week" | "custom">("daily");
+  const [newStepScheduleDays, setNewStepScheduleDays] = useState<WeekDayKey[]>([]);
 
   const getCategoryDefaultPeriod = (cat: string): "morning" | "night" | "both" => {
     const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
@@ -854,12 +857,21 @@ const Routine = () => {
 
     const toastId = toast.loading("Adicionando passo…");
 
+    const recurrenceValue = newStepRecurrence === "custom" ? "weekly" : newStepRecurrence;
+
     // Sequencial (não paralelo) para evitar race condition no upsert de UserProduct
     for (const p of periods) {
-      await addRoutineStep(analysis.id, {
-        period: p, productName, category: resolvedLabel, imageUrl, recurrence: "daily",
+      const result = await addRoutineStep(analysis.id, {
+        period: p, productName, category: resolvedLabel, imageUrl,
+        recurrence: recurrenceValue,
         productId: newStepCatalogProductId ?? undefined,
       });
+      // Persiste dias específicos via PATCH se o usuário escolheu dias personalizados
+      if (result?.id && newStepRecurrence === "custom" && newStepScheduleDays.length > 0) {
+        await updateRoutineStep(analysis.id, result.id, {
+          scheduleDays: JSON.stringify(newStepScheduleDays),
+        });
+      }
     }
 
     // silent=true: não trava loading, evita fallback para string-parsing
@@ -876,6 +888,8 @@ const Routine = () => {
     setNewStepImage("");
     setNewStepNote("");
     setNewStepCatalogProductId(null);
+    setNewStepRecurrence("daily");
+    setNewStepScheduleDays([]);
     setCatalogProductsByCategory([]);
     setAddStepOpen(false);
     toast.success("Passo adicionado!", { id: toastId, duration: 2500 });
@@ -3103,6 +3117,61 @@ const Routine = () => {
               </div>
             )}
 
+            {/* Frequência */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Frequência</label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: "daily"    as const, label: "Diário" },
+                  { value: "2-3x_week" as const, label: "2-3x/semana" },
+                  { value: "custom"   as const, label: "Personalizar" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { setNewStepRecurrence(opt.value); if (opt.value !== "custom") setNewStepScheduleDays([]); }}
+                    className={`h-10 rounded-xl text-xs font-semibold transition-all ${
+                      newStepRecurrence === opt.value
+                        ? "text-white"
+                        : "border border-border/60 text-muted-foreground bg-background hover:bg-muted/30"
+                    }`}
+                    style={newStepRecurrence === opt.value ? { background: "var(--grad-coral)" } : undefined}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Seleção de dias específicos */}
+              {newStepRecurrence === "custom" && (
+                <div className="mt-2.5">
+                  <p className="text-[11px] text-muted-foreground mb-1.5">Selecione os dias:</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {weekDays.map((d) => {
+                      const active = newStepScheduleDays.includes(d.key);
+                      return (
+                        <button
+                          key={d.key}
+                          type="button"
+                          onClick={() =>
+                            setNewStepScheduleDays((prev) =>
+                              active ? prev.filter((x) => x !== d.key) : [...prev, d.key]
+                            )
+                          }
+                          className={`w-10 h-10 rounded-xl text-xs font-bold transition-all ${
+                            active ? "text-white" : "border border-border/60 text-muted-foreground bg-background"
+                          }`}
+                          style={active ? { background: "var(--grad-coral)" } : undefined}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Note */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Observação (opcional)</label>
@@ -3120,7 +3189,7 @@ const Routine = () => {
               className="flex-1 h-12 rounded-2xl border border-border/60 bg-background text-foreground font-semibold text-sm">
               Cancelar
             </button>
-            <button onClick={() => { void addCustomStep(); }} disabled={!newStepProduct.trim()}
+            <button onClick={() => { void addCustomStep(); }} disabled={!newStepProduct.trim() || (newStepRecurrence === "custom" && newStepScheduleDays.length === 0)}
               className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm disabled:opacity-40 transition-opacity">
               Salvar passo
             </button>
