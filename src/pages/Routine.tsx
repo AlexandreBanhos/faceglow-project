@@ -9,7 +9,7 @@ import BottomNav from "@/components/BottomNav";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
   getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache,
-  addRoutineStep, updateRoutineStep, selectRoutineSlot, fetchCatalogProducts,
+  addRoutineStep, updateRoutineStep, selectRoutineSlot, fetchCatalogProducts, addCatalogSlot,
   type RoutineStep as ApiRoutineStep,
   type SlotTier,
   type CatalogProduct,
@@ -767,6 +767,7 @@ const Routine = () => {
   const [newStepUploadingImage, setNewStepUploadingImage] = useState(false);
   const newStepFileInputRef = useRef<HTMLInputElement>(null);
   const [catalogProductsByCategory, setCatalogProductsByCategory] = useState<CatalogProduct[]>([]);
+  const [newStepCatalogProductId, setNewStepCatalogProductId] = useState<string | null>(null);
 
   const getCategoryDefaultPeriod = (cat: string): "morning" | "night" | "both" => {
     const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
@@ -796,6 +797,7 @@ const Routine = () => {
     setNewStepProductSearch("");
     setNewStepProductFromCatalog(false);
     setNewStepImage("");
+    setNewStepCatalogProductId(null);
     setCatalogProductsByCategory([]);
     // Busca produtos do banco pela step_type_key resolvida (muito mais preciso que busca por texto)
     const key = resolveStepTypeKey(cat);
@@ -833,16 +835,33 @@ const Routine = () => {
 
   const addCustomStep = async () => {
     if (!newStepProduct.trim() || !analysis?.id) return;
-    const toastId = toast.loading("Adicionando passo…");
     const resolvedLabel = newStepLabel.trim() || "Passo";
     const productName = newStepProduct.trim();
     const imageUrl = newStepImage.trim() || undefined;
     const periods: Array<"morning" | "night"> =
       newStepPeriod === "both" ? ["morning", "night"] : [newStepPeriod];
 
-    await Promise.all(periods.map((p) =>
-      addRoutineStep(analysis.id, { period: p, productName, category: resolvedLabel, imageUrl, recurrence: "daily" })
-    ));
+    // Verifica duplicata: produto já na rotina nos períodos solicitados
+    const norm = productName.toLowerCase().trim();
+    const duplicateStep = apiSteps.find(s =>
+      periods.includes(s.period as "morning" | "night") &&
+      (s.productName.toLowerCase().trim() === norm ||
+       s.slots?.some(sl => sl.productName?.toLowerCase().trim() === norm))
+    );
+    if (duplicateStep) {
+      toast.error(`"${productName}" já está na rotina de ${duplicateStep.period === "morning" ? "manhã" : "noite"}.`);
+      return;
+    }
+
+    const toastId = toast.loading("Adicionando passo…");
+
+    // Sequencial (não paralelo) para evitar race condition no upsert de UserProduct
+    for (const p of periods) {
+      await addRoutineStep(analysis.id, {
+        period: p, productName, category: resolvedLabel, imageUrl, recurrence: "daily",
+        productId: newStepCatalogProductId ?? undefined,
+      });
+    }
 
     // silent=true: não trava loading, evita fallback para string-parsing
     await reloadApiSteps(true);
@@ -857,6 +876,7 @@ const Routine = () => {
     setNewStepProductFromCatalog(false);
     setNewStepImage("");
     setNewStepNote("");
+    setNewStepCatalogProductId(null);
     setCatalogProductsByCategory([]);
     setAddStepOpen(false);
     toast.success("Passo adicionado!", { id: toastId, duration: 2500 });
@@ -1564,6 +1584,16 @@ const Routine = () => {
     setSelectingProductItem(null);
     setPendingOptionByItem(prev => { const p = { ...prev }; delete p[itemKey]; return p; });
     setPendingScopeByItem(prev => { const p = { ...prev }; delete p[itemKey]; return p; });
+  };
+
+  const addCatalogProductToStep = async (stepId: string, productId: string) => {
+    if (!analysis?.id) return;
+    setSavingProductItem(true);
+    setSelectingProductItem(stepId);
+    await addCatalogSlot(analysis.id, stepId, productId);
+    await reloadApiSteps(true);
+    setSavingProductItem(false);
+    setSelectingProductItem(null);
   };
 
   const cancelProductSelection = (itemKey: string) => {
@@ -2893,6 +2923,9 @@ const Routine = () => {
             onSaveCustom={(name, imageUrl) => {
               saveCustomProductFromCatalog(sheetItem.key, name, imageUrl);
             }}
+            onAddCatalogProduct={(productId, _name, _imageUrl) => {
+              void addCatalogProductToStep(sheetItem.key, productId);
+            }}
           />
         );
       })()}
@@ -2986,8 +3019,8 @@ const Routine = () => {
                     .filter((p) => !filteredRecs.some((r) => r.product.toLowerCase() === p.name.toLowerCase()))
                     .slice(0, 5);
                   const combined = [
-                    ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, type: r.type })),
-                    ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl ?? undefined, type: p.stepTypeKey })),
+                    ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, type: r.type, catalogId: null as string | null })),
+                    ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl ?? undefined, type: p.stepTypeKey, catalogId: p.id })),
                   ];
                   const exactMatch = combined.some((r) => r.name.toLowerCase() === q);
                   const showAddNew = q.length > 0 && !exactMatch;
@@ -2996,7 +3029,14 @@ const Routine = () => {
                     <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-52">
                       {combined.map((r) => (
                         <button key={r.name} type="button" onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setNewStepProduct(r.name); setNewStepProductSearch(r.name); if (r.imageUrl) setNewStepImage(r.imageUrl); setNewStepProductFromCatalog(true); setNewStepProductOpen(false); }}
+                          onClick={() => {
+                            setNewStepProduct(r.name);
+                            setNewStepProductSearch(r.name);
+                            if (r.imageUrl) setNewStepImage(r.imageUrl);
+                            setNewStepProductFromCatalog(true);
+                            setNewStepProductOpen(false);
+                            setNewStepCatalogProductId(r.catalogId); // null for recs, uuid for catalog
+                          }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted transition-colors">
                           {r.imageUrl && <img src={r.imageUrl} className="w-8 h-8 rounded-lg object-contain bg-white border border-border/30 shrink-0" />}
                           <div className="min-w-0">
@@ -3007,7 +3047,7 @@ const Routine = () => {
                       ))}
                       {showAddNew && (
                         <button type="button" onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setNewStepProduct(newStepProductSearch.trim()); setNewStepProductFromCatalog(false); setNewStepProductOpen(false); }}
+                          onClick={() => { setNewStepProduct(newStepProductSearch.trim()); setNewStepProductFromCatalog(false); setNewStepProductOpen(false); setNewStepCatalogProductId(null); }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted transition-colors border-t border-border/40">
                           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <Plus size={14} className="text-primary" />

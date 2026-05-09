@@ -562,9 +562,30 @@ export const fetchRoutineSteps = async (analysisId: string): Promise<RoutineStep
   }
 };
 
+export const addCatalogSlot = async (
+  analysisId: string,
+  stepId: string,
+  productId: string,
+): Promise<boolean> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return false;
+  try {
+    const response = await fetchWithTimeout(
+      `${apiBaseUrl}/analysis/${encodeURIComponent(analysisId)}/steps/${encodeURIComponent(stepId)}/add-catalog-slot`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      },
+      10_000,
+    );
+    return response.ok;
+  } catch { return false; }
+};
+
 export const addRoutineStep = async (
   analysisId: string,
-  data: { period: string; productName: string; category?: string; imageUrl?: string; recurrence?: string },
+  data: { period: string; productName: string; category?: string; imageUrl?: string; recurrence?: string; productId?: string },
 ): Promise<{ id: string } | null> => {
   const token = await getAccessTokenWithWait(5000);
   if (!token) return null;

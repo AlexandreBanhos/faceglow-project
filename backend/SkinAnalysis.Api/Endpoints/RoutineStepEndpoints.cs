@@ -44,6 +44,11 @@ public static class RoutineStepEndpoints
             .WithName("SelectStepSlot")
             .RequireAuthorization();
 
+        // New: add a catalog product as a slot (no UserProduct created)
+        group.MapPost("/{id:guid}/steps/{stepId:guid}/add-catalog-slot", AddCatalogSlotHandler)
+            .WithName("AddCatalogSlot")
+            .RequireAuthorization();
+
         // New: restore to a previous version
         app.MapPost("/routines/{routineId:guid}/restore/{version:int}", RestoreVersionHandler)
             .WithName("RestoreRoutineVersion")
@@ -209,33 +214,58 @@ public static class RoutineStepEndpoints
         db.RoutineSteps.Add(step);
         await db.SaveChangesAsync(ct);
 
-        // 1. Upsert UserProduct — reuse existing if same name to avoid catalog duplicates
-        var userProduct = await db.UserProducts.FirstOrDefaultAsync(
-            p => p.UserId == userId && p.CustomName == request.ProductName, ct);
+        // Check for duplicate step with same product in this routine
+        var duplicateExists = await db.RoutineSteps
+            .AnyAsync(s => s.RoutineId == routine.Id
+                        && s.IsActive
+                        && s.Slots.Any(sl => sl.IsSelected
+                            && (sl.Product!.Name.ToLower() == request.ProductName.ToLower()
+                                || sl.UserProduct!.CustomName!.ToLower() == request.ProductName.ToLower())), ct);
+        if (duplicateExists)
+            return Results.Conflict(new { error = "Este produto já existe nessa rotina." });
 
-        if (userProduct is null)
+        StepProductSlot slot;
+        if (request.ProductId.HasValue)
         {
-            userProduct = new UserProduct
+            // Catalog product: create slot referencing products table — NO UserProduct
+            slot = new StepProductSlot
             {
-                UserId = userId,
-                CustomName = request.ProductName,
-                CustomImageUrl = request.ImageUrl,
-                StepTypeKey = resolvedKey,
+                StepId = step.Id,
+                Tier = "primary",
+                ProductId = request.ProductId.Value,
+                UserProductId = null,
+                IsSelected = true,
+                RecommendationReason = "Adicionado manualmente",
             };
-            db.UserProducts.Add(userProduct);
-            await db.SaveChangesAsync(ct);
         }
-
-        // 2. Now create slot with UserProductId already set (satisfies exactly_one_product CHECK)
-        db.StepProductSlots.Add(new StepProductSlot
+        else
         {
-            StepId = step.Id,
-            Tier = "user_custom",
-            UserProductId = userProduct.Id,
-            ProductId = null,
-            IsSelected = true,
-            RecommendationReason = request.ProductName,
-        });
+            // Custom product: upsert in user_products, then reference via UserProductId
+            var userProduct = await db.UserProducts.FirstOrDefaultAsync(
+                p => p.UserId == userId && p.CustomName == request.ProductName, ct);
+            if (userProduct is null)
+            {
+                userProduct = new UserProduct
+                {
+                    UserId = userId,
+                    CustomName = request.ProductName,
+                    CustomImageUrl = request.ImageUrl,
+                    StepTypeKey = resolvedKey,
+                };
+                db.UserProducts.Add(userProduct);
+                await db.SaveChangesAsync(ct);
+            }
+            slot = new StepProductSlot
+            {
+                StepId = step.Id,
+                Tier = "user_custom",
+                UserProductId = userProduct.Id,
+                ProductId = null,
+                IsSelected = true,
+                RecommendationReason = request.ProductName,
+            };
+        }
+        db.StepProductSlots.Add(slot);
 
         routine.IsCustomized = true;
         routine.UpdatedAt = DateTime.UtcNow;
@@ -434,6 +464,56 @@ public static class RoutineStepEndpoints
             cache.Remove($"v2_steps_{analysisId.Value}_{userId}");
 
         return Results.Ok(new { restoredTo = version, newVersion = routine.CurrentVersion });
+    }
+
+    // ── POST /analysis/{id}/steps/{stepId}/add-catalog-slot ──────────────────
+    private static async Task<IResult> AddCatalogSlotHandler(
+        Guid id, Guid stepId, AddCatalogSlotRequest request,
+        ClaimsPrincipal user, AppDbContext db,
+        IMemoryCache cache, CancellationToken ct)
+    {
+        var (userId, valid) = GetUserId(user);
+        if (!valid) return Results.Unauthorized();
+
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .Include(s => s.Slots)
+            .FirstOrDefaultAsync(s => s.Id == stepId
+                && s.Routine.UserId == userId
+                && s.IsActive, ct);
+        if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
+
+        // Check for existing slot with this catalog product
+        var existingSlot = step.Slots.FirstOrDefault(sl => sl.ProductId == request.ProductId);
+
+        // Phase 1: deselect all
+        foreach (var sl in step.Slots) sl.IsSelected = false;
+        await db.SaveChangesAsync(ct);
+
+        // Phase 2: select or create slot
+        if (existingSlot is not null)
+        {
+            existingSlot.IsSelected = true;
+        }
+        else
+        {
+            db.StepProductSlots.Add(new StepProductSlot
+            {
+                StepId = step.Id,
+                Tier = "primary",
+                ProductId = request.ProductId,
+                UserProductId = null,
+                IsSelected = true,
+                RecommendationReason = "Adicionado manualmente",
+            });
+        }
+
+        step.Routine.IsCustomized = true;
+        step.Routine.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        cache.Remove($"v2_steps_{id}_{userId}");
+        return Results.Ok(new { message = "Produto do catálogo adicionado." });
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────

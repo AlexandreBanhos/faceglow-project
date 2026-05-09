@@ -31,8 +31,10 @@ interface Props {
   isSaving?: boolean;
   onSave: () => void;
   onCancel: () => void;
-  // custom product
+  // custom product (manual entry)
   onSaveCustom: (name: string, imageUrl?: string) => void;
+  // catalog product (has a product_id in the products table)
+  onAddCatalogProduct?: (productId: string, name: string, imageUrl?: string) => void;
 }
 
 
@@ -53,6 +55,7 @@ export const ProductSwitchSheet = ({
   isSaving = false,
   onSave, onCancel,
   onSaveCustom,
+  onAddCatalogProduct,
 }: Props) => {
   const [showCustom, setShowCustom] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -171,7 +174,12 @@ export const ProductSwitchSheet = ({
                     key={p.id}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => {
-                      onSaveCustom(p.name, p.imageUrl ?? undefined);
+                      if (onAddCatalogProduct) {
+                        // Catalog product: passes productId — backend creates slot with ProductId (no UserProduct)
+                        onAddCatalogProduct(p.id, p.name, p.imageUrl ?? undefined);
+                      } else {
+                        onSaveCustom(p.name, p.imageUrl ?? undefined);
+                      }
                       resetLocalState();
                       onClose();
                     }}

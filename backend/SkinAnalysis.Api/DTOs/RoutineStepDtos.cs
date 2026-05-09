@@ -5,7 +5,8 @@ public record AddRoutineStepRequest(
     string ProductName,
     string? Category,
     string? ImageUrl,
-    string? Recurrence
+    string? Recurrence,
+    Guid? ProductId = null   // set when product comes from the catalog — skips UserProduct creation
 );
 
 public record PatchRoutineStepRequest(
@@ -20,3 +21,5 @@ public record ReorderStepsRequest(
     string Period,
     List<Guid> StepIds  // IDs na nova ordem desejada
 );
+
+public record AddCatalogSlotRequest(Guid ProductId);
