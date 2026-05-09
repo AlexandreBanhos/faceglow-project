@@ -440,16 +440,11 @@ const Routine = () => {
         });
         if (!res.ok) return;
         const { completedStepIds } = await res.json() as { completedStepIds: string[] };
-        if (!completedStepIds?.length) return;
-        // Mapeia step IDs para itemKeys
-        const stepById = new Map(apiSteps.map((s) => [s.id, s]));
+        // Reconstrói checkedByDayItem usando step UUID como chave (igual ao toggleChecklist)
+        const completedSet = new Set(completedStepIds ?? []);
         const updates: Record<string, boolean> = {};
-        completedStepIds.forEach((id) => {
-          const step = stepById.get(id);
-          if (step) {
-            const itemKey = `${step.period}::${step.productName.toLowerCase()}`;
-            updates[`${todayStr}::${itemKey}`] = true;
-          }
+        apiSteps.forEach((step) => {
+          updates[`${todayStr}::${step.id}`] = completedSet.has(step.id);
         });
         if (Object.keys(updates).length > 0) {
           setProductSchedule((prev) => ({
@@ -461,6 +456,33 @@ const Routine = () => {
     };
     loadTodayProgress();
   }, [stepsLoading, apiSteps, todayStr]);
+
+  // Histórico de completions por data — imune a edições de rotina
+  const [calendarHistory, setCalendarHistory] = useState<Record<string, { morning: number; night: number }>>({});
+
+  useEffect(() => {
+    if (!analysis?.id) return;
+    let cancelled = false;
+    const loadHistory = async () => {
+      try {
+        const { getAccessTokenWithWait } = await import("@/lib/auth");
+        const token = await getAccessTokenWithWait(3000);
+        if (!token || cancelled) return;
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startStr = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-01`;
+        const res = await fetch(
+          `${apiBaseUrl}/routine/progress/history?start=${startStr}&end=${todayStr}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json() as Record<string, { morning: number; night: number }>;
+        if (!cancelled) setCalendarHistory(data);
+      } catch { /* silencioso */ }
+    };
+    loadHistory();
+    return () => { cancelled = true; };
+  }, [analysis?.id, todayStr]);
 
   // Sync slot selecionado para selectedOptionByItem quando steps carregam
   // Formato: "${stepId}::${slotId}" — compatível com productOptionsByItem
@@ -1134,36 +1156,49 @@ const Routine = () => {
 
   const completedDaysStatus = useMemo(() => {
     const result = new Map<string, "full" | "partial">();
+    const hasMorning = orderedItems.morning.length > 0;
+    const hasNight   = orderedItems.night.length > 0;
+
     for (const d of calendarDays) {
-      const scheduled = (itemKey: string) => (productSchedule.daysByItem[itemKey] ?? allDays).includes(d.weekKey);
-      const morningItems = orderedItems.morning.filter(
-        (item) => (!isExtraItem(item) || enabledExtrasByItem[item.key]) && scheduled(item.key)
-      );
-      const nightItems = orderedItems.night.filter(
-        (item) => (!isExtraItem(item) || enabledExtrasByItem[item.key]) && scheduled(item.key)
-      );
-      const morningDone = morningItems.length > 0 && morningItems.every(
-        (item) => productSchedule.checkedByDayItem[`${d.dateStr}::${item.key}`]
-      );
-      const nightDone = nightItems.length > 0 && nightItems.every(
-        (item) => productSchedule.checkedByDayItem[`${d.dateStr}::${item.key}`]
-      );
-      if (morningDone && nightDone) {
-        result.set(d.dateStr, "full");
-      } else if (morningDone || nightDone) {
-        result.set(d.dateStr, "partial");
+      if (d.dateStr > todayStr) continue; // dias futuros nunca têm dot
+
+      if (d.dateStr === todayStr) {
+        // Hoje: compara com localStorage (UUIDs do estado atual)
+        const scheduled = (itemKey: string) => (productSchedule.daysByItem[itemKey] ?? allDays).includes(d.weekKey);
+        const morningItems = orderedItems.morning.filter(
+          (item) => (!isExtraItem(item) || enabledExtrasByItem[item.key]) && scheduled(item.key)
+        );
+        const nightItems = orderedItems.night.filter(
+          (item) => (!isExtraItem(item) || enabledExtrasByItem[item.key]) && scheduled(item.key)
+        );
+        const morningDone = morningItems.length > 0 && morningItems.every(
+          (item) => productSchedule.checkedByDayItem[`${d.dateStr}::${item.key}`]
+        );
+        const nightDone = nightItems.length > 0 && nightItems.every(
+          (item) => productSchedule.checkedByDayItem[`${d.dateStr}::${item.key}`]
+        );
+        if (morningDone && nightDone) result.set(d.dateStr, "full");
+        else if (morningDone || nightDone) result.set(d.dateStr, "partial");
+      } else {
+        // Dias passados: usa dados do backend — imune a edições de rotina
+        const hist = calendarHistory[d.dateStr];
+        if (!hist) continue;
+        const morningOk = !hasMorning || hist.morning > 0;
+        const nightOk   = !hasNight   || hist.night   > 0;
+        const anyDone   = hist.morning > 0 || hist.night > 0;
+        if (anyDone) {
+          result.set(d.dateStr, morningOk && nightOk ? "full" : "partial");
+        }
       }
     }
     return result;
-  }, [calendarDays, orderedItems, productSchedule, enabledExtrasByItem]);
+  }, [calendarDays, todayStr, orderedItems, productSchedule, enabledExtrasByItem, calendarHistory]);
 
   const isFutureDay = selectedDay > todayStr;
 
   // Registra conclusão de step no DB (fire-and-forget, não bloqueia UI)
   const persistStepCompletion = async (itemKey: string) => {
-    const step = apiSteps.find(
-      (s) => s.id === itemKey
-    );
+    const step = apiSteps.find((s) => s.id === itemKey);
     if (!step) return;
     try {
       const { getAccessTokenWithWait } = await import("@/lib/auth");
@@ -1173,6 +1208,20 @@ const Routine = () => {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ localDate: todayStr }),
+      });
+    } catch { /* ignora — localStorage já persistiu */ }
+  };
+
+  const persistStepUncompletion = async (itemKey: string) => {
+    const step = apiSteps.find((s) => s.id === itemKey);
+    if (!step) return;
+    try {
+      const { getAccessTokenWithWait } = await import("@/lib/auth");
+      const token = await getAccessTokenWithWait(3000);
+      if (!token) return;
+      fetch(`${apiBaseUrl}/routine/steps/${step.id}/complete?localDate=${todayStr}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
     } catch { /* ignora — localStorage já persistiu */ }
   };
@@ -1188,9 +1237,12 @@ const Routine = () => {
         [key]: !wasChecked,
       },
     });
-    // Persiste no DB apenas ao marcar (não ao desmarcar)
-    if (!wasChecked && selectedDay === todayStr) {
-      persistStepCompletion(itemKey);
+    if (selectedDay === todayStr) {
+      if (!wasChecked) {
+        persistStepCompletion(itemKey);
+      } else {
+        persistStepUncompletion(itemKey);
+      }
     }
   };
 

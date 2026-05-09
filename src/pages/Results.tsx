@@ -250,11 +250,11 @@ const Results = () => {
   const confidence = Math.min(98, Math.max(70, Math.round(70 + analysis.overallScore * 0.28)));
   const skinAge = Math.max(18, Math.round(36 - analysis.overallScore / 5));
   const allMetricOptions: Array<{ label: string; value: number }> = [
-    { label: "Acne", value: analysis.scores.acne },
-    { label: "Oleosidade", value: analysis.scores.oiliness },
-    { label: "Manchas", value: analysis.scores.darkSpots },
-    { label: "Sensibilidade", value: analysis.scores.sensitivity },
-    { label: "Hidratação", value: analysis.scores.hydration },
+    { label: "Acne", value: analysis.scores.acne ?? 0 },
+    { label: "Oleosidade", value: analysis.scores.oiliness ?? 0 },
+    { label: "Manchas", value: analysis.scores.darkSpots ?? 0 },
+    { label: "Sensibilidade", value: analysis.scores.sensitivity ?? 0 },
+    { label: "Hidratação", value: analysis.scores.hydration ?? 0 },
     ...(analysis.scores.poros ? [{ label: "Poros", value: analysis.scores.poros }] : []),
     ...(analysis.scores.olheiras ? [{ label: "Olheiras", value: analysis.scores.olheiras }] : []),
     ...(analysis.scores.linhasFinas ? [{ label: "Linhas finas", value: analysis.scores.linhasFinas }] : []),
@@ -266,12 +266,21 @@ const Results = () => {
     .sort((a, b) => b.value - a.value)
     .slice(0, 3)
     .map((m) => ({ label: m.label, value: Math.min(100, Math.round(m.value * 10)) }));
+  const scanMetricCards = [
+    { label: "Umidade", value: analysis.scores.hydration },
+    { label: "Acne", value: analysis.scores.acne },
+    { label: "Rugas", value: analysis.scores.linhasFinas },
+    { label: "Oleosidade", value: analysis.scores.oiliness },
+    { label: "Sensibilidade", value: analysis.scores.sensitivity },
+  ]
+    .filter((m) => m.value !== undefined && m.value !== null && m.value !== 0)
+    .map((m) => ({ label: m.label, value: Math.min(100, Math.round((m.value ?? 0) * 10)) }));
 
   const metrics = [
-    { label: "Acne", value: analysis.scores.acne * 10, icon: <Zap size={16} /> },
-    { label: "Oleosidade", value: analysis.scores.oiliness * 10, icon: <Droplets size={16} /> },
-    { label: "Manchas", value: analysis.scores.darkSpots * 10, icon: <Eye size={16} /> },
-    { label: "Sensibilidade", value: analysis.scores.sensitivity * 10, icon: <Sun size={16} /> },
+    { label: "Acne", value: (analysis.scores.acne ?? 0) * 10, icon: <Zap size={16} /> },
+    { label: "Oleosidade", value: (analysis.scores.oiliness ?? 0) * 10, icon: <Droplets size={16} /> },
+    { label: "Manchas", value: (analysis.scores.darkSpots ?? 0) * 10, icon: <Eye size={16} /> },
+    { label: "Sensibilidade", value: (analysis.scores.sensitivity ?? 0) * 10, icon: <Sun size={16} /> },
     ...(analysis.scores.poros !== undefined ? [{ label: "Poros", value: analysis.scores.poros * 10, icon: <AlertTriangle size={16} /> }] : []),
     ...(analysis.scores.olheiras !== undefined ? [{ label: "Olheiras", value: analysis.scores.olheiras * 10, icon: <Eye size={16} /> }] : []),
     ...(analysis.scores.linhasFinas !== undefined ? [{ label: "Linhas finas", value: analysis.scores.linhasFinas * 10, icon: <Sparkles size={16} /> }] : []),
@@ -364,8 +373,11 @@ const Results = () => {
             onClose={() => setShowFloatingCard(false)}
             isOpen={showFloatingCard}
             landmarkPoints={landmarkPoints}
-            metricCards={metricCards}
+            metricCards={scanMetricCards}
             facialPoints={analysis.facialPoints}
+            skinAge={skinAge}
+            confidence={confidence}
+            skinType={skinTypeLabel}
           />
         )}
       </AnimatePresence>

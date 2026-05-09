@@ -273,13 +273,33 @@ const Dashboard = () => {
 
     const completedSet = new Set(completedStepIds);
 
+    // Lê localStorage para respeitar desmarques feitos na página Routine
+    // antes que o backend processe o DELETE de completion
+    const localOverrides: Record<string, boolean> = {};
+    try {
+      const rawSchedule = localStorage.getItem(getRoutineStorageKey(latestAnalysis.id));
+      if (rawSchedule) {
+        const parsed = JSON.parse(rawSchedule) as RoutineSchedule;
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        Object.entries(parsed.checkedByDayItem ?? {}).forEach(([key, val]) => {
+          // key formato: {date}::{uuid}
+          if (key.startsWith(`${todayStr}::`)) {
+            const stepId = key.slice(todayStr.length + 2);
+            localOverrides[stepId] = val as boolean;
+          }
+        });
+      }
+    } catch { /* ignora erros de localStorage */ }
+
     // Fonte primária: steps estruturados da API v2 (mais confiável que string-parsing)
     const periodSteps = routineSteps.filter(s => s.period === currentPeriod);
     if (periodSteps.length > 0) {
-      const items = periodSteps.map(s => ({
-        title: s.productName,
-        done: completedSet.has(s.id),
-      }));
+      const items = periodSteps.map(s => {
+        const localOverride = localOverrides[s.id];
+        const done = localOverride !== undefined ? localOverride : completedSet.has(s.id);
+        return { title: s.productName, done };
+      });
       const done = items.filter(i => i.done).length;
       return { total: items.length, done, pending: Math.max(items.length - done, 0), items };
     }

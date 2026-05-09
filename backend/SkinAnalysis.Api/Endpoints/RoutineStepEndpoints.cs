@@ -290,7 +290,7 @@ public static class RoutineStepEndpoints
             .Include(s => s.Slots)
             .FirstOrDefaultAsync(s => s.Id == stepId
                 && s.Routine.UserId == userId
-                && s.Routine.SkinProfile.AnalysisId == id, ct);
+                && s.IsActive, ct);
 
         if (step is null) return Results.NotFound(new { error = "Passo não encontrado." });
 
