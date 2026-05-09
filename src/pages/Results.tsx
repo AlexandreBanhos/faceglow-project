@@ -247,7 +247,7 @@ const Results = () => {
     return () => { carouselApi.off("select", onCarouselSelect); };
   }, [carouselApi, onCarouselSelect]);
 
-  const confidence = 92;
+  const confidence = Math.min(98, Math.max(70, Math.round(70 + analysis.overallScore * 0.28)));
   const skinAge = Math.max(18, Math.round(36 - analysis.overallScore / 5));
   const allMetricOptions: Array<{ label: string; value: number }> = [
     { label: "Acne", value: analysis.scores.acne },
@@ -472,10 +472,32 @@ const Results = () => {
         />
       </motion.div>
 
+      {/* Premium upsell — imediatamente após o card de tipo de pele, só quando bloqueado */}
+      {isPremiumBlocked && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-4"
+        >
+          <PremiumUnlockModal isVisible={true} />
+        </motion.div>
+      )}
+
+      {/* Voltar ao Início — logo após o card premium quando bloqueado */}
+      {isPremiumBlocked && (
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base mb-8"
+        >
+          Voltar ao Início
+        </button>
+      )}
+
       {/* Premium Content - All remaining analysis details */}
       {isPremiumBlocked ? (
-        <div className="relative mb-8">
-          {/* Blur layer - covers all premium content */}
+        <div className="mb-4 hidden">
+          {/* Blur layer kept but hidden — real upsell card is rendered below */}
           <div className="blur-lg pointer-events-none select-none space-y-6">
             {/* RESULTADO - Moved to top and renamed */}
             <motion.div
@@ -664,10 +686,7 @@ const Results = () => {
             </motion.div>
           </div>
 
-          {/* Modal overlay - positioned absolutely on top of blur */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-            <PremiumUnlockModal isVisible={true} />
-          </div>
+          {/* (hidden — modal rendered below) */}
         </div>
       ) : (
         /* Content não bloqueado */
@@ -876,10 +895,13 @@ const Results = () => {
             </button>
           );
         })()}
-        <button onClick={() => navigate("/dashboard")}
-          className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base">
-          Voltar ao Início
-        </button>
+        {/* Voltar ao Início só aparece no footer quando não é premium-bloqueado */}
+        {!isPremiumBlocked && (
+          <button onClick={() => navigate("/dashboard")}
+            className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base">
+            Voltar ao Início
+          </button>
+        )}
       </div>
       </div>
     </div>
