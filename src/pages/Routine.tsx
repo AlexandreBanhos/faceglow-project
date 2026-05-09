@@ -461,18 +461,17 @@ const Routine = () => {
     loadTodayProgress();
   }, [stepsLoading, apiSteps, todayStr]);
 
-  // Sync tiers da API para selectedOptionByItem quando steps carregam
+  // Sync slot selecionado para selectedOptionByItem quando steps carregam
+  // Formato: "${stepId}::${slotId}" — compatível com productOptionsByItem
   useEffect(() => {
     if (stepsLoading || apiSteps.length === 0) return;
-    const tierMap: Record<string, string> = {};
+    const slotMap: Record<string, string> = {};
     apiSteps.forEach((s) => {
-      const key = s.id; // key is now the step UUID
       const selectedSlot = s.slots?.find(sl => sl.isSelected);
-      const tier = selectedSlot?.tier ?? s.selectedTier;
-      if (tier) tierMap[key] = `${key}::${tier}`;
+      if (selectedSlot?.id) slotMap[s.id] = `${s.id}::${selectedSlot.id}`;
     });
-    if (Object.keys(tierMap).length > 0) {
-      setSelectedOptionByItem((prev) => ({ ...prev, ...tierMap }));
+    if (Object.keys(slotMap).length > 0) {
+      setSelectedOptionByItem((prev) => ({ ...prev, ...slotMap }));
     }
   }, [stepsLoading, apiSteps]);
 
@@ -1528,7 +1527,10 @@ const Routine = () => {
     setSavingProductItem(true);
 
     // Key format: "${stepId}::${slotId}" — extract the slot UUID
-    const slotId = optionKey.split("::")[1] ?? null;
+    const rawSlotId = optionKey.split("::")[1] ?? null;
+    // Validate it's a proper UUID (not a legacy tier string like "primary")
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const slotId = rawSlotId && uuidRe.test(rawSlotId) ? rawSlotId : null;
 
     const currentStep = apiSteps.find(s => s.id === itemKey);
     const currentPeriod: "morning" | "night" = currentStep?.period ?? "morning";
