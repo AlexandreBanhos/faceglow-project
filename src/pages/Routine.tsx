@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, Loader2, PackageOpen } from "lucide-react";
+import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen } from "lucide-react";
+import { GradientSpinner } from "@/components/LoadingSpinner";
 import { normalizeAnalysis, type AnalysisRecommendation, type AnalysisResponse } from "@/lib/analysis";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence } from "framer-motion";
@@ -370,7 +371,9 @@ const Routine = () => {
   const [isDeletingStep, setIsDeletingStep] = useState(false);
   const [isAdvancingToNight, setIsAdvancingToNight] = useState(false);
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [touchStartX, setTouchStartX] = useState<Record<string, number>>({});
+  const [touchStartY, setTouchStartY] = useState<Record<string, number>>({});
 
   const {
     steps: apiSteps,
@@ -1666,7 +1669,7 @@ const Routine = () => {
                   disabled={isDeletingStep}
                   className="flex-1 h-10 rounded-xl bg-destructive text-white font-semibold text-sm transition-colors hover:bg-destructive/90 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {isDeletingStep && <Loader2 size={14} className="animate-spin" />}
+                  {isDeletingStep && <GradientSpinner size={14} />}
                   {isDeletingStep ? "Deletando..." : "Deletar"}
                 </button>
               </div>
@@ -2097,19 +2100,36 @@ const Routine = () => {
                 return (
                   <div
                     key={item.key}
-                    className={`lg-surface-step overflow-hidden ${isChecked && !isEditing ? "opacity-55" : "opacity-100"} ${draggingKey === item.key ? "opacity-40" : ""}`}
+                    className={`lg-surface-step overflow-hidden ${isChecked && !isEditing ? "opacity-55" : "opacity-100"} ${draggingKey === item.key ? "opacity-40" : ""} ${dragOverKey === item.key && draggingKey !== item.key ? "ring-2 ring-primary/40" : ""}`}
                     draggable={isEditing}
                     onDragStart={() => setDraggingKey(item.key)}
-                    onDragOver={(e) => { e.preventDefault(); }}
-                    onDrop={(e) => { e.preventDefault(); handleDrop(item.key); }}
-                    onTouchStart={(e) => setTouchStartX((prev) => ({ ...prev, [item.key]: e.touches[0].clientX }))}
+                    onDragEnd={() => setDraggingKey(null)}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverKey(item.key); }}
+                    onDragLeave={() => setDragOverKey(null)}
+                    onDrop={(e) => { e.preventDefault(); setDragOverKey(null); handleDrop(item.key); }}
+                    onTouchStart={(e) => {
+                      setTouchStartX((prev) => ({ ...prev, [item.key]: e.touches[0].clientX }));
+                      setTouchStartY((prev) => ({ ...prev, [item.key]: e.touches[0].clientY }));
+                    }}
+                    onTouchMove={(e) => {
+                      const startX = touchStartX[item.key];
+                      if (!startX) return;
+                      const deltaX = Math.abs(e.touches[0].clientX - startX);
+                      const deltaY = Math.abs(e.touches[0].clientY - (touchStartY[item.key] ?? e.touches[0].clientY));
+                      if (deltaX > 10 && deltaX > deltaY * 1.5 && !isEditing) {
+                        e.preventDefault();
+                      }
+                    }}
                     onTouchEnd={(e) => {
                       const startX = touchStartX[item.key];
-                      if (startX !== undefined) {
+                      const startY = touchStartY[item.key];
+                      if (startX !== undefined && startY !== undefined) {
                         const deltaX = e.changedTouches[0].clientX - startX;
-                        if (deltaX > 80 && !isEditing) toggleChecklist(item.key);
+                        const deltaY = Math.abs(e.changedTouches[0].clientY - startY);
+                        if (deltaX > 70 && deltaY < 40 && !isEditing) toggleChecklist(item.key);
                       }
                       setTouchStartX((prev) => { const p = { ...prev }; delete p[item.key]; return p; });
+                      setTouchStartY((prev) => { const p = { ...prev }; delete p[item.key]; return p; });
                     }}
                   >
                     <div className="flex flex-col w-full">
@@ -2187,24 +2207,29 @@ const Routine = () => {
                       {/* Main card row: image + details + check */}
                       <div className="flex items-center gap-3 p-3">
                         {/* Product image - mesmo comportamento de Results */}
-                        <div 
+                        <div
                           className="w-[120px] h-[120px] rounded-xl bg-white border border-border/40 flex-shrink-0 overflow-hidden flex items-center justify-center"
                           key={`img-container-${item.key}`}
                         >
-                          <img
-                            key={`img-${item.key}-${getDisplayImage(item)}`}
-                            src={getDisplayImage(item)}
-                            alt={getDisplayProductName(item)}
-                            loading="eager"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => { 
-                              e.currentTarget.style.display = "none";
-                              const icon = document.createElement("div");
-                              icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground/60"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
-                              e.currentTarget.parentElement?.appendChild(icon);
-                            }}
-                            className="w-full h-full object-contain bg-white p-1.5"
-                          />
+                          {getDisplayImage(item) ? (
+                            <img
+                              key={`img-${item.key}-${getDisplayImage(item)}`}
+                              src={getDisplayImage(item)!}
+                              alt={getDisplayProductName(item)}
+                              loading="eager"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
+                              className="w-full h-full object-contain bg-white p-1.5"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center w-full h-full">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{color:"#D1D5DB"}}>
+                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                              </svg>
+                            </div>
+                          )}
                         </div>
 
                         {/* Details */}
@@ -2343,7 +2368,7 @@ const Routine = () => {
 
                           {adminSearching && (
                             <div className="flex items-center justify-center py-4">
-                              <Loader2 size={20} className="animate-spin text-amber-500" />
+                              <GradientSpinner size={20} />
                             </div>
                           )}
 
@@ -2365,7 +2390,7 @@ const Routine = () => {
                                 )}
                                 {adminUploadingImage && (
                                   <div className="absolute inset-0 bg-background/70 flex items-center justify-center">
-                                    <Loader2 size={20} className="animate-spin text-amber-500" />
+                                    <GradientSpinner size={20} />
                                   </div>
                                 )}
                               </div>
@@ -2392,7 +2417,7 @@ const Routine = () => {
                                 disabled={adminSaving || adminUploadingImage || !adminMatchedProduct.imageUrl}
                                 className="w-full h-9 rounded-xl bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-40"
                               >
-                                {adminSaving ? <Loader2 size={13} className="animate-spin" /> : <Crown size={13} />}
+                                {adminSaving ? <GradientSpinner size={13} /> : <Crown size={13} />}
                                 {adminSaving ? "Salvando..." : "Salvar no banco"}
                               </button>
                             </>
@@ -2672,7 +2697,7 @@ const Routine = () => {
                                       </label>
                                       {uploadingImageByItem[item.key] && (
                                         <div className="flex items-center justify-center gap-1.5 text-[11px] text-primary font-semibold">
-                                          <Loader2 size={11} className="animate-spin" />
+                                          <GradientSpinner size={11} />
                                           Enviando...
                                         </div>
                                       )}
@@ -2802,26 +2827,25 @@ const Routine = () => {
           transition={{ delay: 0.3 }}
           className="pb-2"
         >
-          <button
-            onClick={() => { setIsEditing((v) => !v); setAddStepOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-            className={`w-full h-14 rounded-full text-sm font-bold flex items-center justify-center gap-2.5 transition-all`}
-            style={isEditing
-              ? { backgroundColor: "rgba(255,255,255,0.65)", border: "2px solid hsl(var(--primary) / 0.45)", color: "hsl(var(--primary))", boxShadow: "none" }
-              : { background: "var(--grad-coral)", color: "#fff", boxShadow: "var(--shadow-glow)" }
-            }
-          >
-            {isEditing ? (
-              <>
-                <X size={18} />
-                Fechar edição
-              </>
-            ) : (
-              <>
-                <Edit size={18} />
-                Editar Rotina
-              </>
-            )}
-          </button>
+          {isEditing ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setIsEditing(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                className="flex-1 h-14 rounded-full text-sm font-bold flex items-center justify-center gap-2 border-2 transition-all"
+                style={{ borderColor: "hsl(var(--primary) / 0.45)", color: "hsl(var(--primary))", backgroundColor: "rgba(255,255,255,0.65)" }}
+              >
+                <X size={18} /> Fechar
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setIsEditing(true); setAddStepOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              className="w-full h-14 rounded-full text-sm font-bold flex items-center justify-center gap-2.5 transition-all"
+              style={{ background: "var(--grad-coral)", color: "#fff", boxShadow: "var(--shadow-glow)" }}
+            >
+              <Edit size={18} /> Editar Rotina
+            </button>
+          )}
         </motion.div>
       </div>
 

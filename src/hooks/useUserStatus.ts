@@ -115,14 +115,13 @@ export const useUserStatus = (enabled = true) => {
 
       setUserStatus(newStatus);
     } catch (error) {
-      console.warn("[useUserStatus] Erro ao carregar status (servidor indisponível?):", error);
-      // Fallback gracioso: assume usuário não premium com créditos zerados
-      // (mas continua permitindo que ele navegue)
+      console.warn("[useUserStatus] Erro ao carregar status:", error);
+      // Mantém estado anterior — não sobrescreve isPremium com false em caso de falha de rede
+      // statusUnknown=true impede que o app exiba upsell premium indevidamente
       setUserStatus((prev) => ({
         ...prev,
         isLoading: false,
-        isPremium: false,
-        creditsRemaining: 0,
+        statusUnknown: true,
       }));
     }
   }, [enabled, setUserStatus]);

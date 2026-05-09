@@ -45,7 +45,14 @@
       "Bash(Remove-Item -Path \"backend\\\\SkinAnalysis.Api\\\\Endpoints\\\\RecommendationEndpoints.cs\" -ErrorAction SilentlyContinue)",
       "Bash(Remove-Item -Path \"backend\\\\SkinAnalysis.Api\\\\Data\\\\ProductRulesSeed.cs\" -ErrorAction SilentlyContinue)",
       "Bash(Remove-Item -Recurse -Force \"backend\\\\SkinAnalysis.Api\\\\Migrations\" -ErrorAction SilentlyContinue)",
-      "Bash(curl -s http://localhost:8080/)"
+      "Bash(curl -s http://localhost:8080/)",
+      "Bash(Select-String \"error CS|warning CS|Build succeeded|Build FAILED\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(Get-Content \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\backend\\\\SkinAnalysis.Api\\\\Program.cs\")",
+      "Bash(Select-Object -Last 200)",
+      "Bash(Out-String)",
+      "Bash(rtk ls *)",
+      "Bash(git merge *)"
     ]
   }
 }

@@ -13,6 +13,7 @@ import { useUserContext } from "./useUserContext";
 export const useIsPremium = () => {
   const { userStatus } = useUserContext();
   
+  const statusUnknown = userStatus.statusUnknown ?? false;
   return {
     isPremium: userStatus.isPremium,
     isFullAccess: userStatus.isFullAccess,
@@ -21,6 +22,9 @@ export const useIsPremium = () => {
     subscriptionStatus: userStatus.subscriptionStatus,
     expiresAtUtc: userStatus.expiresAtUtc,
     isLoading: userStatus.isLoading,
+    statusUnknown,
+    /** true only when status is definitively confirmed as non-premium — never when loading/unknown */
+    isConfirmedNonPremium: !userStatus.isLoading && !statusUnknown && !userStatus.isPremium,
     canAnalyze: userStatus.isPremium || userStatus.creditsRemaining > 0,
   };
 };

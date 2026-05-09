@@ -85,8 +85,8 @@ const Dashboard = () => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [avatarLetter, setAvatarLetter] = useState("U");
   const [userReady, setUserReady] = useState(false);
-  const { isPremium } = useIsPremium();
-  const isPremiumBlocked = !isPremium;
+  const { isPremium, isConfirmedNonPremium } = useIsPremium();
+  const isPremiumBlocked = isConfirmedNonPremium;
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
   const [routineSteps, setRoutineSteps] = useState<Array<{ id: string; period: string; productName: string }>>([]);
 

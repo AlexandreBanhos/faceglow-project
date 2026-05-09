@@ -9,6 +9,8 @@ export interface UserStatus {
   subscriptionStatus?: "active" | "expired" | "pending" | "failed";
   expiresAtUtc?: string;
   isLoading: boolean;
+  /** true when status fetch failed — status is unknown, never show premium upsell */
+  statusUnknown?: boolean;
 }
 
 export interface UserContextType {

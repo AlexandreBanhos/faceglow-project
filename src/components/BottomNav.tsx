@@ -44,9 +44,11 @@ const getLastAnalysis = () => {
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isPremium } = useIsPremium();
+  const { isPremium, isLoading: premiumLoading, statusUnknown } = useIsPremium();
+  // Só mostra "Rotina" quando premium é confirmado; enquanto carrega ou status desconhecido, mostra Rotina (safe default)
+  const showRoutineTab = isPremium || premiumLoading || statusUnknown;
 
-  const rightTabs = getRightTabs(isPremium);
+  const rightTabs = getRightTabs(showRoutineTab);
 
   const handleRoutineClick = async () => {
     let analysis = getLastAnalysis();
