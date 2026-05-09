@@ -268,6 +268,20 @@ const Dashboard = () => {
       return { total: 0, pending: 0, done: 0, items: [] as Array<{ title: string; done: boolean }> };
     }
 
+    const completedSet = new Set(completedStepIds);
+
+    // Fonte primária: steps estruturados da API v2 (mais confiável que string-parsing)
+    const periodSteps = routineSteps.filter(s => s.period === currentPeriod);
+    if (periodSteps.length > 0) {
+      const items = periodSteps.map(s => ({
+        title: s.productName,
+        done: completedSet.has(s.id),
+      }));
+      const done = items.filter(i => i.done).length;
+      return { total: items.length, done, pending: Math.max(items.length - done, 0), items };
+    }
+
+    // Fallback legado: string-parsing de latestAnalysis.routine
     const todayWeekDay = getTodayWeekDay();
     const rawDisplay = localStorage.getItem(getRoutineDisplayStorageKey(latestAnalysis.id));
     const rawSelection = !rawDisplay ? localStorage.getItem(getRoutineSelectionStorageKey(latestAnalysis.id)) : null;
@@ -277,12 +291,9 @@ const Dashboard = () => {
       try { selectedByItem = JSON.parse(rawToParse) as Record<string, string>; } catch { selectedByItem = {}; }
     }
 
-    const completedSet = new Set(completedStepIds);
     const stepByKey = new Map(routineSteps.map(s => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
-
     const items = parseRoutineForPeriod(latestAnalysis, currentPeriod, todayWeekDay).map((item) => {
       const title = selectedByItem[`${currentPeriod}::${item.title.toLowerCase()}`] || item.title;
-      // Use backend completion when available, fall back to localStorage
       const stepId = stepByKey.get(item.key);
       const doneFromBackend = stepId ? completedSet.has(stepId) : false;
       return { title, done: doneFromBackend || item.done };
