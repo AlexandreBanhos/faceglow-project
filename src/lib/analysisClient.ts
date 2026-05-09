@@ -701,6 +701,37 @@ export const removeRoutineStep = async (analysisId: string, stepId: string): Pro
   }
 };
 
+// ── Product Catalog Search ─────────────────────────────────────────────────
+
+export type CatalogProduct = {
+  id: string;
+  name: string;
+  brand: string;
+  stepTypeKey: string;
+  tagline?: string | null;
+  priceRange?: string | null;
+  curationScore: number;
+  isStaffPick: boolean;
+  imageUrl?: string | null;
+};
+
+export const fetchCatalogProducts = async (
+  stepType: string,
+  search?: string,
+): Promise<CatalogProduct[]> => {
+  const token = await getAccessTokenWithWait(5000);
+  if (!token) return [];
+  try {
+    const params = new URLSearchParams({ stepType });
+    if (search) params.set("search", search);
+    const response = await fetch(`${apiBaseUrl}/products/catalog?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return [];
+    return (await response.json()) as CatalogProduct[];
+  } catch { return []; }
+};
+
 // ── Routine Change Suggestions ─────────────────────────────────────────────
 
 export type SuggestionType = "add_step" | "remove_step" | "swap_product";

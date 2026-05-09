@@ -182,7 +182,14 @@ public static class RoutineStepEndpoints
         var routine = await db.Routines
             .FirstOrDefaultAsync(r => r.SkinProfileId == profile.Id
                                    && r.Period == request.Period
+                                   && r.IsActive, ct)
+            // Fallback: new analysis in suggestions mode — no routine for this profile yet
+            // Use the user's currently active routine for the period
+            ?? await db.Routines
+            .FirstOrDefaultAsync(r => r.UserId == userId
+                                   && r.Period == request.Period
                                    && r.IsActive, ct);
+
         if (routine is null) return Results.NotFound(new { error = "Rotina não encontrada para esse período." });
 
         var maxOrder = await db.RoutineSteps

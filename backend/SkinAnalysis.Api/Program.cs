@@ -1466,6 +1466,40 @@ app.MapPost("/billing/webhook/stripe", async (
 .WithName("StripeWebhook")
 .WithOpenApi();
 
+// ── GET /products/catalog — busca produtos por step_type_key (sem requerer admin) ──
+app.MapGet("/products/catalog", async (HttpContext ctx, AppDbContext db, CancellationToken ct) =>
+{
+    var stepType = ctx.Request.Query["stepType"].FirstOrDefault()?.Trim();
+    var search   = ctx.Request.Query["search"].FirstOrDefault()?.Trim().ToLowerInvariant();
+
+    var query = db.Products
+        .AsNoTracking()
+        .Include(p => p.Images)
+        .Where(p => p.IsActive);
+
+    if (!string.IsNullOrEmpty(stepType))
+        query = query.Where(p => p.StepTypeKey == stepType);
+
+    if (!string.IsNullOrEmpty(search))
+        query = query.Where(p => p.Name.ToLower().Contains(search) || p.Brand.ToLower().Contains(search));
+
+    var products = await query
+        .OrderByDescending(p => p.CurationScore)
+        .Select(p => new {
+            p.Id, p.Name, p.Brand, p.StepTypeKey,
+            p.Tagline, p.PriceRange, p.PriceAvg, p.StrengthLevel,
+            p.CurationScore, p.IsStaffPick, p.IsDermaTested,
+            ImageUrl = p.Images.OrderBy(i => i.Position).Select(i => i.PublicUrl).FirstOrDefault(),
+        })
+        .Take(20)
+        .ToListAsync(ct);
+
+    return Results.Ok(products);
+})
+.WithName("GetProductCatalog")
+.WithOpenApi()
+.RequireAuthorization();
+
 // ============================================
 // ADMIN PRODUCTS ENDPOINTS
 // ============================================

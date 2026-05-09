@@ -9,9 +9,10 @@ import BottomNav from "@/components/BottomNav";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
   getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache,
-  addRoutineStep, updateRoutineStep, selectRoutineSlot,
+  addRoutineStep, updateRoutineStep, selectRoutineSlot, fetchCatalogProducts,
   type RoutineStep as ApiRoutineStep,
   type SlotTier,
+  type CatalogProduct,
 } from "@/lib/analysisClient";
 import { useRoutineSteps, useRoutineComplete } from "@/features/routine";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
@@ -465,8 +466,7 @@ const Routine = () => {
     if (stepsLoading || apiSteps.length === 0) return;
     const tierMap: Record<string, string> = {};
     apiSteps.forEach((s) => {
-      const key = `${s.period}::${s.productName.toLowerCase()}`;
-      // v2: use selected slot's tier
+      const key = s.id; // key is now the step UUID
       const selectedSlot = s.slots?.find(sl => sl.isSelected);
       const tier = selectedSlot?.tier ?? s.selectedTier;
       if (tier) tierMap[key] = `${key}::${tier}`;
@@ -497,7 +497,7 @@ const Routine = () => {
         const displayImage = selectedSlot?.imageUrl ?? s.overrideImageUrl ?? s.imageUrl ?? rec?.imageUrl;
         const displayReason = selectedSlot?.recommendationReason ?? rec?.reason ?? "";
         return {
-          key: `${s.period}::${s.productName.toLowerCase()}`, // stable key = primary product name
+          key: s.id, // UUID do step — único e estável, evita colisão de chaves
           period: s.period as "morning" | "night",
           stepNumber: s.stepOrder + 1,
           stepLabel: s.categoryDisplayName ?? s.category,
@@ -531,7 +531,7 @@ const Routine = () => {
     const apiImageByKey = new Map<string, string>();
     if (apiSteps.length > 0) {
       apiSteps.forEach((s) => {
-        const key = `${s.period}::${s.productName.toLowerCase()}`;
+        const key = s.id; // step UUID
         const img = s.overrideImageUrl ?? s.imageUrl;
         if (img) apiImageByKey.set(key, img);
       });
@@ -578,7 +578,7 @@ const Routine = () => {
     if (stepsLoaded && apiSteps.length > 0 && apiSteps.some(s => (s.slots?.length ?? 0) > 0)) {
       const result = new Map<string, ProductOption[]>();
       apiSteps.forEach(step => {
-        const itemKey = `${step.period}::${step.productName.toLowerCase()}`;
+        const itemKey = step.id; // UUID is the item key
         const slots = step.slots ?? [];
         if (slots.length === 0) return;
         result.set(itemKey, slots.map(slot => ({
@@ -766,7 +766,7 @@ const Routine = () => {
   const [newStepNote, setNewStepNote] = useState("");
   const [newStepUploadingImage, setNewStepUploadingImage] = useState(false);
   const newStepFileInputRef = useRef<HTMLInputElement>(null);
-  const [catalogProductsByCategory, setCatalogProductsByCategory] = useState<AdminProduct[]>([]);
+  const [catalogProductsByCategory, setCatalogProductsByCategory] = useState<CatalogProduct[]>([]);
 
   const getCategoryDefaultPeriod = (cat: string): "morning" | "night" | "both" => {
     const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
@@ -796,15 +796,11 @@ const Routine = () => {
     setNewStepProductSearch("");
     setNewStepProductFromCatalog(false);
     setNewStepImage("");
-    try {
-      const results = await searchAdminProducts(cat);
-      setCatalogProductsByCategory(
-        results.filter((p) =>
-          p.category.toLowerCase().includes(cat.toLowerCase()) ||
-          cat.toLowerCase().includes(p.category.toLowerCase())
-        ).slice(0, 10)
-      );
-    } catch { setCatalogProductsByCategory([]); }
+    setCatalogProductsByCategory([]);
+    // Busca produtos do banco pela step_type_key resolvida (muito mais preciso que busca por texto)
+    const key = resolveStepTypeKey(cat);
+    const results = await fetchCatalogProducts(key);
+    setCatalogProductsByCategory(results.slice(0, 10));
   };
 
   const [customSteps, setCustomSteps] = useState<CustomStep[]>(() => {
@@ -922,7 +918,7 @@ const Routine = () => {
     // Persiste ordem no banco via API
     if (analysis?.id) {
       const periodSteps = apiSteps.filter((s) => s.period === period);
-      const stepByKey = new Map(periodSteps.map((s) => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
+      const stepByKey = new Map(periodSteps.map((s) => [s.id, s.id]));
       const orderedIds = next.map((k) => stepByKey.get(k)).filter((id): id is string => !!id);
       if (orderedIds.length > 0) {
         reorderApiSteps(period, orderedIds);
@@ -932,7 +928,9 @@ const Routine = () => {
 
   const handleDrop = (targetKey: string) => {
     if (!draggingKey || draggingKey === targetKey || !analysis?.id) return;
-    const period: "morning" | "night" = targetKey.startsWith("night::") ? "night" : "morning";
+    // Derive period from the target step's UUID
+    const targetStep = apiSteps.find(s => s.id === targetKey);
+    const period: "morning" | "night" = targetStep?.period ?? "morning";
     const items = orderedItems[period];
     const fromIdx = items.findIndex((i) => i.key === draggingKey);
     const toIdx = items.findIndex((i) => i.key === targetKey);
@@ -940,11 +938,10 @@ const Routine = () => {
     const reordered = [...items];
     const [moved] = reordered.splice(fromIdx, 1);
     reordered.splice(toIdx, 0, moved);
-    const nextKeys = reordered.map((i) => i.key);
+    const nextKeys = reordered.map((i) => i.key); // keys are now UUIDs
     persistRoutineOrder({ ...routineOrder, [period]: nextKeys });
-    const periodSteps = apiSteps.filter((s) => s.period === period);
-    const stepByKey = new Map(periodSteps.map((s) => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
-    const orderedIds = nextKeys.map((k) => stepByKey.get(k)).filter((id): id is string => !!id);
+    // Keys are step IDs — orderedIds is the same as nextKeys for API steps
+    const orderedIds = nextKeys.filter(k => apiSteps.some(s => s.id === k));
     if (orderedIds.length > 0) reorderApiSteps(period, orderedIds);
     setDraggingKey(null);
   };
@@ -1042,7 +1039,7 @@ const Routine = () => {
     setProductSchedule((prev) => {
       const daysByItem = { ...prev.daysByItem };
       apiSteps.forEach((s) => {
-        const key = `${s.period}::${s.productName.toLowerCase()}`;
+        const key = s.id; // step UUID
         try {
           const days = JSON.parse(s.scheduleDays ?? "[]") as WeekDayKey[];
           if (days.length > 0) daysByItem[key] = days;
@@ -1058,9 +1055,9 @@ const Routine = () => {
     localStorage.setItem(getScheduleStorageKey(analysis?.id), JSON.stringify(next));
     // Persiste daysByItem nos steps estruturados via PATCH
     if (analysis?.id && apiSteps.length > 0) {
-      const stepByKey = new Map(apiSteps.map((s) => [`${s.period}::${s.productName.toLowerCase()}`, s]));
+      const stepByKey = new Map(apiSteps.map((s) => [s.id, s]));
       Object.entries(next.daysByItem).forEach(([itemKey, days]) => {
-        const step = stepByKey.get(itemKey.toLowerCase());
+        const step = stepByKey.get(itemKey);
         if (step) {
           updateRoutineStep(analysis.id, step.id, { scheduleDays: JSON.stringify(days) });
         }
@@ -1125,7 +1122,7 @@ const Routine = () => {
   // Registra conclusão de step no DB (fire-and-forget, não bloqueia UI)
   const persistStepCompletion = async (itemKey: string) => {
     const step = apiSteps.find(
-      (s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase()
+      (s) => s.id === itemKey
     );
     if (!step) return;
     try {
@@ -1274,7 +1271,7 @@ const Routine = () => {
     Object.entries(selectedOptionByItem).forEach(([itemKey, selectionKey]) => {
       const tier = selectionKey.split("::").pop();
       if (!tier) return;
-      const step = apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === itemKey);
+      const step = apiSteps.find(s => s.id === itemKey);
       if (!step) return;
       // v2 steps with slots: selectRoutineSlot already called in saveProductSelection
       if (step.slots?.length) return;
@@ -1511,11 +1508,10 @@ const Routine = () => {
     setSavingProductItem(true);
 
     const tier = optionKey.split("::").pop() ?? "primary";
-    const currentPeriod: "morning" | "night" = itemKey.startsWith("night::") ? "night" : "morning";
+    const currentStep = apiSteps.find(s => s.id === itemKey);
+    const currentPeriod: "morning" | "night" = currentStep?.period ?? "morning";
     const otherPeriod: "morning" | "night" = currentPeriod === "morning" ? "night" : "morning";
     const scope = pendingScopeByItem[itemKey] ?? currentPeriod;
-
-    const currentStep = apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === itemKey);
 
     // Resolve v2 tier
     const v2Tiers: SlotTier[] = ["primary", "alt_budget", "alt_rated", "user_custom"];
@@ -2297,8 +2293,7 @@ const Routine = () => {
                             {item.isCustom && !isEditing && (
                               <button
                                 onClick={() => {
-                                  const stepId = apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === item.key)?.id ?? item.key;
-                                  setStepPendingDelete({ id: stepId, name: getDisplayProductName(item) });
+                                  setStepPendingDelete({ id: item.key, name: getDisplayProductName(item) });
                                 }}
                                 className="w-6 h-6 rounded-full hover:bg-destructive/10 flex items-center justify-center transition-colors"
                                 aria-label="Deletar passo"
@@ -2458,7 +2453,7 @@ const Routine = () => {
 
                       {/* Product Selection (inline panel — only for legacy steps without slots) */}
                       {selectingProductItem === item.key && hasRoutineFromAnalysis
-                        && !apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === item.key)?.slots?.length
+                        && !apiSteps.find(s => s.id === item.key)?.slots?.length
                         && (() => {
                         const current = resolvedProductByItem.get(item.key);
                         return (
@@ -2855,7 +2850,7 @@ const Routine = () => {
           ? [...orderedItems.morning, ...orderedItems.night].find(i => i.key === selectingProductItem)
           : null;
         const sheetStep = sheetItem
-          ? apiSteps.find(s => `${s.period}::${s.productName.toLowerCase()}` === sheetItem.key)
+          ? apiSteps.find(s => s.id === sheetItem.key)
           : null;
         // Only use sheet for v2 steps that have slots; fallback to inline for legacy steps
         const useSheet = !!sheetStep?.slots?.length;
@@ -2978,7 +2973,7 @@ const Routine = () => {
                     .slice(0, 5);
                   const combined = [
                     ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, type: r.type })),
-                    ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl, type: p.category })),
+                    ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl ?? undefined, type: p.stepTypeKey })),
                   ];
                   const exactMatch = combined.some((r) => r.name.toLowerCase() === q);
                   const showAddNew = q.length > 0 && !exactMatch;

@@ -5,7 +5,6 @@ import {
   updateRoutineStep,
   removeRoutineStep,
   reorderRoutineSteps,
-  migrateRoutineFromCustomizations,
   invalidateAnalysisCache,
   type RoutineStep,
 } from "@/lib/analysisClient";
@@ -30,13 +29,6 @@ export function useRoutineSteps(analysisId: string | undefined): UseRoutineSteps
     try {
       const fresh = await fetchRoutineSteps(analysisId);
       setSteps(fresh);
-
-      // one-time migration from customizations_json blob
-      const migKey = `faceglow-migrated-${analysisId}`;
-      if (fresh.length > 0 && !localStorage.getItem(migKey)) {
-        await migrateRoutineFromCustomizations(analysisId);
-        localStorage.setItem(migKey, "1");
-      }
     } finally {
       if (!silent) setIsLoading(false);
     }
