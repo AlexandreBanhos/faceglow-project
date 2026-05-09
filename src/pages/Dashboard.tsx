@@ -167,18 +167,22 @@ const Dashboard = () => {
 
   // Premium status é lido diretamente do UserContext (já hidratado pelo RequireAuth)
 
-  // Efeito 2.6: Carregar steps da rotina + progresso de hoje do backend
+  // Efeito 2.6a: Carregar steps da rotina (muda apenas quando análise muda)
   useEffect(() => {
     if (!latestAnalysis?.id) return;
     let cancelled = false;
+    fetchRoutineSteps(latestAnalysis.id)
+      .then(steps => { if (!cancelled) setRoutineSteps(steps.map(s => ({ id: s.id, period: s.period, productName: s.productName }))); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [latestAnalysis?.id]);
 
-    const loadProgress = async () => {
+  // Efeito 2.6b: Progresso do dia — recarrega TODA VEZ que o usuário navega ao Dashboard
+  useEffect(() => {
+    if (!latestAnalysis?.id) return;
+    let cancelled = false;
+    const loadTodayProgress = async () => {
       try {
-        // Load routine steps for completion tracking
-        const steps = await fetchRoutineSteps(latestAnalysis.id);
-        if (!cancelled) setRoutineSteps(steps.map(s => ({ id: s.id, period: s.period, productName: s.productName })));
-
-        // Load today's completed step IDs
         const token = await getAccessTokenWithWait(3000);
         if (!token || cancelled) return;
         const today = new Date();
@@ -189,12 +193,11 @@ const Dashboard = () => {
         if (!res.ok || cancelled) return;
         const { completedStepIds: ids } = await res.json() as { completedStepIds: string[] };
         if (!cancelled) setCompletedStepIds(ids ?? []);
-      } catch { /* silent — usa localStorage como fallback */ }
+      } catch { /* silent */ }
     };
-
-    loadProgress();
+    loadTodayProgress();
     return () => { cancelled = true; };
-  }, [latestAnalysis?.id]);
+  }, [latestAnalysis?.id, location.pathname]); // location.pathname garante refresh ao voltar para o dashboard
 
   // Efeito 3: Carregar imagem da última análise como avatar padrão (se usuário não tem avatar customizado)
   useEffect(() => {
