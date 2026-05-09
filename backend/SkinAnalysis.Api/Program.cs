@@ -1472,23 +1472,15 @@ app.MapGet("/products/catalog", async (HttpContext ctx, AppDbContext db, Cancell
     var stepType = ctx.Request.Query["stepType"].FirstOrDefault()?.Trim();
     var search   = ctx.Request.Query["search"].FirstOrDefault()?.Trim().ToLowerInvariant();
 
-    var query = db.Products
+    var products = await db.Products
         .AsNoTracking()
-        .Include(p => p.Images)
-        .Where(p => p.IsActive);
-
-    if (!string.IsNullOrEmpty(stepType))
-        query = query.Where(p => p.StepTypeKey == stepType);
-
-    if (!string.IsNullOrEmpty(search))
-        query = query.Where(p => p.Name.ToLower().Contains(search) || p.Brand.ToLower().Contains(search));
-
-    var products = await query
+        .Where(p => p.IsActive)
+        .Where(p => string.IsNullOrEmpty(stepType) || p.StepTypeKey == stepType)
+        .Where(p => string.IsNullOrEmpty(search) || p.Name.ToLower().Contains(search) || p.Brand.ToLower().Contains(search))
         .OrderByDescending(p => p.CurationScore)
         .Select(p => new {
             p.Id, p.Name, p.Brand, p.StepTypeKey,
-            p.Tagline, p.PriceRange, p.PriceAvg, p.StrengthLevel,
-            p.CurationScore, p.IsStaffPick, p.IsDermaTested,
+            p.Tagline, p.PriceRange, p.CurationScore, p.IsStaffPick,
             ImageUrl = p.Images.OrderBy(i => i.Position).Select(i => i.PublicUrl).FirstOrDefault(),
         })
         .Take(20)
@@ -1497,7 +1489,6 @@ app.MapGet("/products/catalog", async (HttpContext ctx, AppDbContext db, Cancell
     return Results.Ok(products);
 })
 .WithName("GetProductCatalog")
-.WithOpenApi()
 .RequireAuthorization();
 
 // ============================================
