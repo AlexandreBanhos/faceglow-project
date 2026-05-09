@@ -771,9 +771,15 @@ const Routine = () => {
   const [newStepRecurrence, setNewStepRecurrence] = useState<"daily" | "2-3x_week" | "custom">("daily");
   const [newStepScheduleDays, setNewStepScheduleDays] = useState<WeekDayKey[]>([]);
 
+  const isNightOnlyCategory = (cat: string): boolean => {
+    const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
+    return n.includes("retinol") || n.includes("retino") || n.includes("acido") || n.includes("acid");
+  };
+
   const getCategoryDefaultPeriod = (cat: string): "morning" | "night" | "both" => {
     const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
     if (n.includes("protetor") || n.includes("solar") || n.includes("fps")) return "morning";
+    if (isNightOnlyCategory(cat)) return "night";
     return "both";
   };
 
@@ -866,8 +872,8 @@ const Routine = () => {
         recurrence: recurrenceValue,
         productId: newStepCatalogProductId ?? undefined,
       });
-      // Persiste dias específicos via PATCH se o usuário escolheu dias personalizados
-      if (result?.id && newStepRecurrence === "custom" && newStepScheduleDays.length > 0) {
+      // Persiste dias via PATCH se recurrence tem dias específicos (2-3x/semana ou personalizado)
+      if (result?.id && newStepScheduleDays.length > 0) {
         await updateRoutineStep(analysis.id, result.id, {
           scheduleDays: JSON.stringify(newStepScheduleDays),
         });
@@ -890,6 +896,7 @@ const Routine = () => {
     setNewStepCatalogProductId(null);
     setNewStepRecurrence("daily");
     setNewStepScheduleDays([]);
+    setNewStepPeriod("both");
     setCatalogProductsByCategory([]);
     setAddStepOpen(false);
     toast.success("Passo adicionado!", { id: toastId, duration: 2500 });
@@ -3117,6 +3124,42 @@ const Routine = () => {
               </div>
             )}
 
+            {/* Período */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Período</label>
+              {isNightOnlyCategory(newStepLabel) ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
+                  <Moon size={14} className="text-indigo-500 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-indigo-700">Somente noite</span>
+                  <span className="text-xs text-indigo-400 ml-auto">Retinol e ácidos são de uso noturno</span>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  {([
+                    { value: "morning" as const, icon: <Sun size={13} />, label: "Manhã" },
+                    { value: "both"    as const, icon: <span className="flex gap-0.5"><Sun size={11} /><Moon size={11} /></span>, label: "Ambos" },
+                    { value: "night"   as const, icon: <Moon size={13} />, label: "Noite" },
+                  ] as const).map(({ value, icon, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setNewStepPeriod(value)}
+                      className={`flex-1 h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all ${
+                        newStepPeriod === value
+                          ? value === "morning" ? "bg-amber-400 text-white shadow-sm"
+                            : value === "night" ? "bg-indigo-500 text-white shadow-sm"
+                            : "bg-primary text-white shadow-sm"
+                          : "border border-border/60 text-muted-foreground bg-background"
+                      }`}
+                    >
+                      <span className="flex items-center gap-0.5">{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Frequência */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Frequência</label>
@@ -3129,7 +3172,12 @@ const Routine = () => {
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => { setNewStepRecurrence(opt.value); if (opt.value !== "custom") setNewStepScheduleDays([]); }}
+                    onClick={() => {
+                    setNewStepRecurrence(opt.value);
+                    if (opt.value === "2-3x_week") setNewStepScheduleDays(["tue", "thu", "sun"]);
+                    else if (opt.value === "daily") setNewStepScheduleDays([]);
+                    // "custom" keeps existing days or starts empty
+                  }}
                     className={`h-10 rounded-xl text-xs font-semibold transition-all ${
                       newStepRecurrence === opt.value
                         ? "text-white"
@@ -3142,10 +3190,12 @@ const Routine = () => {
                 ))}
               </div>
 
-              {/* Seleção de dias específicos */}
-              {newStepRecurrence === "custom" && (
+              {/* Seleção de dias específicos — mostrado para 2-3x/semana (pré-selecionado) e Personalizar */}
+              {(newStepRecurrence === "2-3x_week" || newStepRecurrence === "custom") && (
                 <div className="mt-2.5">
-                  <p className="text-[11px] text-muted-foreground mb-1.5">Selecione os dias:</p>
+                  <p className="text-[11px] text-muted-foreground mb-1.5">
+                    {newStepRecurrence === "2-3x_week" ? "Dias padrão (Ter, Qui, Dom):" : "Selecione os dias:"}
+                  </p>
                   <div className="flex gap-1.5 flex-wrap">
                     {weekDays.map((d) => {
                       const active = newStepScheduleDays.includes(d.key);
@@ -3189,7 +3239,7 @@ const Routine = () => {
               className="flex-1 h-12 rounded-2xl border border-border/60 bg-background text-foreground font-semibold text-sm">
               Cancelar
             </button>
-            <button onClick={() => { void addCustomStep(); }} disabled={!newStepProduct.trim() || (newStepRecurrence === "custom" && newStepScheduleDays.length === 0)}
+            <button onClick={() => { void addCustomStep(); }} disabled={!newStepProduct.trim() || (newStepRecurrence !== "daily" && newStepScheduleDays.length === 0)}
               className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm disabled:opacity-40 transition-opacity">
               Salvar passo
             </button>
