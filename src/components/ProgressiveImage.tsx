@@ -44,13 +44,15 @@ export function ProgressiveImage({
         src={src}
         alt={alt}
         loading={loading}
+        decoding="async"
         className={`${className} transition-opacity duration-300`}
-        style={{
-          objectFit,
-          opacity: loaded ? 1 : 0,
-        }}
+        style={{ objectFit, opacity: loaded ? 1 : 0 }}
         onLoad={() => setLoaded(true)}
-        onError={() => { setLoaded(false); setErrored(true); }}
+        onError={(e) => {
+          e.currentTarget.src = "/product-placeholder.svg";
+          setLoaded(true);
+          setErrored(true);
+        }}
       />
     </div>
   );

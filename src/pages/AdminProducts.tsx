@@ -64,7 +64,9 @@ export function AdminProducts() {
     isActive: true,
     imageUrl: "",
     tagline: "",
+    description: "",
   });
+  const [sortBy, setSortBy] = useState<"sem-imagem" | "sem-descricao" | "padrao">("padrao");
 
   // Check admin access on component mount
   useEffect(() => {
@@ -118,8 +120,23 @@ export function AdminProducts() {
       );
     }
 
+    // Ordenação
+    if (sortBy === "sem-imagem") {
+      filtered = [...filtered].sort((a, b) => {
+        const aHasImg = !!(a.primaryImageUrl);
+        const bHasImg = !!(b.primaryImageUrl);
+        return aHasImg === bHasImg ? 0 : aHasImg ? 1 : -1;
+      });
+    } else if (sortBy === "sem-descricao") {
+      filtered = [...filtered].sort((a, b) => {
+        const aHasDesc = !!(a.description);
+        const bHasDesc = !!(b.description);
+        return aHasDesc === bHasDesc ? 0 : aHasDesc ? 1 : -1;
+      });
+    }
+
     return filtered;
-  }, [products, searchQuery, filterStatus]);
+  }, [products, searchQuery, filterStatus, sortBy]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
@@ -208,6 +225,7 @@ export function AdminProducts() {
       isActive: product.isActive,
       imageUrl: product.primaryImageUrl ?? "",
       tagline: product.tagline ?? "",
+      description: product.description ?? "",
     });
     setImagePreview(product.primaryImageUrl ?? "");
     setIsFormOpen(true);
@@ -229,6 +247,7 @@ export function AdminProducts() {
       isActive: true,
       imageUrl: "",
       tagline: "",
+      description: "",
     });
     setImagePreview("");
   }
@@ -332,6 +351,20 @@ export function AdminProducts() {
                       onChange={(e) => setFormData((prev) => ({ ...prev, tagline: e.target.value }))}
                       placeholder="Ex: Hidratação profunda sem oleosidade"
                       className="bg-white text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs md:text-sm font-medium mb-2">
+                      Descrição
+                      <span className="ml-1 text-xs text-slate-400 font-normal">(ingredientes, modo de uso, benefícios)</span>
+                    </label>
+                    <textarea
+                      value={formData.description ?? ""}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Ex: Fórmula com ácido hialurônico, ceramidas e niacinamida. Indicado para pele oleosa e acneica. Uso diário, manhã e noite..."
+                      rows={4}
+                      className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
                     />
                   </div>
 
@@ -587,6 +620,22 @@ export function AdminProducts() {
           >
             Inativos ({products.filter((p) => !p.isActive).length})
           </Button>
+          <Button
+            variant={sortBy === "sem-imagem" ? "default" : "outline"}
+            onClick={() => { setSortBy(sortBy === "sem-imagem" ? "padrao" : "sem-imagem"); setCurrentPage(1); }}
+            size="sm"
+            className="text-xs border-orange-200 text-orange-700 hover:bg-orange-50 data-[active=true]:bg-orange-500"
+          >
+            📷 Sem imagem ({products.filter((p) => !p.primaryImageUrl).length})
+          </Button>
+          <Button
+            variant={sortBy === "sem-descricao" ? "default" : "outline"}
+            onClick={() => { setSortBy(sortBy === "sem-descricao" ? "padrao" : "sem-descricao"); setCurrentPage(1); }}
+            size="sm"
+            className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+          >
+            📝 Sem descrição ({products.filter((p) => !p.description).length})
+          </Button>
         </div>
       </div>
 
@@ -621,8 +670,11 @@ export function AdminProducts() {
               </tr>
             ) : (
               paginatedProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 md:px-6 py-3 md:py-4 font-medium text-xs md:text-sm text-slate-900">{product.name}</td>
+                <tr key={product.id} className={`hover:bg-slate-50 transition-colors ${!product.primaryImageUrl ? "bg-orange-50/30" : ""}`}>
+                  <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm">
+                    <div className="font-medium text-slate-900">{product.name}</div>
+                    {!product.description && <span className="text-[10px] text-blue-500">sem descrição</span>}
+                  </td>
                   <td className="hidden sm:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-slate-600">{product.brand}</td>
                   <td className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-slate-600">
                     {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "—"}
@@ -639,6 +691,9 @@ export function AdminProducts() {
                     </span>
                   </td>
                   <td className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm">
+                    {!product.primaryImageUrl && (
+                      <span className="text-[10px] font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">sem foto</span>
+                    )}
                     {product.primaryImageUrl && (
                       <img
                         src={product.primaryImageUrl}

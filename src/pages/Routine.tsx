@@ -164,7 +164,7 @@ const getMyProductsStorageKey = (analysisId?: string) =>
 
 const allDays = weekDays.map((day) => day.key);
 
-const fallbackCardImage = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80";
+const fallbackCardImage = "/product-placeholder.svg";
 
 const normalizeCategory = (value: string) =>
   value
@@ -2358,25 +2358,16 @@ const Routine = () => {
                           className="w-[120px] h-[120px] rounded-xl bg-white border border-border/40 flex-shrink-0 overflow-hidden flex items-center justify-center"
                           key={`img-container-${item.key}`}
                         >
-                          {getDisplayImage(item) ? (
-                            <img
-                              key={`img-${item.key}-${getDisplayImage(item)}`}
-                              src={getDisplayImage(item)!}
-                              alt={getDisplayProductName(item)}
-                              loading="eager"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                              className="w-full h-full object-contain bg-white p-1.5"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center w-full h-full">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{color:"#D1D5DB"}}>
-                                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                              </svg>
-                            </div>
-                          )}
+                          <img
+                            key={`img-${item.key}-${getDisplayImage(item)}`}
+                            src={getDisplayImage(item)}
+                            alt={getDisplayProductName(item)}
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => { e.currentTarget.src = fallbackCardImage; }}
+                            className="w-full h-full object-contain bg-white p-1.5"
+                          />
                         </div>
 
                         {/* Details */}

@@ -36,7 +36,8 @@ public record CreateAdminProductDto(
     [Range(0, 100)]  int CurationScore,
     bool IsActive,
     [MaxLength(1000)] string? ImageUrl,
-    string? Tagline
+    string? Tagline,
+    string? Description
 );
 
 public record UpdateAdminProductDto(
@@ -52,5 +53,6 @@ public record UpdateAdminProductDto(
     [Range(0, 100)]  int CurationScore,
     bool IsActive,
     [MaxLength(1000)] string? ImageUrl,
-    string? Tagline
+    string? Tagline,
+    string? Description
 );

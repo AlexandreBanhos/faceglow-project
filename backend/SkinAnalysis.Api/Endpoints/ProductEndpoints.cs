@@ -106,6 +106,7 @@ public static class ProductEndpoints
             CurationScore = request.CurationScore,
             IsActive = request.IsActive,
             Tagline = request.Tagline,
+            Description = request.Description,
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -155,6 +156,7 @@ public static class ProductEndpoints
             product.CurationScore = request.CurationScore;
             product.IsActive = request.IsActive;
             product.Tagline = request.Tagline ?? product.Tagline;
+            product.Description = request.Description ?? product.Description;
             product.UpdatedAt = DateTime.UtcNow;
 
             await dbContext.SaveChangesAsync(cancellationToken);

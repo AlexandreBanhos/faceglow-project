@@ -56,7 +56,10 @@
       "PowerShell(Rename-Item *)",
       "mcp__claude_ai_Vercel__deploy_to_vercel",
       "Bash(grep -E \"\\\\.md$\")",
-      "Bash(grep -v \":0$\")"
+      "Bash(grep -v \":0$\")",
+      "WebSearch",
+      "WebFetch(domain:advertising.amazon.com)",
+      "WebFetch(domain:dados.gov.br)"
     ]
   }
 }

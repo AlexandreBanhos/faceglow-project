@@ -58,6 +58,7 @@ export interface CreateAdminProductPayload {
   isActive: boolean;
   imageUrl?: string;
   tagline?: string;
+  description?: string;
 }
 
 async function getHeaders() {
