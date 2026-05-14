@@ -9,9 +9,9 @@
  * - Dependency Inversion: Todos components dependem de ILandingContentService via Provider
  */
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { LandingProvider } from "@/shared/providers/LandingProvider";
 import { LandingHero } from "@/components/landing/LandingHero";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
@@ -26,38 +26,17 @@ import logoFaceglow from "@/assets/logo-faceglow.svg";
  */
 export function LandingPageContent() {
   const navigate = useNavigate();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
+  // Redireciona usuários autenticados para o dashboard — sem bloquear o render.
+  // getSessionUser() usa a sessão cacheada localmente (sem rede), é quase síncrono.
   useEffect(() => {
     let mounted = true;
-
-    const checkAuth = async () => {
-      try {
-        const user = await getCurrentUser();
-        if (mounted && user) {
-          // Usuário autenticado → redirecionar para dashboard
-          navigate("/dashboard", { replace: true });
-        }
-      } catch (error) {
-        console.error("Erro ao verificar autenticação:", error);
-      } finally {
-        if (mounted) {
-          setIsCheckingAuth(false);
-        }
-      }
-    };
-
-    checkAuth();
-
-    return () => {
-      mounted = false;
-    };
+    getSessionUser().then(user => {
+      if (mounted && user) navigate("/dashboard", { replace: true });
+    }).catch(() => {});
+    return () => { mounted = false; };
   }, [navigate]);
 
-  // Enquanto verifica autenticação, mostrar tela vazia
-  if (isCheckingAuth) {
-    return <div className="min-h-screen bg-background" />;
-  }
   return (
     <main className="relative w-full overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
       {/* Aurora backdrop */}

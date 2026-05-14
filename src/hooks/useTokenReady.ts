@@ -1,46 +1,50 @@
 import { useEffect, useState } from 'react';
-import { getAccessToken } from '@/lib/auth';
+import { assertSupabaseConfigured } from '@/lib/supabase';
 
 /**
- * Hook que aguarda até o token JWT estar de fato disponível
- * Diferente de apenas ter sessão validada - garante que getAccessToken() retorna um token válido
- * 
- * Resolve race condition: RequireAuth marca ready=true mas token ainda pode ser null
+ * Hook que aguarda o token JWT estar disponível.
+ * Usa onAuthStateChange em vez de polling — resolve imediatamente
+ * se a sessão já existe, sem múltiplos round-trips ao Supabase.
  */
 export const useTokenReady = () => {
   const [tokenReady, setTokenReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    let attempts = 0;
-    const maxAttempts = 50; // ~5 segundos com 100ms interval
+    const client = assertSupabaseConfigured();
 
-    const checkTokenReady = async () => {
-      attempts++;
-      const token = await getAccessToken();
-
+    // Verificação imediata da sessão atual
+    client.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-
-      if (token) {
-        console.log('✓ [Auth] Token está pronto');
+      if (data.session?.access_token) {
         setTokenReady(true);
-      } else if (attempts < maxAttempts) {
-        // Retry a cada 100ms até ter token
-        console.log(`⏳ [Auth] Aguardando token... (${attempts}/${maxAttempts})`);
-        setTimeout(checkTokenReady, 100);
-      } else {
-        // Timeout - considera pronto mesmo sem token
-        // Deixa requisições falharem naturalmente
-        console.warn('[Auth] Timeout aguardando token - considera pronto mesmo assim');
+        return;
+      }
+      // Sem sessão imediata — aguarda evento de auth
+      // (fallback para casos de cold start ou refresh em andamento)
+    });
+
+    // Escuta mudanças de auth: SIGNED_IN ou TOKEN_REFRESHED garantem token válido
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      if (session?.access_token) {
         setTokenReady(true);
       }
-    };
+    });
 
-    checkTokenReady();
+    // Timeout de segurança: se após 3s ainda sem token, libera de qualquer forma
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && !tokenReady) {
+        setTokenReady(true);
+      }
+    }, 3000);
 
     return () => {
       mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(safetyTimeout);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return tokenReady;

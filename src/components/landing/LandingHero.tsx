@@ -163,7 +163,7 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
             loop
             muted
             playsInline
-            preload="auto"
+            preload="metadata"
             poster="/videos/hero-face-poster.jpg"
             style={{
               display: "block",
@@ -335,7 +335,7 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
 
       <video
         ref={videoRef}
-        autoPlay loop muted playsInline preload="auto"
+        autoPlay loop muted playsInline preload="metadata"
         poster="/videos/hero-face-poster.jpg"
         className="absolute top-0 left-0 w-full object-cover pointer-events-none md:h-full md:object-[65%_top] md:scale-[0.90] lg:object-[72%_top] lg:scale-[0.92] lg:origin-[right_top] xl:object-[70%_top] xl:scale-[0.95]"
         style={{ zIndex: 0 }}

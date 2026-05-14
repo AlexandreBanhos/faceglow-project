@@ -39,7 +39,9 @@ const RequireAuthInner = () => {
     };
   }, []);
 
-  const readyForChildren = ready && tokenReady && !statusLoading;
+  // Aguarda apenas: sessão verificada + token disponível.
+  // Status de billing/créditos carrega em background — não bloqueia render.
+  const readyForChildren = ready && tokenReady;
 
   if (!readyForChildren) {
     return <LoadingScreen />;
