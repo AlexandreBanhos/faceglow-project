@@ -130,21 +130,15 @@ const Premium = () => {
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-
       // Always force-refresh billing status (no cache) to get latest subscription state
       const status = await fetchBillingStatus({ forceRefresh: true });
-        status: status?.status,
-        isActive: status?.isActive,
-        planName: status?.planName,
-        expiresAtUtc: status?.expiresAtUtc,
-        provider: status?.provider,
-      });
       setBillingStatus(status);
       const isPremiumActive = status?.isActive ?? false;
       setIsPremium(isPremiumActive);
       setRetryCount(0);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
+      // Apenas mostrar erro se não for 404 (sem assinatura é normal)
       if (!errorMsg.includes("404")) {
         setStatusError(errorMsg);
       }

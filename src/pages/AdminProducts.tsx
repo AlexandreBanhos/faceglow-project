@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
@@ -153,18 +153,11 @@ export function AdminProducts() {
 
   async function handleSubmit() {
     try {
-      
       if (!formData.name.trim()) {
-        toast({
-          title: "ValidaÃ§Ã£o",
-          description: "Nome Ã© obrigatÃ³rio",
-          variant: "destructive",
-        });
+        toast({ title: "Validação", description: "Nome é obrigatório", variant: "destructive" });
         return;
       }
-
       setIsSaving(true);
-      
       if (editingId) {
         await updateAdminProduct(editingId, formData);
         toast({ title: "Sucesso", description: "Produto atualizado" });
@@ -172,16 +165,13 @@ export function AdminProducts() {
         await createAdminProduct(formData);
         toast({ title: "Sucesso", description: "Produto criado" });
       }
-
       setIsFormOpen(false);
       resetForm();
-      
       await loadProducts();
     } catch (error) {
-      console.error("[handleSubmit] Error caught:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "OperaÃ§Ã£o falhou",
+        description: error instanceof Error ? error.message : "Operação falhou",
         variant: "destructive",
       });
     } finally {
@@ -192,18 +182,12 @@ export function AdminProducts() {
   async function handleDelete(id: string) {
     try {
       setIsSaving(true);
-      
       await deleteAdminProduct(id);
-      
       toast({ title: "Sucesso", description: "Produto deletado" });
       await loadProducts();
     } catch (error) {
-      console.error("[handleDelete] Error caught:", error);
-      toast({
-        title: "Erro",
-        description: "Falha ao deletar produto",
-        variant: "destructive",
-      });
+      console.error("[handleDelete] Error:", error);
+      toast({ title: "Erro", description: "Falha ao deletar produto", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -287,7 +271,7 @@ export function AdminProducts() {
       <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-slate-50 to-slate-100 gap-4">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-red-600 mb-2">Acesso Negado</h1>
-          <p className="text-slate-600 mb-6 max-w-md">{error || "VocÃª nÃ£o tem permissÃ£o para acessar esta pÃ¡gina."}</p>
+          <p className="text-slate-600 mb-6 max-w-md">{error || "Você não tem permissão para acessar esta página."}</p>
           <Button onClick={() => navigate("/dashboard")} variant="default">
             Voltar ao Dashboard
           </Button>
@@ -297,7 +281,7 @@ export function AdminProducts() {
   }
 
   if (isSaving) {
-    return <LoadingSpinnerFullScreen message="Salvando alteraÃ§Ãµes..." />;
+    return <LoadingSpinnerFullScreen message="Salvando alterações..." />;
   }
 
   return (
@@ -306,7 +290,7 @@ export function AdminProducts() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold text-slate-900">CatÃ¡logo de Produtos</h1>
+            <h1 className="text-2xl md:text-4xl font-bold text-slate-900">Catálogo de Produtos</h1>
             <p className="text-sm md:text-base text-slate-600 mt-1">Gerencie todos os produtos da plataforma</p>
           </div>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -330,7 +314,7 @@ export function AdminProducts() {
               </DialogHeader>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* FormulÃ¡rio */}
+                {/* Formulário */}
                 <div className="lg:col-span-2 space-y-4">
                   <div>
                     <label className="block text-xs md:text-sm font-medium mb-2">Nome *</label>
@@ -346,7 +330,7 @@ export function AdminProducts() {
 
                   <div>
                     <label className="block text-xs md:text-sm font-medium mb-2">
-                      DescriÃ§Ã£o
+                      Descrição
                     </label>
                     <Input
                       value={formData.description}
@@ -356,7 +340,7 @@ export function AdminProducts() {
                           description: e.target.value,
                         }))
                       }
-                      placeholder="DescriÃ§Ã£o"
+                      placeholder="Descrição"
                       className="bg-white text-sm"
                     />
                   </div>
@@ -394,7 +378,7 @@ export function AdminProducts() {
                   <div className="grid grid-cols-2 gap-2 md:gap-4">
                     <div>
                       <label className="block text-xs md:text-sm font-medium mb-2">
-                        PreÃ§o MÃ©dio
+                        Preço Médio
                       </label>
                       <Input
                         type="number"
@@ -502,10 +486,10 @@ export function AdminProducts() {
                     <div className="space-y-0">
                       {/* Header */}
                       <div className="p-4 pb-3 border-b border-slate-200">
-                        <h3 className="font-semibold text-slate-900">PrÃ©via do Produto</h3>
+                        <h3 className="font-semibold text-slate-900">Prévia do Produto</h3>
                       </div>
 
-                      {/* Imagem - Aspect ratio 16/10 como padrÃ£o de produtos */}
+                      {/* Imagem - Aspect ratio 16/10 como padrão de produtos */}
                       <div className="px-4 pt-3 pb-0">
                         <div className="rounded-lg overflow-hidden bg-white border border-slate-100 aspect-[16/10] flex items-center justify-center">
                           {imagePreview ? (
@@ -524,26 +508,26 @@ export function AdminProducts() {
                         </div>
                       </div>
 
-                      {/* InformaÃ§Ãµes */}
+                      {/* Informações */}
                       <div className="p-4 space-y-3">
                         <div>
                           <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Categoria</p>
-                          <p className="text-xs text-slate-600 mt-0.5">{formData.category || "â€”"}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{formData.category || "—"}</p>
                         </div>
 
                         <div>
-                          <p className="text-sm font-bold text-slate-900 line-clamp-2">{formData.name || "â€”"}</p>
+                          <p className="text-sm font-bold text-slate-900 line-clamp-2">{formData.name || "—"}</p>
                         </div>
 
                         <div>
-                          <p className="text-xs text-slate-500 font-medium">{formData.brand || "â€”"}</p>
+                          <p className="text-xs text-slate-500 font-medium">{formData.brand || "—"}</p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 pt-2">
                           <div className="bg-slate-50 p-2 rounded">
-                            <p className="text-xs text-slate-500">PreÃ§o</p>
+                            <p className="text-xs text-slate-500">Preço</p>
                             <p className="font-semibold text-slate-900 text-sm">
-                              {formData.priceAvg ? `R$ ${formData.priceAvg.toFixed(2)}` : "â€”"}
+                              {formData.priceAvg ? `R$ ${formData.priceAvg.toFixed(2)}` : "—"}
                             </p>
                           </div>
                           <div className="bg-slate-50 p-2 rounded">
@@ -560,7 +544,7 @@ export function AdminProducts() {
                                 : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {formData.isActive ? "âœ“ Ativo" : "â—‹ Inativo"}
+                            {formData.isActive ? "✓ Ativo" : "○ Inativo"}
                           </span>
                         </div>
                       </div>
@@ -632,11 +616,11 @@ export function AdminProducts() {
             <tr>
               <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Nome</th>
               <th className="hidden sm:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Brand</th>
-              <th className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">PreÃ§o</th>
+              <th className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Preço</th>
               <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Status</th>
               <th className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Imagem</th>
               <th className="px-4 md:px-6 py-3 md:py-4 text-right text-xs md:text-sm font-semibold text-slate-900">
-                AÃ§Ãµes
+                Ações
               </th>
             </tr>
           </thead>
@@ -649,7 +633,7 @@ export function AdminProducts() {
                     <p className="text-sm md:text-base text-slate-500 font-medium">
                       {products.length === 0
                         ? "Nenhum produto encontrado"
-                        : "Nenhum produto atende aos critÃ©rios de busca"}
+                        : "Nenhum produto atende aos critérios de busca"}
                     </p>
                   </div>
                 </td>
@@ -660,7 +644,7 @@ export function AdminProducts() {
                   <td className="px-4 md:px-6 py-3 md:py-4 font-medium text-xs md:text-sm text-slate-900">{product.name}</td>
                   <td className="hidden sm:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-slate-600">{product.brand}</td>
                   <td className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-slate-600">
-                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "â€”"}
+                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "—"}
                   </td>
                   <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm">
                     <span
@@ -670,7 +654,7 @@ export function AdminProducts() {
                           : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {product.isActive ? "âœ“ Ativo" : "â—‹ Inativo"}
+                      {product.isActive ? "✓ Ativo" : "○ Inativo"}
                     </span>
                   </td>
                   <td className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm">
@@ -708,9 +692,9 @@ export function AdminProducts() {
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
-                          <AlertDialogTitle>Confirmar exclusÃ£o</AlertDialogTitle>
+                          <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta aÃ§Ã£o nÃ£o pode ser desfeita.
+                            Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta ação não pode ser desfeita.
                           </AlertDialogDescription>
                           <div className="flex justify-end gap-2">
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -740,7 +724,7 @@ export function AdminProducts() {
             <p className="text-sm text-slate-500 font-medium">
               {products.length === 0
                 ? "Nenhum produto encontrado"
-                : "Nenhum produto atende aos critÃ©rios de busca"}
+                : "Nenhum produto atende aos critérios de busca"}
             </p>
           </div>
         ) : (
@@ -761,7 +745,7 @@ export function AdminProducts() {
                   <h3 className="text-xs font-bold text-slate-900 truncate">{product.name}</h3>
                   <p className="text-xs text-slate-600">{product.brand}</p>
                   <p className="text-xs text-slate-600">
-                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "â€”"}
+                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "—"}
                   </p>
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-semibold rounded-full mt-1 ${
@@ -770,7 +754,7 @@ export function AdminProducts() {
                         : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {product.isActive ? "âœ“ Ativo" : "â—‹ Inativo"}
+                    {product.isActive ? "✓ Ativo" : "○ Inativo"}
                   </span>
                 </div>
               </div>
@@ -796,9 +780,9 @@ export function AdminProducts() {
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
-                    <AlertDialogTitle>Confirmar exclusÃ£o</AlertDialogTitle>
+                    <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta aÃ§Ã£o nÃ£o pode ser desfeita.
+                      Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta ação não pode ser desfeita.
                     </AlertDialogDescription>
                     <div className="flex justify-end gap-2">
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -827,7 +811,7 @@ export function AdminProducts() {
             size="sm"
             className="text-xs md:text-sm w-full md:w-auto"
           >
-            â† Anterior
+            ← Anterior
           </Button>
 
           <div className="flex gap-1 mx-0 md:mx-2 justify-center flex-wrap">
@@ -853,11 +837,11 @@ export function AdminProducts() {
             size="sm"
             className="text-xs md:text-sm w-full md:w-auto"
           >
-            PrÃ³ximo â†’
+            Próximo →
           </Button>
 
           <span className="ml-0 md:ml-4 text-xs md:text-sm font-medium text-slate-600 text-center md:text-left">
-            PÃ¡gina <span className="font-bold text-slate-900">{currentPage}</span> de {totalPages}
+            Página <span className="font-bold text-slate-900">{currentPage}</span> de {totalPages}
           </span>
         </div>
       )}

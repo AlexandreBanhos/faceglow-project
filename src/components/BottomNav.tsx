@@ -20,12 +20,10 @@ const getRightTabs = (isActive: boolean) => [
 const getLastAnalysis = () => {
   const cached = getCachedLatestAnalysis();
   if (cached) return cached;
-
   try {
     const raw = localStorage.getItem("faceglow-last-analysis");
     if (raw) return normalizeAnalysis(JSON.parse(raw));
   } catch { /* silent */ }
-
   return null;
 };
 
@@ -38,31 +36,22 @@ const BottomNav = () => {
 
   const handleRoutineClick = async () => {
     let analysis = getLastAnalysis();
-
     if (analysis?.id && !analysis.recommendations?.length) {
       try {
-        const fullAnalysis = await fetchAnalysisWithRecommendations(analysis.id);
-        if (fullAnalysis) analysis = fullAnalysis;
+        const full = await fetchAnalysisWithRecommendations(analysis.id);
+        if (full) analysis = full;
       } catch { /* navegação prossegue sem recomendações */ }
     }
-
-    if (analysis) {
-      navigate("/routine", { state: { analysis } });
-    } else {
-      navigate("/routine");
-    }
+    if (analysis) navigate("/routine", { state: { analysis } });
+    else navigate("/routine");
   };
 
   const renderTab = ({ path, icon: Icon, label }: typeof leftTabs[0]) => {
     const isActive = location.pathname === path;
-
     return (
       <button
         key={path}
-        onClick={() => {
-          if (path === "/routine") void handleRoutineClick();
-          else navigate(path);
-        }}
+        onClick={() => { if (path === "/routine") void handleRoutineClick(); else navigate(path); }}
         className="relative flex h-12 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 transition-colors"
       >
         {isActive && (
@@ -72,16 +61,8 @@ const BottomNav = () => {
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
           />
         )}
-        <Icon
-          size={20}
-          className={`relative z-10 ${isActive ? "text-primary" : "text-[var(--fg-ink-4)]"}`}
-          strokeWidth={isActive ? 2.5 : 1.8}
-        />
-        <span
-          className={`relative z-10 text-[10px] font-bold leading-none ${
-            isActive ? "text-primary" : "text-[var(--fg-ink-4)]"
-          }`}
-        >
+        <Icon size={20} className={`relative z-10 ${isActive ? "text-primary" : "text-[var(--fg-ink-4)]"}`} strokeWidth={isActive ? 2.5 : 1.8} />
+        <span className={`relative z-10 text-[10px] font-bold leading-none ${isActive ? "text-primary" : "text-[var(--fg-ink-4)]"}`}>
           {label}
         </span>
       </button>
@@ -91,10 +72,7 @@ const BottomNav = () => {
   return (
     <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 bottom-nav-safe px-4">
       <div className="fg-tabbar pointer-events-auto mx-auto flex h-[72px] max-w-md items-center justify-between px-3">
-        <div className="flex flex-1 items-center justify-around">
-          {leftTabs.map(renderTab)}
-        </div>
-
+        <div className="flex flex-1 items-center justify-around">{leftTabs.map(renderTab)}</div>
         <div className="flex w-[74px] items-center justify-center">
           <button
             onClick={() => navigate("/analyze")}
@@ -104,10 +82,7 @@ const BottomNav = () => {
             <Camera size={24} className="text-white" />
           </button>
         </div>
-
-        <div className="flex flex-1 items-center justify-around">
-          {rightTabs.map(renderTab)}
-        </div>
+        <div className="flex flex-1 items-center justify-around">{rightTabs.map(renderTab)}</div>
       </div>
     </nav>
   );

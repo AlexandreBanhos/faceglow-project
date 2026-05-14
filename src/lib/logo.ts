@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Logo Management System
  * Handles optional, lazy-loaded logos with fallback support
  */

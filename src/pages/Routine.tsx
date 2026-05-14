@@ -1,4 +1,4 @@
-﻿import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen } from "lucide-react";
 import { GradientSpinner } from "@/components/LoadingSpinner";
@@ -92,12 +92,12 @@ const defaultRoutine = {
     "Limpeza: Gel/Sabonete de Limpeza",
     "Antioxidante: Serum Antioxidante",
     "Hidratante: Hidratante Facial",
-    "ProteÃ§Ã£o solar: Protetor Solar",
+    "Proteção solar: Protetor Solar",
   ],
   night: [
     "Limpeza: Gel/Sabonete de Limpeza",
-    "TÃ´nico: TÃ´nico Facial",
-    "SÃ©rum: Serum Tratamento",
+    "Tônico: Tônico Facial",
+    "Sérum: Serum Tratamento",
     "Retinol: Retinol/Retinoide",
     "Hidratante: Hidratante Noturno",
   ],
@@ -174,9 +174,9 @@ const normalizeCategory = (value: string) =>
     .toLowerCase();
 
 const humanizeRecurrence = (value: string) => {
-  if (!value) return "DiÃ¡rio";
-  if (value === "daily" || value === "morning" || value === "night") return "DiÃ¡rio";
-  if (value === "as_needed") return "Quando necessÃ¡rio";
+  if (!value) return "Diário";
+  if (value === "daily" || value === "morning" || value === "night") return "Diário";
+  if (value === "as_needed") return "Quando necessário";
   if (value === "weekly") return "Semanal";
   if (value === "2-3x_week") return "2-3x/semana";
   if (value === "2x_week") return "2x semana";
@@ -456,7 +456,7 @@ const Routine = () => {
         });
         if (!res.ok) return;
         const { completedStepIds } = await res.json() as { completedStepIds: string[] };
-        // ReconstrÃ³i checkedByDayItem usando step UUID como chave (igual ao toggleChecklist)
+        // Reconstrói checkedByDayItem usando step UUID como chave (igual ao toggleChecklist)
         const completedSet = new Set(completedStepIds ?? []);
         const updates: Record<string, boolean> = {};
         apiSteps.forEach((step) => {
@@ -468,12 +468,12 @@ const Routine = () => {
             checkedByDayItem: { ...prev.checkedByDayItem, ...updates },
           }));
         }
-      } catch { /* ignora â€” usa estado local */ }
+      } catch { /* ignora — usa estado local */ }
     };
     loadTodayProgress();
   }, [stepsLoading, apiSteps, todayStr]);
 
-  // HistÃ³rico de completions por data â€” imune a ediÃ§Ãµes de rotina
+  // Histórico de completions por data — imune a edições de rotina
   const [calendarHistory, setCalendarHistory] = useState<Record<string, { morning: number; night: number }>>({});
 
   useEffect(() => {
@@ -501,7 +501,7 @@ const Routine = () => {
   }, [analysis?.id, todayStr]);
 
   // Sync slot selecionado para selectedOptionByItem quando steps carregam
-  // Formato: "${stepId}::${slotId}" â€” compatÃ­vel com productOptionsByItem
+  // Formato: "${stepId}::${slotId}" — compatível com productOptionsByItem
   useEffect(() => {
     if (stepsLoading || apiSteps.length === 0) return;
     const slotMap: Record<string, string> = {};
@@ -535,7 +535,7 @@ const Routine = () => {
         const displayImage = selectedSlot?.imageUrl ?? s.overrideImageUrl ?? s.imageUrl ?? rec?.imageUrl;
         const displayReason = selectedSlot?.recommendationReason ?? rec?.reason ?? "";
         return {
-          key: s.id, // UUID do step â€” Ãºnico e estÃ¡vel, evita colisÃ£o de chaves
+          key: s.id, // UUID do step — único e estável, evita colisão de chaves
           period: s.period as "morning" | "night",
           stepNumber: s.stepOrder + 1,
           stepLabel: s.categoryDisplayName ?? s.category,
@@ -606,13 +606,13 @@ const Routine = () => {
 
   const tierLabel = (tier: string): string => {
     if (tier === "primary") return "Melhor para sua pele";
-    if (tier === "alt_budget") return "Melhor custo-benefÃ­cio";
+    if (tier === "alt_budget") return "Melhor custo-benefício";
     if (tier === "alt_rated") return "Mais avaliado";
     return "Meu produto";
   };
 
   const productOptionsByItem = useMemo(() => {
-    // â”€â”€ v2: use slots[] from API steps when available â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── v2: use slots[] from API steps when available ──────────────────────
     if (stepsLoaded && apiSteps.length > 0 && apiSteps.some(s => (s.slots?.length ?? 0) > 0)) {
       const result = new Map<string, ProductOption[]>();
       apiSteps.forEach(step => {
@@ -630,7 +630,7 @@ const Routine = () => {
       if (result.size > 0) return result;
     }
 
-    // â”€â”€ legacy fallback: build from analysis.recommendations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── legacy fallback: build from analysis.recommendations ───────────────
     const recommendations = analysis?.recommendations ?? [];
     const recommendationGroups = new Map<string, AnalysisRecommendation[]>();
 
@@ -697,7 +697,7 @@ const Routine = () => {
     return result;
   }, [analysis?.recommendations, routineItems.morning, routineItems.night]);
 
-  // Mapa simples de recomendaÃ§Ãµes por produto/tipo (como Results faz)
+  // Mapa simples de recomendações por produto/tipo (como Results faz)
   const recommendationMap = useMemo(() => {
     const map = {
       byProduct: new Map<string, AnalysisRecommendation>(),
@@ -786,7 +786,7 @@ const Routine = () => {
       await patchAdminProductImage(adminMatchedProduct.id, adminMatchedProduct.imageUrl);
       setAdminEditingItem(null);
     } catch {
-      // silently fail â€” user can retry
+      // silently fail — user can retry
     } finally {
       setAdminSaving(false);
     }
@@ -810,19 +810,19 @@ const Routine = () => {
   const [newStepScheduleDays, setNewStepScheduleDays] = useState<WeekDayKey[]>([]);
 
   const isNightOnlyCategory = (cat: string): boolean => {
-    const n = cat.toLowerCase().normalize("NFD").replace(/[Ì€-Í¯]/g, "").replace(/\s+/g, "");
+    const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
     return n.includes("retinol") || n.includes("retino") || n.includes("acido") || n.includes("acid");
   };
 
   const getCategoryDefaultPeriod = (cat: string): "morning" | "night" | "both" => {
-    const n = cat.toLowerCase().normalize("NFD").replace(/[Ì€-Í¯]/g, "").replace(/\s+/g, "");
+    const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
     if (n.includes("protetor") || n.includes("solar") || n.includes("fps")) return "morning";
     if (isNightOnlyCategory(cat)) return "night";
     return "both";
   };
 
   const resolveStepTypeKey = (label: string): string => {
-    const normalized = label.toLowerCase().normalize("NFD").replace(/[Ì€-Í¯]/g, "");
+    const normalized = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
     const map: Record<string, string> = {
       "limpeza": "cleanser", "hidratante": "moisturizer", "serum": "serum", "sero": "serum",
       "protetor solar": "sunscreen", "tonico": "toner", "tonico facial": "toner",
@@ -887,7 +887,7 @@ const Routine = () => {
     const periods: Array<"morning" | "night"> =
       newStepPeriod === "both" ? ["morning", "night"] : [newStepPeriod];
 
-    // Verifica duplicata: produto jÃ¡ na rotina nos perÃ­odos solicitados
+    // Verifica duplicata: produto já na rotina nos períodos solicitados
     const norm = productName.toLowerCase().trim();
     const duplicateStep = apiSteps.find(s =>
       periods.includes(s.period as "morning" | "night") &&
@@ -895,22 +895,22 @@ const Routine = () => {
        s.slots?.some(sl => sl.productName?.toLowerCase().trim() === norm))
     );
     if (duplicateStep) {
-      toast.error(`"${productName}" jÃ¡ estÃ¡ na rotina de ${duplicateStep.period === "morning" ? "manhÃ£" : "noite"}.`);
+      toast.error(`"${productName}" já está na rotina de ${duplicateStep.period === "morning" ? "manhã" : "noite"}.`);
       return;
     }
 
-    const toastId = toast.loading("Adicionando passoâ€¦");
+    const toastId = toast.loading("Adicionando passo…");
 
     const recurrenceValue = newStepRecurrence === "custom" ? "weekly" : newStepRecurrence;
 
-    // Sequencial (nÃ£o paralelo) para evitar race condition no upsert de UserProduct
+    // Sequencial (não paralelo) para evitar race condition no upsert de UserProduct
     for (const p of periods) {
       const result = await addRoutineStep(analysis.id, {
         period: p, productName, category: resolvedLabel, imageUrl,
         recurrence: recurrenceValue,
         productId: newStepCatalogProductId ?? undefined,
       });
-      // Persiste dias via PATCH se recurrence tem dias especÃ­ficos (2-3x/semana ou personalizado)
+      // Persiste dias via PATCH se recurrence tem dias específicos (2-3x/semana ou personalizado)
       if (result?.id && newStepScheduleDays.length > 0) {
         await updateRoutineStep(analysis.id, result.id, {
           scheduleDays: JSON.stringify(newStepScheduleDays),
@@ -918,11 +918,11 @@ const Routine = () => {
       }
     }
 
-    // silent=true: nÃ£o trava loading, evita fallback para string-parsing
+    // silent=true: não trava loading, evita fallback para string-parsing
     await reloadApiSteps(true);
     invalidateAnalysisCache();
 
-    // Reset completo â€” evita herdar imagem do passo anterior
+    // Reset completo — evita herdar imagem do passo anterior
     setNewStepPeriod("both");
     setNewStepLabel("");
     setNewStepLabelOpen(false);
@@ -1018,7 +1018,7 @@ const Routine = () => {
     reordered.splice(toIdx, 0, moved);
     const nextKeys = reordered.map((i) => i.key); // keys are now UUIDs
     persistRoutineOrder({ ...routineOrder, [period]: nextKeys });
-    // Keys are step IDs â€” orderedIds is the same as nextKeys for API steps
+    // Keys are step IDs — orderedIds is the same as nextKeys for API steps
     const orderedIds = nextKeys.filter(k => apiSteps.some(s => s.id === k));
     if (orderedIds.length > 0) reorderApiSteps(period, orderedIds);
     setDraggingKey(null);
@@ -1099,12 +1099,12 @@ const Routine = () => {
   });
 
   const [productSchedule, setProductSchedule] = useState<ProductSchedule>(() => {
-    // checkedByDayItem continua em localStorage (tracking diÃ¡rio, Sprint 5 vai migrar para DB)
+    // checkedByDayItem continua em localStorage (tracking diário, Sprint 5 vai migrar para DB)
     const storageKey = getScheduleStorageKey(analysis?.id);
     const raw = localStorage.getItem(storageKey);
     const parsed = (() => { try { return raw ? JSON.parse(raw) : null; } catch { return null; } })();
     const checkedByDayItem = (parsed?.checkedByDayItem as Record<string, boolean>) ?? {};
-    // daysByItem: inicia com todos os dias (apiSteps serÃ£o a fonte apÃ³s carregamento)
+    // daysByItem: inicia com todos os dias (apiSteps serão a fonte após carregamento)
     const itemKeys = routineItems.all.map((item) => item.key);
     const daysByItem: Record<string, WeekDayKey[]> = {};
     itemKeys.forEach((k) => { daysByItem[k] = [...allDays]; });
@@ -1121,7 +1121,7 @@ const Routine = () => {
         try {
           const days = JSON.parse(s.scheduleDays ?? "[]") as WeekDayKey[];
           if (days.length > 0) daysByItem[key] = days;
-        } catch { /* mantÃ©m valor atual */ }
+        } catch { /* mantém valor atual */ }
       });
       return { ...prev, daysByItem };
     });
@@ -1129,7 +1129,7 @@ const Routine = () => {
 
   const persistSchedule = (next: ProductSchedule) => {
     setProductSchedule(next);
-    // Persiste checkedByDayItem em localStorage (tracking diÃ¡rio temporÃ¡rio atÃ© Sprint 5)
+    // Persiste checkedByDayItem em localStorage (tracking diário temporário até Sprint 5)
     localStorage.setItem(getScheduleStorageKey(analysis?.id), JSON.stringify(next));
     // Persiste daysByItem nos steps estruturados via PATCH
     if (analysis?.id && apiSteps.length > 0) {
@@ -1153,7 +1153,7 @@ const Routine = () => {
     const month = now.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const weekKeys: WeekDayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-    const shortLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "SÃ¡b"];
+    const shortLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
     return Array.from({ length: daysInMonth }, (_, i) => {
       const d = new Date(year, month, i + 1);
       return {
@@ -1176,7 +1176,7 @@ const Routine = () => {
     const hasNight   = orderedItems.night.length > 0;
 
     for (const d of calendarDays) {
-      if (d.dateStr > todayStr) continue; // dias futuros nunca tÃªm dot
+      if (d.dateStr > todayStr) continue; // dias futuros nunca têm dot
 
       if (d.dateStr === todayStr) {
         // Hoje: compara com localStorage (UUIDs do estado atual)
@@ -1196,7 +1196,7 @@ const Routine = () => {
         if (morningDone && nightDone) result.set(d.dateStr, "full");
         else if (morningDone || nightDone) result.set(d.dateStr, "partial");
       } else {
-        // Dias passados: usa dados do backend â€” imune a ediÃ§Ãµes de rotina
+        // Dias passados: usa dados do backend — imune a edições de rotina
         const hist = calendarHistory[d.dateStr];
         if (!hist) continue;
         const morningOk = !hasMorning || hist.morning > 0;
@@ -1212,7 +1212,7 @@ const Routine = () => {
 
   const isFutureDay = selectedDay > todayStr;
 
-  // Registra conclusÃ£o de step no DB (fire-and-forget, nÃ£o bloqueia UI)
+  // Registra conclusão de step no DB (fire-and-forget, não bloqueia UI)
   const persistStepCompletion = async (itemKey: string) => {
     const step = apiSteps.find((s) => s.id === itemKey);
     if (!step) return;
@@ -1225,7 +1225,7 @@ const Routine = () => {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ localDate: todayStr }),
       });
-    } catch { /* ignora â€” localStorage jÃ¡ persistiu */ }
+    } catch { /* ignora — localStorage já persistiu */ }
   };
 
   const persistStepUncompletion = async (itemKey: string) => {
@@ -1239,7 +1239,7 @@ const Routine = () => {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch { /* ignora â€” localStorage jÃ¡ persistiu */ }
+    } catch { /* ignora — localStorage já persistiu */ }
   };
 
   const toggleChecklist = (itemKey: string) => {
@@ -1333,7 +1333,7 @@ const Routine = () => {
         if (linkedResolved) {
           resolved.set(item.key, {
             ...linkedResolved,
-            reason: `${linkedResolved.reason || "Mesmo produto da manha."} Mesmo produto usado na rotina da manhÃ£ por padrao.`,
+            reason: `${linkedResolved.reason || "Mesmo produto da manha."} Mesmo produto usado na rotina da manhã por padrao.`,
           });
           return;
         }
@@ -1469,9 +1469,9 @@ const Routine = () => {
   const isRoutineComplete = activeChecklistItems.length > 0 && completedInVisible === activeChecklistItems.length;
   const completionBanner =
     isRoutineComplete && selectedPeriod === "morning"
-      ? "Rotina da manhÃ£ concluida!"
+      ? "Rotina da manhã concluida!"
       : isRoutineComplete && selectedPeriod === "night"
-        ? "VocÃª concluiu suas rotinas do dia! Sua pele agradece"
+        ? "Você concluiu suas rotinas do dia! Sua pele agradece"
         : null;
 
   useEffect(() => {
@@ -1507,12 +1507,12 @@ const Routine = () => {
       return;
     }
 
-    // Apenas marcar se Ã© hoje
+    // Apenas marcar se é hoje
     if (selectedDay !== todayStr) {
       return;
     }
 
-    // Guard: evita marcar o mesmo perÃ­odo 2x
+    // Guard: evita marcar o mesmo período 2x
     const markKey = `${selectedDay}::${selectedPeriod}`;
     if (markedCompleteRef.current.has(markKey)) {
       return;
@@ -1538,7 +1538,7 @@ const Routine = () => {
     if (resolved?.productName) {
       return resolved.productName;
     }
-    // Fallback: recomendaÃ§Ã£o ou tÃ­tulo original
+    // Fallback: recomendação ou título original
     const rec = getRecommendationForStep(item);
     return rec?.product || item.title;
   };
@@ -1554,7 +1554,7 @@ const Routine = () => {
   };
 
   const getDisplayImage = (item: RoutineItem) => {
-    // IMPORTANTE: usar resolvedProductByItem que fica atualizado quando produto Ã© selecionado
+    // IMPORTANTE: usar resolvedProductByItem que fica atualizado quando produto é selecionado
     const resolved = resolvedProductByItem.get(item.key);
     const imageUrl = resolved?.imageUrl;
     
@@ -1616,7 +1616,7 @@ const Routine = () => {
     }
     setSavingProductItem(true);
 
-    // Key format: "${stepId}::${slotId}" â€” extract the slot UUID
+    // Key format: "${stepId}::${slotId}" — extract the slot UUID
     const rawSlotId = optionKey.split("::")[1] ?? null;
     // Validate it's a proper UUID (not a legacy tier string like "primary")
     const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1627,7 +1627,7 @@ const Routine = () => {
     const otherPeriod: "morning" | "night" = currentPeriod === "morning" ? "night" : "morning";
     const scope = pendingScopeByItem[itemKey] ?? currentPeriod;
 
-    // Resolve tier from the slot â€” look up in currentStep.slots by slot id
+    // Resolve tier from the slot — look up in currentStep.slots by slot id
     const selectedSlot = currentStep?.slots?.find(sl => sl.id === slotId);
     const tier = selectedSlot?.tier ?? "primary";
     const v2Tiers: SlotTier[] = ["primary", "alt_budget", "alt_rated", "user_custom"];
@@ -1640,7 +1640,7 @@ const Routine = () => {
       );
 
       if (scope === currentPeriod) {
-        // Apply only to current period step â€” pass slotId for precise selection
+        // Apply only to current period step — pass slotId for precise selection
         await selectRoutineSlot(analysis.id, currentStep.id, v2Tier, slotId ?? undefined);
 
       } else if (scope === "both") {
@@ -1652,16 +1652,16 @@ const Routine = () => {
         }
 
       } else {
-        // scope === otherPeriod: MOVE â€” delete current, apply/create in other period
+        // scope === otherPeriod: MOVE — delete current, apply/create in other period
         await deleteApiStep(currentStep.id);
         // Clean up local selection state for the deleted step
         setSelectedOptionByItem(prev => { const p = { ...prev }; delete p[itemKey]; return p; });
 
         if (counterpartStep?.slots?.length) {
-          // Counterpart already exists â€” just select the slot there
+          // Counterpart already exists — just select the slot there
           await selectRoutineSlot(analysis.id, counterpartStep.id, v2Tier);
         } else {
-          // No counterpart â€” create a new step in the other period with the same product
+          // No counterpart — create a new step in the other period with the same product
           const selectedSlot = currentStep.slots.find(sl => sl.isSelected);
           await addRoutineStep(analysis.id, {
             period: otherPeriod,
@@ -1721,7 +1721,7 @@ const Routine = () => {
 
   const editAllItems = useMemo(() => {
     const items = selectedPeriod === "morning" ? orderedItems.morning : orderedItems.night;
-    const label = selectedPeriod === "morning" ? "ManhÃ£" as const : "Noite" as const;
+    const label = selectedPeriod === "morning" ? "Manhã" as const : "Noite" as const;
     return items.map((i) => ({ ...i, _periodLabel: label }));
   }, [orderedItems.morning, orderedItems.night, selectedPeriod]);
 
@@ -1741,7 +1741,7 @@ const Routine = () => {
     >
       <AuroraBackdrop tone="warm" className="-z-10" />
 
-      {/* Banner de transiÃ§Ã£o manhÃ£ â†’ noite */}
+      {/* Banner de transição manhã → noite */}
       {isAdvancingToNight && (
         <motion.div
           initial={{ opacity: 0, y: -16 }}
@@ -1751,7 +1751,7 @@ const Routine = () => {
           style={{ background: "linear-gradient(135deg, #9aa8dc, #6366f1)", color: "white" }}
         >
           <Moon size={15} />
-          <span className="text-sm font-semibold">Ã“timo! Partindo para a rotina da noiteâ€¦</span>
+          <span className="text-sm font-semibold">Ótimo! Partindo para a rotina da noite…</span>
         </motion.div>
       )}
 
@@ -1774,7 +1774,7 @@ const Routine = () => {
                     Tem certeza que deseja remover <span className="font-semibold text-foreground">"{stepPendingDelete.name}"</span> da sua rotina?
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Esta aÃ§Ã£o nÃ£o pode ser desfeita.
+                    Esta ação não pode ser desfeita.
                   </p>
                 </div>
               </div>
@@ -1834,7 +1834,7 @@ const Routine = () => {
             <button
               onClick={() => setShowCalendar((v) => !v)}
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showCalendar ? "coral-button" : "liquiglass-button"}`}
-              aria-label="Abrir calendÃ¡rio"
+              aria-label="Abrir calendário"
             >
               <CalendarDays size={16} className={showCalendar ? "text-white" : "text-[var(--fg-ink)]"} />
             </button>
@@ -1934,7 +1934,7 @@ const Routine = () => {
             </div>
             {/* Weekday header */}
             <div className="grid grid-cols-7 mb-2">
-              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "SÃ¡b"].map((d) => (
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
                 <div key={d} className="text-center text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>{d}</div>
               ))}
             </div>
@@ -2003,7 +2003,7 @@ const Routine = () => {
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-warm-orange/10 border border-warm-orange/20">
             <AlertTriangle size={18} className="text-warm-orange flex-shrink-0" />
             <p className="text-xs font-semibold text-foreground">
-              Nenhuma anÃ¡lise salva foi encontrada. Esta Ã© uma rotina genÃ©rica atÃ© vocÃª rodar uma nova anÃ¡lise.
+              Nenhuma análise salva foi encontrada. Esta é uma rotina genérica até você rodar uma nova análise.
             </p>
           </div>
         )}
@@ -2012,7 +2012,7 @@ const Routine = () => {
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-primary/10 border border-primary/25">
             <AlertTriangle size={18} className="text-primary flex-shrink-0" />
             <p className="text-xs font-semibold text-foreground">
-              Sua rotina foi montada com base nos produtos recomendados da anÃ¡lise mais recente.
+              Sua rotina foi montada com base nos produtos recomendados da análise mais recente.
             </p>
           </div>
         )}
@@ -2043,7 +2043,7 @@ const Routine = () => {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-bold text-[var(--fg-ink)]">
-                    {selectedPeriod === "morning" ? "Rotina da manhÃ£" : "Rotina da noite"}
+                    {selectedPeriod === "morning" ? "Rotina da manhã" : "Rotina da noite"}
                   </h2>
                   {isRoutineComplete && (
                     <motion.span
@@ -2065,7 +2065,7 @@ const Routine = () => {
                 onClick={() => setSelectedPeriod(selectedPeriod === "morning" ? "night" : "morning")}
                 className="relative w-14 h-8 rounded-full transition-colors"
                 style={selectedPeriod === "night" ? { backgroundColor: "#9aa8dc" } : { background: "var(--grad-coral)" }}
-                title={selectedPeriod === "morning" ? "Mudar para Noite" : "Mudar para ManhÃ£"}
+                title={selectedPeriod === "morning" ? "Mudar para Noite" : "Mudar para Manhã"}
               >
                 <motion.div
                   animate={{ x: selectedPeriod === "night" ? 24 : 4 }}
@@ -2139,7 +2139,7 @@ const Routine = () => {
             </div>
           </div>
 
-          {/* Banner de conclusÃ£o */}
+          {/* Banner de conclusão */}
           <AnimatePresence>
             {completionBanner && (
               <motion.div
@@ -2156,7 +2156,7 @@ const Routine = () => {
                   transition={{ duration: 0.6, delay: 0.2 }}
                   className="text-xl flex-shrink-0"
                 >
-                  {selectedPeriod === "night" ? "ðŸŒ™" : "â˜€ï¸"}
+                  {selectedPeriod === "night" ? "🌙" : "☀️"}
                 </motion.span>
                 <p className="text-sm font-bold text-foreground">{completionBanner}</p>
               </motion.div>
@@ -2165,8 +2165,8 @@ const Routine = () => {
 
           {isFutureDay && (
             <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: "#FEF9EE", border: "1px solid #F59E0B33" }}>
-              <span className="text-lg">ðŸ”’</span>
-              <p className="text-xs font-semibold" style={{ color: "#92400E" }}>Rotinas futuras nÃ£o podem ser marcadas.</p>
+              <span className="text-lg">🔒</span>
+              <p className="text-xs font-semibold" style={{ color: "#92400E" }}>Rotinas futuras não podem ser marcadas.</p>
             </div>
           )}
 
@@ -2266,7 +2266,7 @@ const Routine = () => {
                       setTouchStartY((prev) => { const p = { ...prev }; delete p[item.key]; return p; });
                     }}
                   >
-                    {/* Skeleton enquanto produto estÃ¡ sendo salvo */}
+                    {/* Skeleton enquanto produto está sendo salvo */}
                     {savingProductItem && selectingProductItem === item.key ? (
                       <div className="flex items-center gap-3 p-3 animate-pulse">
                         <div className="w-[120px] h-[120px] rounded-xl bg-muted/60 flex-shrink-0" />
@@ -2304,7 +2304,7 @@ const Routine = () => {
                             </div>
                             {periodLabel && (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground">
-                                {periodLabel === "ManhÃ£" ? <Sun size={11} className="inline mr-0.5" /> : <Moon size={11} className="inline mr-0.5" />}
+                                {periodLabel === "Manhã" ? <Sun size={11} className="inline mr-0.5" /> : <Moon size={11} className="inline mr-0.5" />}
                                 {periodLabel}
                               </span>
                             )}
@@ -2327,7 +2327,7 @@ const Routine = () => {
                                       isActive ? "bg-primary text-white" : "border border-border/60 bg-background text-muted-foreground"
                                     }`}
                                   >
-                                    {p === "morning" && <><Sun size={9} />ManhÃ£</>}
+                                    {p === "morning" && <><Sun size={9} />Manhã</>}
                                     {p === "night" && <><Moon size={9} />Noite</>}
                                     {p === "both" && <><Sun size={9} /><Moon size={9} />Ambos</>}
                                   </button>
@@ -2383,7 +2383,7 @@ const Routine = () => {
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
-                              {item.stepNumber} Â· {capitalizeWords(item.stepLabel)}
+                              {item.stepNumber} · {capitalizeWords(item.stepLabel)}
                             </p>
                             <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold items-center gap-1" style={{ backgroundColor: "rgba(255,255,255,0.7)", color: "#9CA3AF" }}>
                               <Repeat2 size={11} />
@@ -2456,7 +2456,7 @@ const Routine = () => {
                           </div>
                         </div>
 
-                        {/* Check button â€” 44px touch target, spring animation */}
+                        {/* Check button — 44px touch target, spring animation */}
                         <motion.button
                           type="button"
                           onClick={(event) => {
@@ -2504,7 +2504,7 @@ const Routine = () => {
                             <div className="flex items-center gap-1.5">
                               <Crown size={13} className="text-amber-500" />
                               <p className="text-xs font-bold text-amber-600">
-                                {adminSearching ? "Buscando produto..." : adminMatchedProduct ? adminMatchedProduct.name : "Produto nÃ£o encontrado no banco"}
+                                {adminSearching ? "Buscando produto..." : adminMatchedProduct ? adminMatchedProduct.name : "Produto não encontrado no banco"}
                               </p>
                             </div>
                             <button onClick={() => setAdminEditingItem(null)} className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center">
@@ -2570,7 +2570,7 @@ const Routine = () => {
                           )}
 
                           {!adminSearching && !adminMatchedProduct && (
-                            <p className="text-[11px] text-muted-foreground">Este produto nÃ£o foi encontrado no catÃ¡logo do banco.</p>
+                            <p className="text-[11px] text-muted-foreground">Este produto não foi encontrado no catálogo do banco.</p>
                           )}
                         </div>
                       )}
@@ -2602,7 +2602,7 @@ const Routine = () => {
 
 
 
-                      {/* Product Selection (inline panel â€” only for legacy steps without slots) */}
+                      {/* Product Selection (inline panel — only for legacy steps without slots) */}
                       {selectingProductItem === item.key && hasRoutineFromAnalysis
                         && !apiSteps.find(s => s.id === item.key)?.slots?.length
                         && (() => {
@@ -2619,7 +2619,7 @@ const Routine = () => {
                             {/* Current/Primary Product - DESTAQUE (Produto selecionado atualmente) */}
                             {current && (
                               <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-2.5">
-                                <p className="text-[10px] uppercase tracking-widest font-bold text-primary mb-2">â— Produto Atual</p>
+                                <p className="text-[10px] uppercase tracking-widest font-bold text-primary mb-2">● Produto Atual</p>
                                 <div className="flex gap-2 items-start">
                                   {current.imageUrl && (
                                     <ProgressiveImage
@@ -2642,7 +2642,7 @@ const Routine = () => {
                           {/* Alternative Options */}
                           {options.length > 1 && (
                             <div>
-                              <p className="text-xs font-semibold text-muted-foreground mb-2">OpÃ§Ãµes de troca:</p>
+                              <p className="text-xs font-semibold text-muted-foreground mb-2">Opções de troca:</p>
                               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                                 {options.slice(1).map((option) => {
                                   const isPending = pendingOptionByItem[item.key] === option.key;
@@ -2699,7 +2699,7 @@ const Routine = () => {
                                   setCatalogSearchOpenByItem((prev) => ({ ...prev, [item.key]: true }));
                                 }}
                                 onFocus={() => setCatalogSearchOpenByItem((prev) => ({ ...prev, [item.key]: true }))}
-                                placeholder="Buscar produto no catÃ¡logo..."
+                                placeholder="Buscar produto no catálogo..."
                                 className="w-full h-9 rounded-xl border border-border/70 bg-background px-3 text-xs text-foreground"
                               />
                               {catalogSearchOpenByItem[item.key] && (() => {
@@ -2805,7 +2805,7 @@ const Routine = () => {
                                   )}
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-bold text-foreground truncate">{customProductByItem[item.key].name}</p>
-                                    <p className="text-[11px] text-primary font-semibold">Cadastrado âœ“</p>
+                                    <p className="text-[11px] text-primary font-semibold">Cadastrado ✓</p>
                                   </div>
                                 </div>
                               ) : (
@@ -2890,7 +2890,7 @@ const Routine = () => {
                             <p className="text-[11px] font-semibold text-muted-foreground">Aplicar em:</p>
                             <div className="grid grid-cols-3 gap-1.5">
                               {(["both", "morning", "night"] as const).map((scope) => {
-                                const scopeLabel = scope === "both" ? "ManhÃ£ e Noite" : scope === "morning" ? "SÃ³ ManhÃ£" : "SÃ³ Noite";
+                                const scopeLabel = scope === "both" ? "Manhã e Noite" : scope === "morning" ? "Só Manhã" : "Só Noite";
                                 const active = (pendingScopeByItem[item.key] ?? "both") === scope;
                                 return (
                                   <button
@@ -2929,7 +2929,7 @@ const Routine = () => {
                 );
               })}
 
-              {/* Empty state quando rotina nÃ£o tem passos */}
+              {/* Empty state quando rotina não tem passos */}
               {!stepsLoading && (isEditing ? editAllItems : activeChecklistItems).length === 0 && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -2937,14 +2937,14 @@ const Routine = () => {
                   className="lg-surface rounded-3xl p-8 flex flex-col items-center text-center gap-4"
                 >
                   <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#FEF3C7,#FED7AA)" }}>
-                    <span className="text-3xl">ðŸŒ¿</span>
+                    <span className="text-3xl">🌿</span>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground mb-1">
-                      {selectedPeriod === "morning" ? "Rotina da manhÃ£ vazia" : "Rotina da noite vazia"}
+                      {selectedPeriod === "morning" ? "Rotina da manhã vazia" : "Rotina da noite vazia"}
                     </p>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Ative o modo de ediÃ§Ã£o para adicionar passos personalizados Ã  sua rotina.
+                      Ative o modo de edição para adicionar passos personalizados à sua rotina.
                     </p>
                   </div>
                   {!isEditing && (
@@ -2959,7 +2959,7 @@ const Routine = () => {
                 </motion.div>
               )}
 
-              {/* Add Step button (edit mode) â€” opens bottom sheet */}
+              {/* Add Step button (edit mode) — opens bottom sheet */}
               {isEditing && (
                 <div className="space-y-3">
                   <button
@@ -3006,7 +3006,7 @@ const Routine = () => {
         </motion.div>
       </div>
 
-      {/* Product Switch Sheet â€” v2 bottom sheet, shows when step has slots[] */}
+      {/* Product Switch Sheet — v2 bottom sheet, shows when step has slots[] */}
       {(() => {
         const sheetItem = selectingProductItem
           ? [...orderedItems.morning, ...orderedItems.night].find(i => i.key === selectingProductItem)
@@ -3039,7 +3039,7 @@ const Routine = () => {
             onSave={() => saveProductSelection(sheetItem.key)}
             onCancel={() => cancelProductSelection(sheetItem.key)}
             onSaveCustom={(name, imageUrl) => {
-              // Persiste no banco como user_custom slot (nÃ£o apenas estado local)
+              // Persiste no banco como user_custom slot (não apenas estado local)
               void addCatalogProductToStep(sheetItem.key, { productName: name, imageUrl });
             }}
             onAddCatalogProduct={(productId, _name, _imageUrl) => {
@@ -3076,11 +3076,11 @@ const Routine = () => {
                 value={newStepLabel}
                 onChange={(e) => { setNewStepLabel(e.target.value); setNewStepLabelOpen(true); }}
                 onFocus={() => setNewStepLabelOpen(true)}
-                placeholder="Limpeza, SÃ©rum, Hidratante..."
+                placeholder="Limpeza, Sérum, Hidratante..."
                 className="w-full h-11 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               {newStepLabelOpen && (() => {
-                const suggestions = ["Limpeza","Hidratante","SÃ©rum","Protetor Solar","TÃ´nico","Esfoliante","MÃ¡scara","Contorno dos Olhos","Retinol","Ãcido"];
+                const suggestions = ["Limpeza","Hidratante","Sérum","Protetor Solar","Tônico","Esfoliante","Máscara","Contorno dos Olhos","Retinol","Ácido"];
                 const q = newStepLabel.toLowerCase().trim();
                 const filtered = suggestions.filter((s) => s.toLowerCase().includes(q));
                 const exactMatch = filtered.some((s) => s.toLowerCase() === q);
@@ -3119,7 +3119,7 @@ const Routine = () => {
                   onChange={(e) => { if (newStepProductFromCatalog) return; setNewStepProductSearch(e.target.value); setNewStepProduct(e.target.value); setNewStepProductOpen(true); }}
                   onFocus={() => { if (!newStepProductFromCatalog) setNewStepProductOpen(true); }}
                   readOnly={newStepProductFromCatalog}
-                  placeholder="Buscar produto da anÃ¡lise..."
+                  placeholder="Buscar produto da análise..."
                   className={`w-full h-11 rounded-xl border border-border/60 px-3 text-sm text-foreground pr-9 focus:outline-none focus:ring-2 focus:ring-primary/30 ${newStepProductFromCatalog ? "bg-muted cursor-default" : "bg-background"}`}
                 />
                 {newStepProductFromCatalog && (
@@ -3184,7 +3184,7 @@ const Routine = () => {
             <div>
               <label className={`text-xs font-semibold block mb-1.5 flex items-center gap-1 ${newStepProductFromCatalog ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
                 <Image size={12} /> Imagem (URL, opcional)
-                {newStepProductFromCatalog && <span className="text-[10px] italic ml-1">definida pelo catÃ¡logo</span>}
+                {newStepProductFromCatalog && <span className="text-[10px] italic ml-1">definida pelo catálogo</span>}
               </label>
               <input
                 value={newStepImage}
@@ -3214,19 +3214,19 @@ const Routine = () => {
               </div>
             )}
 
-            {/* PerÃ­odo */}
+            {/* Período */}
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">PerÃ­odo</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Período</label>
               {isNightOnlyCategory(newStepLabel) ? (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
                   <Moon size={14} className="text-indigo-500 flex-shrink-0" />
                   <span className="text-sm font-semibold text-indigo-700">Somente noite</span>
-                  <span className="text-xs text-indigo-400 ml-auto">Retinol e Ã¡cidos sÃ£o de uso noturno</span>
+                  <span className="text-xs text-indigo-400 ml-auto">Retinol e ácidos são de uso noturno</span>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   {([
-                    { value: "morning" as const, icon: <Sun size={13} />, label: "ManhÃ£" },
+                    { value: "morning" as const, icon: <Sun size={13} />, label: "Manhã" },
                     { value: "both"    as const, icon: <span className="flex gap-0.5"><Sun size={11} /><Moon size={11} /></span>, label: "Ambos" },
                     { value: "night"   as const, icon: <Moon size={13} />, label: "Noite" },
                   ] as const).map(({ value, icon, label }) => (
@@ -3250,12 +3250,12 @@ const Routine = () => {
               )}
             </div>
 
-            {/* FrequÃªncia */}
+            {/* Frequência */}
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">FrequÃªncia</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Frequência</label>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { value: "daily"    as const, label: "DiÃ¡rio" },
+                  { value: "daily"    as const, label: "Diário" },
                   { value: "2-3x_week" as const, label: "2-3x/semana" },
                   { value: "custom"   as const, label: "Personalizar" },
                 ] as const).map((opt) => (
@@ -3280,11 +3280,11 @@ const Routine = () => {
                 ))}
               </div>
 
-              {/* SeleÃ§Ã£o de dias especÃ­ficos â€” mostrado para 2-3x/semana (prÃ©-selecionado) e Personalizar */}
+              {/* Seleção de dias específicos — mostrado para 2-3x/semana (pré-selecionado) e Personalizar */}
               {(newStepRecurrence === "2-3x_week" || newStepRecurrence === "custom") && (
                 <div className="mt-2.5">
                   <p className="text-[11px] text-muted-foreground mb-1.5">
-                    {newStepRecurrence === "2-3x_week" ? "Dias padrÃ£o (Ter, Qui, Dom):" : "Selecione os dias:"}
+                    {newStepRecurrence === "2-3x_week" ? "Dias padrão (Ter, Qui, Dom):" : "Selecione os dias:"}
                   </p>
                   <div className="flex gap-1.5 flex-wrap">
                     {weekDays.map((d) => {
@@ -3314,11 +3314,11 @@ const Routine = () => {
 
             {/* Note */}
             <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">ObservaÃ§Ã£o (opcional)</label>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Observação (opcional)</label>
               <input
                 value={newStepNote}
                 onChange={(e) => setNewStepNote(e.target.value)}
-                placeholder="Ex: Usar somente Ã  noite"
+                placeholder="Ex: Usar somente à noite"
                 className="w-full h-11 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>

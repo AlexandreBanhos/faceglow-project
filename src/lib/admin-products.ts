@@ -77,15 +77,12 @@ export async function getAdminProducts(): Promise<AdminProduct[]> {
 export async function createAdminProduct(payload: CreateAdminProductPayload): Promise<AdminProduct> {
   const headers = await getHeaders();
   const response = await fetchWithTimeout(adminProductsUrl, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-    timeout: 60000,
+    method: "POST", headers, body: JSON.stringify(payload), timeout: 60000,
   });
   if (!response.ok) {
-    let errorMsg = `Failed to create product: ${response.statusText}`;
-    try { const e = await response.json(); errorMsg = e.error || errorMsg; } catch { /* noop */ }
-    throw new Error(errorMsg);
+    let msg = `Failed to create product: ${response.statusText}`;
+    try { const e = await response.json(); msg = e.error || msg; } catch { /* noop */ }
+    throw new Error(msg);
   }
   return response.json();
 }
@@ -93,15 +90,12 @@ export async function createAdminProduct(payload: CreateAdminProductPayload): Pr
 export async function updateAdminProduct(id: string, payload: CreateAdminProductPayload): Promise<AdminProduct> {
   const headers = await getHeaders();
   const response = await fetchWithTimeout(`${adminProductsUrl}/${id}`, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify(payload),
-    timeout: 60000,
+    method: "PUT", headers, body: JSON.stringify(payload), timeout: 60000,
   });
   if (!response.ok) {
-    let errorMsg = `Failed to update product: ${response.statusText}`;
-    try { const e = await response.json(); errorMsg = e.error || errorMsg; } catch { /* noop */ }
-    throw new Error(errorMsg);
+    let msg = `Failed to update product: ${response.statusText}`;
+    try { const e = await response.json(); msg = e.error || msg; } catch { /* noop */ }
+    throw new Error(msg);
   }
   return response.json();
 }
@@ -109,23 +103,19 @@ export async function updateAdminProduct(id: string, payload: CreateAdminProduct
 export async function deleteAdminProduct(id: string): Promise<void> {
   const headers = await getHeaders();
   const response = await fetchWithTimeout(`${adminProductsUrl}/${id}`, {
-    method: "DELETE",
-    headers,
-    timeout: 60000,
+    method: "DELETE", headers, timeout: 60000,
   });
   if (!response.ok) {
-    let errorMsg = `Failed to delete product: ${response.statusText}`;
-    try { const e = await response.json(); errorMsg = e.error || errorMsg; } catch { /* noop */ }
-    throw new Error(errorMsg);
+    let msg = `Failed to delete product: ${response.statusText}`;
+    try { const e = await response.json(); msg = e.error || msg; } catch { /* noop */ }
+    throw new Error(msg);
   }
 }
 
 export async function checkAdminAccess(signal?: AbortSignal): Promise<{ isAdmin: boolean }> {
   const headers = await getHeaders();
   const response = await fetchWithTimeout(`${apiBaseUrl}/admin/me`, {
-    headers,
-    timeout: 60000,
-    signal,
+    headers, timeout: 60000, signal,
   });
   if (!response.ok) throw new Error(`Not authorized: ${response.statusText}`);
   return response.json();
@@ -134,14 +124,12 @@ export async function checkAdminAccess(signal?: AbortSignal): Promise<{ isAdmin:
 export async function promoteUserToAdmin(targetUserId: string): Promise<{ message: string; isAdmin: boolean }> {
   const headers = await getHeaders();
   const response = await fetchWithTimeout(`${apiBaseUrl}/admin/promote/${targetUserId}`, {
-    method: "POST",
-    headers,
-    timeout: 60000,
+    method: "POST", headers, timeout: 60000,
   });
   if (!response.ok) {
-    let errorMsg = `Failed to promote user: ${response.statusText}`;
-    try { const e = await response.json(); errorMsg = e.error || errorMsg; } catch { /* noop */ }
-    throw new Error(errorMsg);
+    let msg = `Failed to promote user: ${response.statusText}`;
+    try { const e = await response.json(); msg = e.error || msg; } catch { /* noop */ }
+    throw new Error(msg);
   }
   return response.json();
 }
@@ -149,8 +137,7 @@ export async function promoteUserToAdmin(targetUserId: string): Promise<{ messag
 export async function searchAdminProducts(name: string): Promise<AdminProduct[]> {
   const headers = await getHeaders();
   const response = await fetchWithTimeout(`${adminProductsUrl}?search=${encodeURIComponent(name)}`, {
-    headers,
-    timeout: 15000,
+    headers, timeout: 15000,
   });
   if (!response.ok) throw new Error("Falha ao buscar produto");
   return response.json();
@@ -181,10 +168,7 @@ export async function patchAdminProductImage(id: string, imageUrl: string): Prom
   };
 
   const response = await fetchWithTimeout(`${adminProductsUrl}/${id}`, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify(payload),
-    timeout: 30000,
+    method: "PUT", headers, body: JSON.stringify(payload), timeout: 30000,
   });
   if (!response.ok) throw new Error("Falha ao atualizar produto");
   return response.json();
