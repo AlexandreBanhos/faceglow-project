@@ -30,8 +30,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Edit, Trash2, Plus, Search, Upload } from "lucide-react";
+import { Edit, Trash2, Plus, Search, Upload, Sparkles, RefreshCw, ExternalLink, CheckCircle2, AlertCircle, BarChart3 } from "lucide-react";
 import { uploadProductImage } from "@/lib/storage";
+import {
+  enrichProductPreview,
+  enrichAndSaveProduct,
+  type EnrichmentResult,
+} from "@/lib/admin-products";
 
 export function AdminProducts() {
   const navigate = useNavigate();
@@ -67,6 +72,10 @@ export function AdminProducts() {
     description: "",
   });
   const [sortBy, setSortBy] = useState<"sem-imagem" | "sem-descricao" | "padrao">("padrao");
+  const [isEnriching, setIsEnriching] = useState(false);
+  const [enrichResult, setEnrichResult] = useState<EnrichmentResult | null>(null);
+  const [enrichingRowId, setEnrichingRowId] = useState<string | null>(null);
+  const [bulkEnrichProgress, setBulkEnrichProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Check admin access on component mount
   useEffect(() => {
@@ -166,6 +175,89 @@ export function AdminProducts() {
       loadProducts();
     }
   }, [isAdmin, loadProducts]);
+
+  // Calcula % de completude de um produto
+  const getCompleteness = (p: AdminProduct) => {
+    const checks = [
+      !!p.name, !!p.brand, !!p.stepTypeKey, !!p.description, !!p.tagline,
+      !!p.primaryImageUrl, (p.compatibleSkinTypes?.length ?? 0) > 0,
+      (p.targetsConcerns?.length ?? 0) > 0, !!p.priceAvg,
+    ];
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  };
+
+  // Aplica resultado do Gemini no formulário (para revisão antes de salvar)
+  const applyEnrichToForm = (result: EnrichmentResult) => {
+    setFormData((prev) => ({
+      ...prev,
+      tagline: result.tagline || prev.tagline,
+      description: result.description || prev.description,
+      stepTypeKey: result.stepTypeKey || prev.stepTypeKey,
+      compatibleSkinTypes: result.compatibleSkinTypes?.length ? result.compatibleSkinTypes : prev.compatibleSkinTypes,
+      targetsConcerns: result.targetsConcerns?.length ? result.targetsConcerns : prev.targetsConcerns,
+      strengthLevel: result.strengthLevel || prev.strengthLevel,
+      suitablePeriods: result.suitablePeriods?.length ? result.suitablePeriods : prev.suitablePeriods,
+      priceRange: result.priceRange || prev.priceRange,
+      priceAvg: result.estimatedPriceBRL || prev.priceAvg,
+    }));
+    setEnrichResult(result);
+  };
+
+  // Preenche formulário com IA (preview — não salva ainda)
+  const handleEnrichForm = async () => {
+    if (!formData.name || !formData.brand) {
+      toast({ title: "Atenção", description: "Preencha Nome e Marca antes de usar a IA.", variant: "destructive" });
+      return;
+    }
+    setIsEnriching(true);
+    setEnrichResult(null);
+    try {
+      const result = await enrichProductPreview(formData.name, formData.brand);
+      applyEnrichToForm(result);
+      toast({ title: "✓ IA preencheu os dados", description: `Confiança: ${Math.round(result.confidence * 100)}%. Revise antes de salvar.` });
+    } catch (e) {
+      toast({ title: "Erro na IA", description: e instanceof Error ? e.message : "Tente novamente", variant: "destructive" });
+    } finally {
+      setIsEnriching(false);
+    }
+  };
+
+  // Enriquece um produto da tabela diretamente (salva campos vazios)
+  const handleEnrichRow = async (product: AdminProduct) => {
+    setEnrichingRowId(product.id);
+    try {
+      await enrichAndSaveProduct(product.id);
+      await loadProducts();
+      toast({ title: "✓ Produto enriquecido", description: `${product.name} foi atualizado com dados da IA.` });
+    } catch (e) {
+      toast({ title: "Erro", description: e instanceof Error ? e.message : "Falha ao enriquecer", variant: "destructive" });
+    } finally {
+      setEnrichingRowId(null);
+    }
+  };
+
+  // Enriquece em lote todos os produtos sem descrição
+  const handleBulkEnrich = async () => {
+    const toEnrich = products.filter((p) => !p.description);
+    if (toEnrich.length === 0) {
+      toast({ title: "Nenhum produto para enriquecer", description: "Todos já têm descrição." });
+      return;
+    }
+    setBulkEnrichProgress({ done: 0, total: toEnrich.length });
+    let done = 0;
+    for (const p of toEnrich) {
+      try {
+        await enrichAndSaveProduct(p.id);
+      } catch { /* continua para o próximo */ }
+      done++;
+      setBulkEnrichProgress({ done, total: toEnrich.length });
+      // Pausa de 1s entre chamadas para respeitar rate limit do Gemini
+      if (done < toEnrich.length) await new Promise((r) => setTimeout(r, 1200));
+    }
+    setBulkEnrichProgress(null);
+    await loadProducts();
+    toast({ title: `✓ ${done} produtos enriquecidos`, description: "Catálogo atualizado com dados da IA." });
+  };
 
   async function handleSubmit() {
     try {
@@ -307,15 +399,28 @@ export function AdminProducts() {
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl md:text-4xl font-bold text-slate-900">Catálogo de Produtos</h1>
-            <p className="text-sm md:text-base text-slate-600 mt-1">Gerencie todos os produtos da plataforma</p>
+            <p className="text-sm md:text-base text-slate-600 mt-1">
+              {products.length} produtos · {products.filter(p => p.primaryImageUrl).length} com imagem · {products.filter(p => p.description).length} com descrição
+            </p>
           </div>
-          <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <div className="flex flex-wrap gap-2">
+            {/* Bulk enrich */}
+            <Button
+              variant="outline"
+              onClick={handleBulkEnrich}
+              disabled={!!bulkEnrichProgress}
+              className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 text-xs md:text-sm"
+            >
+              {bulkEnrichProgress ? (
+                <><RefreshCw size={15} className="animate-spin" /> {bulkEnrichProgress.done}/{bulkEnrichProgress.total}</>
+              ) : (
+                <><Sparkles size={15} /> Enriquecer sem descrição ({products.filter(p => !p.description).length})</>
+              )}
+            </Button>
+            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
               <Button
-                onClick={() => {
-                  resetForm();
-                  setIsFormOpen(true);
-                }}
+                onClick={() => { resetForm(); setEnrichResult(null); setIsFormOpen(true); }}
                 className="gap-2 w-full md:w-auto"
               >
                 <Plus size={20} />
@@ -343,6 +448,43 @@ export function AdminProducts() {
                       className="bg-white text-sm"
                     />
                   </div>
+
+                  {/* Botão IA */}
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-purple-50 border border-purple-200">
+                    <Sparkles size={16} className="text-purple-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-purple-900">Preencher com IA (Gemini)</p>
+                      <p className="text-[10px] text-purple-600">Preencha Nome e Marca acima, depois clique</p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleEnrichForm}
+                      disabled={isEnriching || !formData.name || !formData.brand}
+                      className="bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1 flex-shrink-0"
+                    >
+                      {isEnriching ? <RefreshCw size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                      {isEnriching ? "Buscando..." : "Preencher"}
+                    </Button>
+                  </div>
+
+                  {/* Resultado da IA */}
+                  {enrichResult && (
+                    <div className="p-3 rounded-xl bg-green-50 border border-green-200 space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-green-600" />
+                        <p className="text-xs font-semibold text-green-800">
+                          IA preencheu com {Math.round(enrichResult.confidence * 100)}% de confiança
+                        </p>
+                      </div>
+                      {enrichResult.keyIngredients?.length > 0 && (
+                        <p className="text-[10px] text-green-700">
+                          Ingredientes: {enrichResult.keyIngredients.slice(0, 5).join(", ")}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-green-600">Revise os campos e clique em Salvar.</p>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-xs md:text-sm font-medium mb-2">Tagline</label>
@@ -568,6 +710,7 @@ export function AdminProducts() {
               </div>
           </DialogContent>
         </Dialog>
+          </div>
       </div>
 
       {/* Search and Filters */}
@@ -707,6 +850,38 @@ export function AdminProducts() {
                   </td>
                   <td className="px-4 md:px-6 py-3 md:py-4 text-right">
                     <div className="flex justify-end items-center gap-1 md:gap-2">
+                      {/* Completude */}
+                      <div className="hidden xl:flex items-center gap-1 mr-1">
+                        <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-green-500 transition-all"
+                               style={{ width: `${getCompleteness(product)}%` }} />
+                        </div>
+                        <span className="text-[10px] text-slate-400 w-7">{getCompleteness(product)}%</span>
+                      </div>
+                      {/* Link de busca de imagem */}
+                      {!product.primaryImageUrl && (
+                        <a
+                          href={`https://www.google.com/search?q=${encodeURIComponent(`${product.name} ${product.brand} produto skincare`)}&tbm=isch`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-md flex items-center justify-center text-orange-500 hover:bg-orange-50 transition-colors"
+                          title="Buscar imagem no Google"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                      )}
+                      {/* Enriquecer com IA */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEnrichRow(product)}
+                        disabled={enrichingRowId === product.id}
+                        className="h-8 w-8 text-purple-500 hover:text-purple-700 hover:bg-purple-50"
+                        title="Enriquecer com IA"
+                      >
+                        {enrichingRowId === product.id
+                          ? <RefreshCw size={14} className="animate-spin" />
+                          : <Sparkles size={14} />}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

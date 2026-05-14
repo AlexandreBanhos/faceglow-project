@@ -174,3 +174,46 @@ export async function patchAdminProductImage(id: string, imageUrl: string): Prom
   if (!response.ok) throw new Error("Falha ao atualizar produto");
   return response.json();
 }
+
+// ── Enriquecimento com IA ──────────────────────────────────────────────────
+
+export interface EnrichmentResult {
+  tagline?: string;
+  description?: string;
+  stepTypeKey?: string;
+  compatibleSkinTypes: string[];
+  targetsConcerns: string[];
+  strengthLevel?: string;
+  suitablePeriods: string[];
+  priceRange?: string;
+  estimatedPriceBRL?: number;
+  keyIngredients: string[];
+  inciList?: string;
+  confidence: number;
+}
+
+/** Busca dados do produto via Gemini sem salvar (para o admin revisar antes). */
+export async function enrichProductPreview(name: string, brand: string): Promise<EnrichmentResult> {
+  const headers = await getHeaders();
+  const response = await fetchWithTimeout(`${apiBaseUrl}/admin/products/enrich`, {
+    method: "POST", headers, body: JSON.stringify({ name, brand }), timeout: 30000,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({})) as Record<string, string>;
+    throw new Error(err.detail || err.error || `Gemini retornou ${response.status}`);
+  }
+  return response.json();
+}
+
+/** Busca via Gemini E aplica nos campos vazios do produto no banco. */
+export async function enrichAndSaveProduct(id: string): Promise<{ updated: boolean; result: EnrichmentResult }> {
+  const headers = await getHeaders();
+  const response = await fetchWithTimeout(`${apiBaseUrl}/admin/products/${id}/enrich`, {
+    method: "POST", headers, timeout: 30000,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({})) as Record<string, string>;
+    throw new Error(err.detail || err.error || `Gemini retornou ${response.status}`);
+  }
+  return response.json();
+}

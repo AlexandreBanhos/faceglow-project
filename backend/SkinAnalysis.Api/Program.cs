@@ -137,6 +137,7 @@ builder.Services.AddScoped<RoutineGeneratorService>();
 builder.Services.AddScoped<RoutineSuggestionService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<ProductEnrichmentService>();
 
 var app = builder.Build();
 

@@ -26,6 +26,13 @@ public static class ProductEndpoints
 
         app.MapDelete("/admin/products/{id:guid}", DeleteAdminProductHandler)
             .WithName("DeleteAdminProduct").WithOpenApi().RequireAuthorization();
+
+        // Enriquecimento com IA
+        app.MapPost("/admin/products/enrich", EnrichProductHandler)
+            .WithName("EnrichProduct").WithOpenApi().RequireAuthorization();
+
+        app.MapPost("/admin/products/{id:guid}/enrich", EnrichAndSaveProductHandler)
+            .WithName("EnrichAndSaveProduct").WithOpenApi().RequireAuthorization();
     }
 
     private static async Task<IResult> GetCatalogHandler(HttpContext ctx, AppDbContext db, CancellationToken ct)
@@ -193,5 +200,93 @@ public static class ProductEndpoints
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();
+    }
+
+    // ── Enriquecimento com IA ─────────────────────────────────────────────────
+
+    /// <summary>Busca dados do produto via Gemini sem salvar (preview para o admin revisar).</summary>
+    private static async Task<IResult> EnrichProductHandler(
+        EnrichmentRequest request, ClaimsPrincipal user, AdminService adminService,
+        ProductEnrichmentService enrichmentService, ILogger<Program> logger,
+        CancellationToken cancellationToken)
+    {
+        var userGuid = EndpointHelpers.GetAuthenticatedUserId(user);
+        if (!userGuid.HasValue) return Results.Unauthorized();
+
+        var isAdmin = await adminService.IsUserAdminAsync(userGuid.Value, cancellationToken);
+        if (!isAdmin) return Results.Forbid();
+
+        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Brand))
+            return Results.BadRequest(new { error = "Name e Brand são obrigatórios." });
+
+        try
+        {
+            var result = await enrichmentService.EnrichAsync(request.Name, request.Brand, cancellationToken);
+            if (result is null) return Results.Problem("Gemini não retornou dados estruturados para este produto.");
+            return Results.Ok(result);
+        }
+        catch (TimeoutException ex)
+        {
+            return Results.Problem(title: "Timeout", detail: ex.Message, statusCode: StatusCodes.Status408RequestTimeout);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[EnrichProduct] Error for '{Name}' ({Brand})", request.Name, request.Brand);
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    /// <summary>Busca dados via Gemini E atualiza os campos vazios do produto no banco.</summary>
+    private static async Task<IResult> EnrichAndSaveProductHandler(
+        Guid id, ClaimsPrincipal user, AdminService adminService,
+        AppDbContext dbContext, ProductEnrichmentService enrichmentService,
+        ILogger<Program> logger, CancellationToken cancellationToken)
+    {
+        var userGuid = EndpointHelpers.GetAuthenticatedUserId(user);
+        if (!userGuid.HasValue) return Results.Unauthorized();
+
+        var isAdmin = await adminService.IsUserAdminAsync(userGuid.Value, cancellationToken);
+        if (!isAdmin) return Results.Forbid();
+
+        var product = await dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        if (product is null) return Results.NotFound();
+
+        try
+        {
+            var result = await enrichmentService.EnrichAsync(product.Name, product.Brand, cancellationToken);
+            if (result is null) return Results.Problem("Gemini não retornou dados estruturados.");
+
+            // Só preenche campos que estão vazios/nulos (não sobrescreve dados já curados)
+            if (string.IsNullOrWhiteSpace(product.Description) && !string.IsNullOrWhiteSpace(result.Description))
+                product.Description = result.Description;
+            if (string.IsNullOrWhiteSpace(product.Tagline) && !string.IsNullOrWhiteSpace(result.Tagline))
+                product.Tagline = result.Tagline;
+            if (string.IsNullOrWhiteSpace(product.StepTypeKey) && !string.IsNullOrWhiteSpace(result.StepTypeKey))
+                product.StepTypeKey = result.StepTypeKey;
+            if (product.CompatibleSkinTypes.Length == 0 && result.CompatibleSkinTypes.Length > 0)
+                product.CompatibleSkinTypes = result.CompatibleSkinTypes;
+            if (product.TargetsConcerns.Length == 0 && result.TargetsConcerns.Length > 0)
+                product.TargetsConcerns = result.TargetsConcerns;
+            if (string.IsNullOrWhiteSpace(product.StrengthLevel) && !string.IsNullOrWhiteSpace(result.StrengthLevel))
+                product.StrengthLevel = result.StrengthLevel;
+            if (product.PriceAvg is null && result.EstimatedPriceBRL.HasValue)
+                product.PriceAvg = result.EstimatedPriceBRL;
+            if (string.IsNullOrWhiteSpace(product.PriceRange) && !string.IsNullOrWhiteSpace(result.PriceRange))
+                product.PriceRange = result.PriceRange;
+
+            product.UpdatedAt = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return Results.Ok(new { updated = true, product.Id, result });
+        }
+        catch (TimeoutException ex)
+        {
+            return Results.Problem(title: "Timeout", detail: ex.Message, statusCode: StatusCodes.Status408RequestTimeout);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[EnrichAndSave] Error for product {Id}", id);
+            return Results.Problem(detail: ex.Message, statusCode: StatusCodes.Status502BadGateway);
+        }
     }
 }
