@@ -199,52 +199,14 @@ const Dashboard = () => {
     return () => { cancelled = true; };
   }, [latestAnalysis?.id, location.pathname]); // location.pathname garante refresh ao voltar para o dashboard
 
-  // Efeito 3: Carregar imagem da última análise como avatar padrão (se usuário não tem avatar customizado)
+  // Efeito 3: Usar imageUrl da análise como avatar quando não há avatar customizado.
+  // Usa latestAnalysis já carregado — sem segunda chamada à API.
   useEffect(() => {
-    let mounted = true;
-
-    const loadLastAnalysisImage = async () => {
-      // Se já tem um avatar customizado, não sobrescrever com imagem de análise
-      if (avatarUrl && !avatarUrl.startsWith("blob:")) {
-        return;
-      }
-
-      try {
-        const summary = await fetchDashboardSummary(false);
-        if (!mounted) {
-          return;
-        }
-
-        if (summary.latest?.imageUrl) {
-          // Se não tem avatar customizado, pré-carregar imagem da última análise
-          if (!avatarUrl || avatarUrl.startsWith("blob:")) {
-            const img = new Image();
-            img.onload = () => {
-              if (mounted) {
-                setAvatarUrl(summary.latest.imageUrl);
-                setIsImageLoaded(false); // Reset para animação
-              }
-            };
-            img.onerror = () => {
-              console.warn("[Dashboard] Erro ao pré-carregar imagem:", summary.latest.imageUrl);
-            };
-            img.src = summary.latest.imageUrl;
-          }
-        }
-      } catch (error) {
-        console.error("[Dashboard] Erro ao carregar imagem da última análise:", error);
-        // Falha silenciosa - manter avatar anterior
-      }
-    };
-
-    if (userReady) {
-      loadLastAnalysisImage();
-    }
-
-    return () => {
-      mounted = false;
-    };
-  }, [userReady, avatarUrl]);
+    if (!latestAnalysis?.imageUrl) return;
+    if (avatarUrl && !avatarUrl.startsWith("blob:")) return; // respeita avatar customizado
+    setAvatarUrl(latestAnalysis.imageUrl);
+    setIsImageLoaded(false);
+  }, [latestAnalysis?.imageUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scoreChange = latestAnalysis && previousOverallScore !== null
     ? latestAnalysis.overallScore - previousOverallScore
