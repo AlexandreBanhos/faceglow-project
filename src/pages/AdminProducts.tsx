@@ -52,19 +52,18 @@ export function AdminProducts() {
 
   const [formData, setFormData] = useState<CreateAdminProductPayload>({
     name: "",
-    description: "",
     brand: "",
-    category: "",
-    skinTypes: [],
-    concerns: [],
-    actives: [],
-    strengthLevel: "leve",
-    period: [],
+    stepTypeKey: "",
+    compatibleSkinTypes: [],
+    targetsConcerns: [],
+    strengthLevel: "mild",
+    suitablePeriods: ["morning", "night"],
     priceRange: "medium",
     priceAvg: undefined,
-    priority: 100,
+    curationScore: 50,
     isActive: true,
     imageUrl: "",
+    tagline: "",
   });
 
   // Check admin access on component mount
@@ -108,7 +107,7 @@ export function AdminProducts() {
         (p) =>
           p.name.toLowerCase().includes(query) ||
           p.brand.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query)
+          (p.stepTypeKey || "").toLowerCase().includes(query)
       );
     }
 
@@ -197,21 +196,20 @@ export function AdminProducts() {
     setEditingId(product.id);
     setFormData({
       name: product.name,
-      description: product.description,
       brand: product.brand,
-      category: product.category,
-      skinTypes: product.skinTypes,
-      concerns: product.concerns,
-      actives: product.actives,
-      strengthLevel: product.strengthLevel,
-      period: product.period,
-      priceRange: product.priceRange,
+      stepTypeKey: product.stepTypeKey ?? "",
+      compatibleSkinTypes: product.compatibleSkinTypes ?? [],
+      targetsConcerns: product.targetsConcerns ?? [],
+      strengthLevel: product.strengthLevel ?? "mild",
+      suitablePeriods: product.suitablePeriods ?? ["morning", "night"],
+      priceRange: product.priceRange ?? "medium",
       priceAvg: product.priceAvg,
-      priority: product.priority,
+      curationScore: product.curationScore ?? 50,
       isActive: product.isActive,
-      imageUrl: product.imageUrl || "",
+      imageUrl: product.primaryImageUrl ?? "",
+      tagline: product.tagline ?? "",
     });
-    setImagePreview(product.imageUrl || "");
+    setImagePreview(product.primaryImageUrl ?? "");
     setIsFormOpen(true);
   }
 
@@ -219,19 +217,18 @@ export function AdminProducts() {
     setEditingId(null);
     setFormData({
       name: "",
-      description: "",
       brand: "",
-      category: "",
-      skinTypes: [],
-      concerns: [],
-      actives: [],
-      strengthLevel: "leve",
-      period: [],
+      stepTypeKey: "",
+      compatibleSkinTypes: [],
+      targetsConcerns: [],
+      strengthLevel: "mild",
+      suitablePeriods: ["morning", "night"],
       priceRange: "medium",
       priceAvg: undefined,
-      priority: 100,
+      curationScore: 50,
       isActive: true,
       imageUrl: "",
+      tagline: "",
     });
     setImagePreview("");
   }
@@ -329,18 +326,11 @@ export function AdminProducts() {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-medium mb-2">
-                      Descrição
-                    </label>
+                    <label className="block text-xs md:text-sm font-medium mb-2">Tagline</label>
                     <Input
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      placeholder="Descrição"
+                      value={formData.tagline ?? ""}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, tagline: e.target.value }))}
+                      placeholder="Ex: Hidratação profunda sem oleosidade"
                       className="bg-white text-sm"
                     />
                   </div>
@@ -350,26 +340,19 @@ export function AdminProducts() {
                       <label className="block text-xs md:text-sm font-medium mb-2">Brand</label>
                       <Input
                         value={formData.brand}
-                        onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, brand: e.target.value }))
-                        }
-                        placeholder="Brand"
+                        onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))}
+                        placeholder="Ex: La Roche-Posay"
                         className="bg-white text-sm"
                       />
                     </div>
                     <div>
                       <label className="block text-xs md:text-sm font-medium mb-2">
-                        Categoria
+                        Step Type (categoria)
                       </label>
                       <Input
-                        value={formData.category}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            category: e.target.value,
-                          }))
-                        }
-                        placeholder="Categoria"
+                        value={formData.stepTypeKey}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, stepTypeKey: e.target.value }))}
+                        placeholder="Ex: hidratante, protetor_solar"
                         className="bg-white text-sm"
                       />
                     </div>
@@ -377,18 +360,14 @@ export function AdminProducts() {
 
                   <div className="grid grid-cols-2 gap-2 md:gap-4">
                     <div>
-                      <label className="block text-xs md:text-sm font-medium mb-2">
-                        Preço Médio
-                      </label>
+                      <label className="block text-xs md:text-sm font-medium mb-2">Preço Médio (R$)</label>
                       <Input
                         type="number"
                         value={formData.priceAvg || ""}
                         onChange={(e) =>
                           setFormData((prev) => ({
                             ...prev,
-                            priceAvg: e.target.value
-                              ? parseFloat(e.target.value)
-                              : undefined,
+                            priceAvg: e.target.value ? parseFloat(e.target.value) : undefined,
                           }))
                         }
                         placeholder="0.00"
@@ -398,15 +377,17 @@ export function AdminProducts() {
                     </div>
                     <div>
                       <label className="block text-xs md:text-sm font-medium mb-2">
-                        Prioridade
+                        Score de curadoria (0-100)
                       </label>
                       <Input
                         type="number"
-                        value={formData.priority}
+                        min={0}
+                        max={100}
+                        value={formData.curationScore}
                         onChange={(e) =>
                           setFormData((prev) => ({
                             ...prev,
-                            priority: parseInt(e.target.value) || 100,
+                            curationScore: parseInt(e.target.value) || 50,
                           }))
                         }
                         className="bg-white text-sm"
@@ -511,8 +492,8 @@ export function AdminProducts() {
                       {/* Informações */}
                       <div className="p-4 space-y-3">
                         <div>
-                          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Categoria</p>
-                          <p className="text-xs text-slate-600 mt-0.5">{formData.category || "—"}</p>
+                          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Step Type</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{formData.stepTypeKey || "—"}</p>
                         </div>
 
                         <div>
@@ -531,8 +512,8 @@ export function AdminProducts() {
                             </p>
                           </div>
                           <div className="bg-slate-50 p-2 rounded">
-                            <p className="text-xs text-slate-500">Prioridade</p>
-                            <p className="font-semibold text-slate-900 text-sm">{formData.priority}</p>
+                            <p className="text-xs text-slate-500">Score</p>
+                            <p className="font-semibold text-slate-900 text-sm">{formData.curationScore}</p>
                           </div>
                         </div>
 
@@ -658,9 +639,9 @@ export function AdminProducts() {
                     </span>
                   </td>
                   <td className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm">
-                    {product.imageUrl && (
+                    {product.primaryImageUrl && (
                       <img
-                        src={product.imageUrl}
+                        src={product.primaryImageUrl}
                         alt={product.name}
                         className="h-10 w-10 md:h-12 md:w-12 rounded-lg object-cover border border-slate-200"
                         onError={(e) => {
@@ -731,9 +712,9 @@ export function AdminProducts() {
           paginatedProducts.map((product) => (
             <div key={product.id} className="bg-white rounded-lg border border-slate-200 p-3 space-y-2">
               <div className="flex gap-3">
-                {product.imageUrl && (
+                {product.primaryImageUrl && (
                   <img
-                    src={product.imageUrl}
+                    src={product.primaryImageUrl}
                     alt={product.name}
                     className="h-16 w-16 rounded-lg object-cover border border-slate-200 flex-shrink-0"
                     onError={(e) => {

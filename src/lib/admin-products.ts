@@ -26,37 +26,38 @@ async function fetchWithTimeout(
 export interface AdminProduct {
   id: string;
   name: string;
-  description: string;
   brand: string;
-  category: string;
-  skinTypes: string[];
-  concerns: string[];
-  actives: string[];
+  stepTypeKey: string;
+  description?: string;
+  tagline?: string;
+  compatibleSkinTypes: string[];
+  targetsConcerns: string[];
   strengthLevel: string;
-  period: string[];
-  priceRange: string;
+  suitablePeriods: string[];
+  priceRange?: string;
   priceAvg?: number;
-  priority: number;
+  curationScore: number;
   isActive: boolean;
-  imageUrl?: string;
+  /** URL computada pelo backend a partir de images[0] */
+  primaryImageUrl?: string;
+  images?: Array<{ id: string; publicUrl: string; position: number }>;
   createdAt: string;
 }
 
 export interface CreateAdminProductPayload {
   name: string;
-  description: string;
   brand: string;
-  category: string;
-  skinTypes: string[];
-  concerns: string[];
-  actives: string[];
+  stepTypeKey: string;
+  compatibleSkinTypes: string[];
+  targetsConcerns: string[];
   strengthLevel: string;
-  period: string[];
-  priceRange: string;
+  suitablePeriods: string[];
+  priceRange?: string;
   priceAvg?: number;
-  priority: number;
+  curationScore: number;
   isActive: boolean;
   imageUrl?: string;
+  tagline?: string;
 }
 
 async function getHeaders() {
@@ -150,20 +151,19 @@ export async function patchAdminProductImage(id: string, imageUrl: string): Prom
   const product = allProducts.find((p) => p.id === id);
   if (!product) throw new Error("Produto não encontrado");
 
-  const payload = {
+  const payload: CreateAdminProductPayload = {
     name: product.name,
-    description: product.description ?? "",
     brand: product.brand ?? "",
-    category: product.category ?? "",
-    skinTypes: product.skinTypes ?? [],
-    concerns: product.concerns ?? [],
-    actives: product.actives ?? [],
-    strengthLevel: product.strengthLevel ?? "low",
-    period: product.period ?? [],
+    stepTypeKey: product.stepTypeKey ?? "",
+    compatibleSkinTypes: product.compatibleSkinTypes ?? [],
+    targetsConcerns: product.targetsConcerns ?? [],
+    strengthLevel: product.strengthLevel ?? "mild",
+    suitablePeriods: product.suitablePeriods ?? ["morning", "night"],
     priceRange: product.priceRange ?? "medium",
     priceAvg: product.priceAvg,
-    priority: product.priority ?? 0,
+    curationScore: product.curationScore ?? 50,
     isActive: product.isActive,
+    tagline: product.tagline,
     imageUrl,
   };
 
