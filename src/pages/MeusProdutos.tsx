@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+﻿import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen, Pencil, Lightbulb, Check, Sun, Moon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,18 +12,18 @@ import { toast } from "@/components/ui/sonner";
 import { AuroraBackdrop } from "@/components/shared";
 
 const CATEGORIES = [
-  "Limpeza", "Hidratante", "Sérum", "Protetor Solar", "Tônico",
-  "Esfoliante", "Máscara", "Contorno dos Olhos", "Retinol", "Ácido",
+  "Limpeza", "Hidratante", "SÃ©rum", "Protetor Solar", "TÃ´nico",
+  "Esfoliante", "MÃ¡scara", "Contorno dos Olhos", "Retinol", "Ãcido",
 ];
 
 // Fallback images por categoria
 const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
   "Retinol": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263050155-fojzlv.png",
-  "Ácido": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263050155-fojzlv.png",
-  "Tônico": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263016335-s8ggzz.png",
+  "Ãcido": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263050155-fojzlv.png",
+  "TÃ´nico": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263016335-s8ggzz.png",
   "Protetor Solar": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224363237-e81o0d.png",
   "Hidratante": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224296863-0qst29.png",
-  "Sérum": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224156505-c7bgop.png",
+  "SÃ©rum": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224156505-c7bgop.png",
   "Limpeza": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224112164-r15mn9.png",
 };
 
@@ -178,7 +178,7 @@ export default function MeusProdutos() {
             });
             setProductsInUse(inUse);
           }
-        } catch { /* falha silenciosa — não crítico */ }
+        } catch { /* falha silenciosa â€” nÃ£o crÃ­tico */ }
         
         setLoadingProducts(false);
       } else {
@@ -338,7 +338,7 @@ export default function MeusProdutos() {
                 </div>
                 <div>
                   <p className="font-bold text-foreground">Nenhum produto cadastrado</p>
-                  <p className="text-sm text-muted-foreground mt-1">Adicione os produtos que você tem em casa para organizar sua rotina.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Adicione os produtos que vocÃª tem em casa para organizar sua rotina.</p>
                 </div>
                 <button
                   onClick={openAdd}
@@ -413,7 +413,7 @@ export default function MeusProdutos() {
                       value={categorySearch}
                       onChange={(e) => { setCategorySearch(e.target.value); setForm((prev) => ({ ...prev, category: e.target.value })); setCategoryOpen(true); }}
                       onFocus={() => setCategoryOpen(true)}
-                      placeholder="Limpeza, Sérum, Hidratante..."
+                      placeholder="Limpeza, SÃ©rum, Hidratante..."
                       className="w-full h-9 rounded-lg border border-border/70 bg-background px-3 text-xs text-foreground"
                     />
                     {categoryOpen && categorySuggestions.length > 0 && (
@@ -435,11 +435,11 @@ export default function MeusProdutos() {
 
                   {/* Note */}
                   <div>
-                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">Observação (opcional)</label>
+                    <label className="text-[11px] font-semibold text-muted-foreground block mb-1">ObservaÃ§Ã£o (opcional)</label>
                     <input
                       value={form.note}
                       onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-                      placeholder="Ex: Uso à noite, pele seca"
+                      placeholder="Ex: Uso Ã  noite, pele seca"
                       className="w-full h-9 rounded-lg border border-border/70 bg-background px-3 text-xs text-foreground"
                     />
                   </div>
@@ -450,7 +450,7 @@ export default function MeusProdutos() {
                       disabled={!form.name.trim() || saving}
                       className="coral-button flex-1 h-10 rounded-xl text-xs font-bold disabled:opacity-40"
                     >
-                      {saving ? "Salvando..." : editingId ? "Salvar alterações" : "Cadastrar produto"}
+                      {saving ? "Salvando..." : editingId ? "Salvar alteraÃ§Ãµes" : "Cadastrar produto"}
                     </button>
                     <button onClick={() => setShowForm(false)} className="h-10 px-4 rounded-xl border border-border/60 bg-background text-xs font-semibold text-foreground">
                       Cancelar
@@ -508,7 +508,7 @@ export default function MeusProdutos() {
                         ) : (
                           <div className="flex items-center gap-0.5 mt-2 w-full">
                             <button
-                              title="Adicionar à manhã"
+                              title="Adicionar Ã  manhÃ£"
                               disabled={addingToRoutine[p.id]}
                               onClick={() => handleAddToRoutine(p.name, p.imageUrl, p.category, "morning", p.id)}
                               className="flex-1 h-6 rounded-l-md border border-border/50 bg-background flex items-center justify-center hover:bg-amber-50 transition-colors"
@@ -516,7 +516,7 @@ export default function MeusProdutos() {
                               <Sun size={11} className="text-amber-500" />
                             </button>
                             <button
-                              title="Adicionar à noite"
+                              title="Adicionar Ã  noite"
                               disabled={addingToRoutine[p.id]}
                               onClick={() => handleAddToRoutine(p.name, p.imageUrl, p.category, "night", p.id)}
                               className="flex-1 h-6 border-y border-border/50 bg-background flex items-center justify-center hover:bg-indigo-50 transition-colors"
@@ -524,7 +524,7 @@ export default function MeusProdutos() {
                               <Moon size={11} className="text-indigo-500" />
                             </button>
                             <button
-                              title="Adicionar às duas rotinas"
+                              title="Adicionar Ã s duas rotinas"
                               disabled={addingToRoutine[p.id]}
                               onClick={() => handleAddToRoutine(p.name, p.imageUrl, p.category, "both", p.id)}
                               className="flex-1 h-6 border border-border/50 bg-background flex items-center justify-center gap-0.5 hover:bg-primary/5 transition-colors"
@@ -566,14 +566,14 @@ export default function MeusProdutos() {
                   <Lightbulb size={36} className="text-primary/60" />
                 </div>
                 <div>
-                  <p className="font-bold text-foreground">Nenhuma recomendação disponível</p>
-                  <p className="text-sm text-muted-foreground mt-1">Realize uma análise de pele para receber recomendações personalizadas de produtos.</p>
+                  <p className="font-bold text-foreground">Nenhuma recomendaÃ§Ã£o disponÃ­vel</p>
+                  <p className="text-sm text-muted-foreground mt-1">Realize uma anÃ¡lise de pele para receber recomendaÃ§Ãµes personalizadas de produtos.</p>
                 </div>
                 <button
                   onClick={() => navigate("/analysis")}
                   className="coral-button h-11 px-6 rounded-full text-sm font-bold text-white"
                 >
-                  Fazer análise
+                  Fazer anÃ¡lise
                 </button>
               </motion.div>
             ) : (
@@ -655,7 +655,7 @@ export default function MeusProdutos() {
                                 ) : (
                                   <div className="flex items-center gap-0.5 mt-1.5 w-full">
                                     {(recPeriod === "morning" || recPeriod === "both") && (
-                                      <button title="Manhã" disabled={addingToRoutine[recId]}
+                                      <button title="ManhÃ£" disabled={addingToRoutine[recId]}
                                         onClick={() => handleAddToRoutine(p.product, p.imageUrl, p.type ?? "", "morning", recId)}
                                         className="flex-1 h-5 rounded-l-md border border-border/50 bg-white flex items-center justify-center hover:bg-amber-50">
                                         <Sun size={10} className="text-amber-500" />

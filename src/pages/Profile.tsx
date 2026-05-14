@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronRight, LogOut, Shield, Bell, HelpCircle, Sparkles, Pencil, Lock, TrendingUp, Flame, Trophy, Coins, Settings, PackageOpen, ScanFace, ArrowLeft } from "lucide-react";
@@ -126,12 +126,12 @@ const Profile = () => {
     };
   }, [userReady]);
 
-  // Efeito 3: Carregar imagem da última análise como avatar padrão (se usuário não tem avatar customizado)
+  // Efeito 3: Carregar imagem da Ãºltima anÃ¡lise como avatar padrÃ£o (se usuÃ¡rio nÃ£o tem avatar customizado)
   useEffect(() => {
     let mounted = true;
 
     const loadLastAnalysisImage = async () => {
-      // Se tem avatar customizado, não sobrescrever
+      // Se tem avatar customizado, nÃ£o sobrescrever
       if (isCustomAvatar) return;
 
       try {
@@ -157,7 +157,7 @@ const Profile = () => {
     };
   }, [userReady, isCustomAvatar]);
 
-  // Efeito 4: Carregar perfil da pele e catálogo
+  // Efeito 4: Carregar perfil da pele e catÃ¡logo
   useEffect(() => {
     setSkinProfile(getSkinProfile());
     getCurrentUser().then((user) => {
@@ -190,9 +190,9 @@ const Profile = () => {
     olheiras: "Olheiras",
     poros: "Poros dilatados",
     manchas: "Manchas",
-    labiosRessecados: "Lábios ressecados",
+    labiosRessecados: "LÃ¡bios ressecados",
     linhasFinas: "Linhas finas",
-    vermelhidao: "Vermelhidão",
+    vermelhidao: "VermelhidÃ£o",
     espinhasAtivas: "Espinhas ativas",
     cravos: "Cravos",
     ressecamento: "Ressecamento",
@@ -227,8 +227,8 @@ const Profile = () => {
   const baseMenuItems: MenuItem[] = [
     { label: "Alterar dados e foto", icon: <Pencil size={18} className="text-foreground" />, onClick: () => navigate("/profile/edit") },
     { label: "Alterar senha", icon: <Lock size={18} className="text-foreground" />, onClick: () => navigate("/profile/password") },
-    { label: "Notificações", icon: <Bell size={18} className="text-foreground" />, onClick: () => undefined },
-    { label: "Privacidade e Segurança", icon: <Shield size={18} className="text-foreground" />, onClick: () => undefined },
+    { label: "NotificaÃ§Ãµes", icon: <Bell size={18} className="text-foreground" />, onClick: () => undefined },
+    { label: "Privacidade e SeguranÃ§a", icon: <Shield size={18} className="text-foreground" />, onClick: () => undefined },
     { label: "Ajuda e Suporte", icon: <HelpCircle size={18} className="text-foreground" />, onClick: () => undefined },
   ];
 
@@ -320,14 +320,14 @@ const Profile = () => {
               </svg>
             );
           })()}
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mt-1">Sequência</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mt-1">SequÃªncia</p>
         </div>
 
         {/* Demais stats */}
         {[
-          { label: "Análises", value: totalAnalyses.toString(), icon: TrendingUp },
+          { label: "AnÃ¡lises", value: totalAnalyses.toString(), icon: TrendingUp },
           { label: "Melhor Score", value: bestScore.toString(), icon: Trophy },
-          { label: "Créditos", value: creditsRemaining.toString(), icon: Coins },
+          { label: "CrÃ©ditos", value: creditsRemaining.toString(), icon: Coins },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
@@ -504,7 +504,7 @@ const Profile = () => {
               {hasActivePlan ? "Meu plano" : "Desbloqueie o Premium"}
             </p>
             <p className="text-xs opacity-80 font-medium">
-              {hasActivePlan ? "Sobre sua assinatura e recursos" : "Análises ilimitadas e rotinas exclusivas"}
+              {hasActivePlan ? "Sobre sua assinatura e recursos" : "AnÃ¡lises ilimitadas e rotinas exclusivas"}
             </p>
           </div>
           <ChevronRight size={18} />

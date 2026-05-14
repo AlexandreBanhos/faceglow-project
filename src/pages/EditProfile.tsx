@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+﻿import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Camera, Save } from "lucide-react";
@@ -50,12 +50,12 @@ const EditProfile = () => {
     };
   }, []);
 
-  // Carregar imagem da última análise como avatar padrão
+  // Carregar imagem da Ãºltima anÃ¡lise como avatar padrÃ£o
   useEffect(() => {
     let mounted = true;
 
     const loadLastAnalysisImage = async () => {
-      // Se tem avatar customizado, não sobrescrever
+      // Se tem avatar customizado, nÃ£o sobrescrever
       if (isCustomAvatar) {
         return;
       }
@@ -67,21 +67,21 @@ const EditProfile = () => {
         }
 
         if (dashboard.latest?.imageUrl && !avatarUrl) {
-          // Pré-carregar a imagem para evitar piscar
+          // PrÃ©-carregar a imagem para evitar piscar
           const img = new Image();
           img.onload = () => {
             if (mounted) {
               setAvatarUrl(dashboard.latest.imageUrl);
-              setIsImageLoaded(false); // Reset para animação
+              setIsImageLoaded(false); // Reset para animaÃ§Ã£o
             }
           };
           img.onerror = () => {
-            console.warn("[EditProfile] Erro ao pré-carregar imagem:", dashboard.latest.imageUrl);
+            console.warn("[EditProfile] Erro ao prÃ©-carregar imagem:", dashboard.latest.imageUrl);
           };
           img.src = dashboard.latest.imageUrl;
         }
       } catch (error) {
-        console.error("[EditProfile] Erro ao carregar imagem da última análise:", error);
+        console.error("[EditProfile] Erro ao carregar imagem da Ãºltima anÃ¡lise:", error);
       }
     };
 
@@ -118,7 +118,7 @@ const EditProfile = () => {
         throw new Error(error.message);
       }
 
-      // Pré-carregar a imagem antes de atualizar state
+      // PrÃ©-carregar a imagem antes de atualizar state
       const img = new Image();
       img.onload = () => {
         setAvatarUrl(publicUrl);
@@ -207,12 +207,11 @@ const EditProfile = () => {
                   animate={{ opacity: isImageLoaded ? 1 : 0 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                   onLoad={() => {
-                    console.debug("[EditProfile] Imagem do avatar carregada com sucesso");
                     setIsImageLoaded(true);
                   }}
                   onError={(e) => {
                     console.warn("[EditProfile] Erro ao carregar imagem do avatar:", avatarUrl);
-                    setAvatarUrl(""); // Limpa para voltar à letra
+                    setAvatarUrl(""); // Limpa para voltar Ã  letra
                   }}
                 />
               )}

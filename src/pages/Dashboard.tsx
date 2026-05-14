@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Camera, TrendingUp, Droplets, Sun, Moon, ChevronRight, Check, Flame, Lock } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -90,7 +90,7 @@ const Dashboard = () => {
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
   const [routineSteps, setRoutineSteps] = useState<Array<{ id: string; period: string; productName: string }>>([]);
 
-  // Efeito 1: Carregar dados do usuário
+  // Efeito 1: Carregar dados do usuÃ¡rio
   useEffect(() => {
     let mounted = true;
 
@@ -139,7 +139,7 @@ const Dashboard = () => {
         const summary = await staleWhileRevalidate(
           'dashboard-summary',
           () => fetchDashboardSummary(true),
-          true // força refresh a cada navegação para refletir alterações de rotina
+          true // forÃ§a refresh a cada navegaÃ§Ã£o para refletir alteraÃ§Ãµes de rotina
         );
 
         if (!mounted) return;
@@ -165,9 +165,9 @@ const Dashboard = () => {
     };
   }, [location.pathname]);
 
-  // Premium status é lido diretamente do UserContext (já hidratado pelo RequireAuth)
+  // Premium status Ã© lido diretamente do UserContext (jÃ¡ hidratado pelo RequireAuth)
 
-  // Efeito 2.6a: Carregar steps da rotina (muda apenas quando análise muda)
+  // Efeito 2.6a: Carregar steps da rotina (muda apenas quando anÃ¡lise muda)
   useEffect(() => {
     if (!latestAnalysis?.id) return;
     let cancelled = false;
@@ -177,7 +177,7 @@ const Dashboard = () => {
     return () => { cancelled = true; };
   }, [latestAnalysis?.id]);
 
-  // Efeito 2.6b: Progresso do dia — recarrega TODA VEZ que o usuário navega ao Dashboard
+  // Efeito 2.6b: Progresso do dia â€” recarrega TODA VEZ que o usuÃ¡rio navega ao Dashboard
   useEffect(() => {
     if (!latestAnalysis?.id) return;
     let cancelled = false;
@@ -199,8 +199,8 @@ const Dashboard = () => {
     return () => { cancelled = true; };
   }, [latestAnalysis?.id, location.pathname]); // location.pathname garante refresh ao voltar para o dashboard
 
-  // Efeito 3: Usar imageUrl da análise como avatar quando não há avatar customizado.
-  // Usa latestAnalysis já carregado — sem segunda chamada à API.
+  // Efeito 3: Usar imageUrl da anÃ¡lise como avatar quando nÃ£o hÃ¡ avatar customizado.
+  // Usa latestAnalysis jÃ¡ carregado â€” sem segunda chamada Ã  API.
   useEffect(() => {
     if (!latestAnalysis?.imageUrl) return;
     if (avatarUrl && !avatarUrl.startsWith("blob:")) return; // respeita avatar customizado
@@ -220,7 +220,7 @@ const Dashboard = () => {
     if (t.includes("oleo") || t === "oily")        return { bg: "#FEF3C7", color: "#D97706", label: "Oleosa",     dot: "#F59E0B" };
     if (t.includes("sec") || t === "dry")           return { bg: "#EFF6FF", color: "#2563EB", label: "Seca",       dot: "#3B82F6" };
     if (t.includes("mist") || t === "combination")  return { bg: "#F5F3FF", color: "#7C3AED", label: "Mista",      dot: "#8B5CF6" };
-    if (t.includes("sens"))                         return { bg: "#FFF1F2", color: "#E11D48", label: "Sensível",   dot: "#F43F5E" };
+    if (t.includes("sens"))                         return { bg: "#FFF1F2", color: "#E11D48", label: "SensÃ­vel",   dot: "#F43F5E" };
     if (t.includes("norm") || t === "normal")       return { bg: "#F0FDF4", color: "#16A34A", label: "Normal",     dot: "#22C55E" };
     return null;
   })();
@@ -235,7 +235,7 @@ const Dashboard = () => {
 
     const completedSet = new Set(completedStepIds);
 
-    // Lê localStorage para respeitar desmarques feitos na página Routine
+    // LÃª localStorage para respeitar desmarques feitos na pÃ¡gina Routine
     // antes que o backend processe o DELETE de completion
     const localOverrides: Record<string, boolean> = {};
     try {
@@ -254,7 +254,7 @@ const Dashboard = () => {
       }
     } catch { /* ignora erros de localStorage */ }
 
-    // Fonte primária: steps estruturados da API v2 (mais confiável que string-parsing)
+    // Fonte primÃ¡ria: steps estruturados da API v2 (mais confiÃ¡vel que string-parsing)
     const periodSteps = routineSteps.filter(s => s.period === currentPeriod);
     if (periodSteps.length > 0) {
       const items = periodSteps.map(s => {
@@ -291,7 +291,7 @@ const Dashboard = () => {
 
   const motivationText = (() => {
     if (!latestAnalysis) {
-      return "Faça sua primeira analise para desbloquear uma rotina personalizada.";
+      return "FaÃ§a sua primeira analise para desbloquear uma rotina personalizada.";
     }
 
     if (routineSummary.total === 0) {
@@ -299,7 +299,7 @@ const Dashboard = () => {
     }
 
     if (routineSummary.pending === 0) {
-      return `${periodLabel} concluída! Sua pele agradece consistência todos os dias.`;
+      return `${periodLabel} concluÃ­da! Sua pele agradece consistÃªncia todos os dias.`;
     }
 
     if (routineSummary.pending === 1) {
@@ -309,7 +309,7 @@ const Dashboard = () => {
     return `Voce tem ${routineSummary.pending} passos pendentes nesta ${periodLabel.toLowerCase()}. Complete agora e mantenha o progresso.`;
   })();
 
-  // Se ainda está carregando e não tem dados, mostra spinner
+  // Se ainda estÃ¡ carregando e nÃ£o tem dados, mostra spinner
   if (isLoading && !latestAnalysis) {
     return <LoadingSpinnerFullScreen message="Carregando seu dashboard..." />;
   }
@@ -329,10 +329,10 @@ const Dashboard = () => {
         >
           <div>
             <p className="fg-mono text-xs text-[var(--fg-ink-3)] font-medium">
-              QUARTA · 28 ABR
+              QUARTA Â· 28 ABR
             </p>
             <h1 className="text-2xl font-bold text-[var(--fg-ink)] mt-1">
-              {firstName ? `Olá, ${firstName}` : "Olá"}
+              {firstName ? `OlÃ¡, ${firstName}` : "OlÃ¡"}
             </h1>
           </div>
           <button
@@ -357,7 +357,7 @@ const Dashboard = () => {
                 }}
                 onError={(e) => {
                   console.warn("[Dashboard] Erro ao carregar imagem do avatar:", avatarUrl);
-                  setAvatarUrl(""); // Limpa para voltar à letra
+                  setAvatarUrl(""); // Limpa para voltar Ã  letra
                 }}
               />
             )}
@@ -432,11 +432,11 @@ const Dashboard = () => {
                     <TrendingUp size={10} className="text-white" />
                   </div>
                   <span className="text-xs font-semibold" style={{ color: scoreChange >= 0 ? "#16A34A" : "#DC2626" }}>
-                    {scoreChange > 0 ? "+" : ""}{scoreChange} desde última análise
+                    {scoreChange > 0 ? "+" : ""}{scoreChange} desde Ãºltima anÃ¡lise
                   </span>
                 </motion.div>
               ) : (
-                <p className="text-xs text-[var(--fg-ink-4)]">Primeira análise registrada</p>
+                <p className="text-xs text-[var(--fg-ink-4)]">Primeira anÃ¡lise registrada</p>
               )}
             </div>
 
@@ -525,7 +525,7 @@ const Dashboard = () => {
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold text-[var(--fg-ink)]">
-                  Desbloqueie sua análise completa
+                  Desbloqueie sua anÃ¡lise completa
                 </h2>
                 <p className="text-sm text-[var(--fg-ink-3)] mt-1 leading-relaxed">
                   Assine Premium para ver todos os produtos e sua rotina personalizada.
@@ -541,11 +541,11 @@ const Dashboard = () => {
               </div>
               <div className="flex items-center gap-2.5">
                 <Check size={16} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm text-[var(--fg-ink)]">Rotina personalizada (manhã e noite)</span>
+                <span className="text-sm text-[var(--fg-ink)]">Rotina personalizada (manhÃ£ e noite)</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Check size={16} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm text-[var(--fg-ink)]">Análise completa com detalhes</span>
+                <span className="text-sm text-[var(--fg-ink)]">AnÃ¡lise completa com detalhes</span>
               </div>
             </div>
 
@@ -624,7 +624,7 @@ const Dashboard = () => {
                     {item.title}
                   </p>
                   <p className="text-xs text-[var(--fg-ink-3)]">
-                    {item.done ? "Concluído" : "Pendente"}
+                    {item.done ? "ConcluÃ­do" : "Pendente"}
                   </p>
                 </div>
               </motion.div>
@@ -636,18 +636,18 @@ const Dashboard = () => {
                 className="lg-surface p-6 rounded-2xl flex flex-col items-center text-center gap-3"
               >
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FEF3C7, #FED7AA)" }}>
-                  <span className="text-2xl">✨</span>
+                  <span className="text-2xl">âœ¨</span>
                 </div>
                 <div>
                   <p className="text-sm font-bold text-[var(--fg-ink)] mb-1">Sua rotina vai aparecer aqui</p>
-                  <p className="text-xs text-[var(--fg-ink-3)] leading-relaxed">Faça uma análise facial para receber uma rotina personalizada para o seu tipo de pele.</p>
+                  <p className="text-xs text-[var(--fg-ink-3)] leading-relaxed">FaÃ§a uma anÃ¡lise facial para receber uma rotina personalizada para o seu tipo de pele.</p>
                 </div>
                 <button
                   onClick={() => navigate("/analyze")}
                   className="mt-1 px-4 py-2 rounded-xl text-xs font-bold text-white"
                   style={{ background: "var(--grad-coral)" }}
                 >
-                  Fazer análise agora
+                  Fazer anÃ¡lise agora
                 </button>
               </motion.div>
             )}

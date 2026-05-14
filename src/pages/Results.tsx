@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+﻿import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Ellipsis, BookOpen, Droplets, Zap, Sun, Eye, AlertTriangle, Gift, Lock, Sparkles, CheckCircle2 } from "lucide-react";
@@ -68,7 +68,7 @@ const Results = () => {
       })
       .catch((err) => {
         console.error("[Results] Failed to load billing status:", err);
-        // Sem assinatura (404) ou erro de rede: manter bloqueado por segurança
+        // Sem assinatura (404) ou erro de rede: manter bloqueado por seguranÃ§a
         setHasPlan(false);
         setIsPremiumBlocked(true);
       });
@@ -89,7 +89,7 @@ const Results = () => {
   }, [analysis]);
 
   /**
-   * Aguarda a conclusão da rotina chamando o endpoint de criação de forma assíncrona
+   * Aguarda a conclusÃ£o da rotina chamando o endpoint de criaÃ§Ã£o de forma assÃ­ncrona
    */
   const waitForRoutineCompletion = async (analysisId: string, token: string, maxWaitMs = 60000) => {
     const startTime = Date.now();
@@ -125,7 +125,7 @@ const Results = () => {
       }
     }
 
-    throw new Error("Timeout aguardando criação da rotina (60s)");
+    throw new Error("Timeout aguardando criaÃ§Ã£o da rotina (60s)");
   };
 
   const handleLoadRoutine = async () => {
@@ -134,35 +134,35 @@ const Results = () => {
     setRoutineState("loading");
     
     try {
-      // Garantir que a análise sempre será passada
+      // Garantir que a anÃ¡lise sempre serÃ¡ passada
       const analysisToPass = analysis || parseStoredAnalysis() || getCachedLatestAnalysis();
       if (!analysisToPass?.id) {
-        console.error("[Results] Nenhuma análise disponível para rotina");
+        console.error("[Results] Nenhuma anÃ¡lise disponÃ­vel para rotina");
         setRoutineState("idle");
         return;
       }
 
       const token = await getAccessToken();
       if (!token) {
-        console.error("[Results] Sem token para buscar análise completa");
+        console.error("[Results] Sem token para buscar anÃ¡lise completa");
         setRoutineState("idle");
         return;
       }
 
-      // 1️⃣ Check if routine steps already exist for this analysis
+      // 1ï¸âƒ£ Check if routine steps already exist for this analysis
       const stepsCheck = await fetch(`${apiBaseUrl}/analysis/${analysisToPass.id}/steps`, {
         headers: { "Authorization": `Bearer ${token}` },
       });
       if (stepsCheck.ok) {
         const existingSteps = await stepsCheck.json() as unknown[];
         if (existingSteps.length > 0) {
-          // Routine already exists — navigate directly without regenerating
+          // Routine already exists â€” navigate directly without regenerating
           navigate("/routine", { state: { analysis: analysisToPass } });
           return;
         }
       }
 
-      // 2️⃣ No existing routine — generate one (only for this analysis's profile)
+      // 2ï¸âƒ£ No existing routine â€” generate one (only for this analysis's profile)
       const createResponse = await fetch(`${apiBaseUrl}${apiRoutes.analysis}/${analysisToPass.id}/routine`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
@@ -173,7 +173,7 @@ const Results = () => {
         try {
           updatedAnalysis = await waitForRoutineCompletion(analysisToPass.id, token);
         } catch (pollError) {
-          console.warn("[Results] Timeout ou erro no polling, usando análise do cache:", pollError);
+          console.warn("[Results] Timeout ou erro no polling, usando anÃ¡lise do cache:", pollError);
           const getResponse = await fetch(`${apiBaseUrl}${apiRoutes.analysis}/${analysisToPass.id}`, {
             headers: { "Authorization": `Bearer ${token}` },
           });
@@ -185,7 +185,7 @@ const Results = () => {
         }
 
         const fullAnalysis = normalizeAnalysis(updatedAnalysis);
-        if (!fullAnalysis) throw new Error("Falha ao normalizar análise completa");
+        if (!fullAnalysis) throw new Error("Falha ao normalizar anÃ¡lise completa");
 
         navigate("/routine", { state: { analysis: fullAnalysis } });
       } else {
@@ -193,10 +193,10 @@ const Results = () => {
       }
     } catch (error) {
       console.error("[Results] Erro ao criar rotina:", error);
-      // Fallback: navegue mesmo assim com a análise que tem
+      // Fallback: navegue mesmo assim com a anÃ¡lise que tem
       const analysisToPass = analysis || parseStoredAnalysis() || getCachedLatestAnalysis();
       if (analysisToPass) {
-        console.warn("[Results] Navegando para rotina com fallback (análise sem routine criada)");
+        console.warn("[Results] Navegando para rotina com fallback (anÃ¡lise sem routine criada)");
         navigate("/routine", { state: { analysis: analysisToPass } });
       }
     } finally {
@@ -218,15 +218,15 @@ const Results = () => {
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
-          <p className="text-base font-bold text-foreground">Nenhuma análise encontrada</p>
+          <p className="text-base font-bold text-foreground">Nenhuma anÃ¡lise encontrada</p>
           <p className="text-sm text-muted-foreground max-w-xs">
-            Faça uma nova análise para carregar os resultados reais da API.
+            FaÃ§a uma nova anÃ¡lise para carregar os resultados reais da API.
           </p>
           <button
             onClick={() => navigate("/analyze")}
             className="px-5 py-3 rounded-2xl coral-button font-semibold"
           >
-            Ir para Análise
+            Ir para AnÃ¡lise
           </button>
         </div>
       </div>
@@ -254,11 +254,11 @@ const Results = () => {
     { label: "Oleosidade", value: analysis.scores.oiliness ?? 0 },
     { label: "Manchas", value: analysis.scores.darkSpots ?? 0 },
     { label: "Sensibilidade", value: analysis.scores.sensitivity ?? 0 },
-    { label: "Hidratação", value: analysis.scores.hydration ?? 0 },
+    { label: "HidrataÃ§Ã£o", value: analysis.scores.hydration ?? 0 },
     ...(analysis.scores.poros ? [{ label: "Poros", value: analysis.scores.poros }] : []),
     ...(analysis.scores.olheiras ? [{ label: "Olheiras", value: analysis.scores.olheiras }] : []),
     ...(analysis.scores.linhasFinas ? [{ label: "Linhas finas", value: analysis.scores.linhasFinas }] : []),
-    ...(analysis.scores.vermelhidao ? [{ label: "Vermelhidão", value: analysis.scores.vermelhidao }] : []),
+    ...(analysis.scores.vermelhidao ? [{ label: "VermelhidÃ£o", value: analysis.scores.vermelhidao }] : []),
     ...(analysis.scores.espinhasAtivas ? [{ label: "Espinhas ativas", value: analysis.scores.espinhasAtivas }] : []),
     ...(analysis.scores.cravos ? [{ label: "Cravos", value: analysis.scores.cravos }] : []),
   ].filter((m) => m.value > 0);
@@ -284,7 +284,7 @@ const Results = () => {
     ...(analysis.scores.poros !== undefined ? [{ label: "Poros", value: analysis.scores.poros * 10, icon: <AlertTriangle size={16} /> }] : []),
     ...(analysis.scores.olheiras !== undefined ? [{ label: "Olheiras", value: analysis.scores.olheiras * 10, icon: <Eye size={16} /> }] : []),
     ...(analysis.scores.linhasFinas !== undefined ? [{ label: "Linhas finas", value: analysis.scores.linhasFinas * 10, icon: <Sparkles size={16} /> }] : []),
-    ...(analysis.scores.vermelhidao !== undefined ? [{ label: "Vermelhidão", value: analysis.scores.vermelhidao * 10, icon: <AlertTriangle size={16} /> }] : []),
+    ...(analysis.scores.vermelhidao !== undefined ? [{ label: "VermelhidÃ£o", value: analysis.scores.vermelhidao * 10, icon: <AlertTriangle size={16} /> }] : []),
   ];
 
   const detectedConditions = [
@@ -292,9 +292,9 @@ const Results = () => {
     { key: "olheiras", label: "Olheiras", active: analysis.conditions?.olheiras },
     { key: "poros", label: "Poros dilatados", active: analysis.conditions?.poros },
     { key: "manchas", label: "Manchas", active: analysis.conditions?.manchas },
-    { key: "labios", label: "Lábios ressecados", active: analysis.conditions?.labiosRessecados },
+    { key: "labios", label: "LÃ¡bios ressecados", active: analysis.conditions?.labiosRessecados },
     { key: "linhas_finas", label: "Linhas finas", active: analysis.conditions?.linhasFinas },
-    { key: "vermelhidao", label: "Vermelhidão", active: analysis.conditions?.vermelhidao },
+    { key: "vermelhidao", label: "VermelhidÃ£o", active: analysis.conditions?.vermelhidao },
     { key: "espinhas_ativas", label: "Espinhas ativas", active: analysis.conditions?.espinhasAtivas },
     { key: "cravos", label: "Cravos", active: analysis.conditions?.cravos },
     { key: "ressecamento", label: "Ressecamento", active: analysis.conditions?.ressecamento },
@@ -304,7 +304,7 @@ const Results = () => {
   const extraRecommendations = analysis.recommendations.filter((item) => /extra|adicional/i.test(item.type));
   const primaryRecommendations = analysis.recommendations.filter((item) => !/extra|adicional/i.test(item.type));
   
-  // Mapeamento de keys de condições para keys de scores
+  // Mapeamento de keys de condiÃ§Ãµes para keys de scores
   const conditionToScoreMap: Record<string, keyof typeof analysis.scores> = {
     acne: "acne",
     olheiras: "olheiras",
@@ -316,7 +316,7 @@ const Results = () => {
     cravos: "cravos",
   };
   
-  // Filtre apenas as condições ativas que têm score/impacto > 0
+  // Filtre apenas as condiÃ§Ãµes ativas que tÃªm score/impacto > 0
   const impactfulConditions = activeConditions.filter((condition) => {
     const scoreKey = conditionToScoreMap[condition.key];
     const scoreValue = scoreKey ? analysis.scores[scoreKey] : 0;
@@ -336,22 +336,22 @@ const Results = () => {
   ].filter(Boolean) as string[];
   const extraReasonsText = extraReasonCandidates.slice(0, 3).join(", ");
 
-  // Gerar insight dinamicamente baseado nos scores reais (não no summary do backend que pode estar desatualizado)
+  // Gerar insight dinamicamente baseado nos scores reais (nÃ£o no summary do backend que pode estar desatualizado)
   const generateInsight = () => {
     const issuesList: string[] = [];
     
     if (analysis.scores.olheiras && analysis.scores.olheiras > 0) issuesList.push("olheiras");
-    if (analysis.scores.poros && analysis.scores.poros > 0) issuesList.push("poros visíveis");
+    if (analysis.scores.poros && analysis.scores.poros > 0) issuesList.push("poros visÃ­veis");
     if (analysis.scores.oiliness && analysis.scores.oiliness > 0) issuesList.push("oleosidade");
     if (analysis.scores.acne && analysis.scores.acne > 0) issuesList.push("acne");
     if (analysis.scores.darkSpots && analysis.scores.darkSpots > 0) issuesList.push("manchas");
     if (analysis.scores.linhasFinas && analysis.scores.linhasFinas > 0) issuesList.push("linhas finas");
     if (analysis.scores.hydration && analysis.scores.hydration < 3) issuesList.push("ressecamento");
     if (analysis.scores.sensitivity && analysis.scores.sensitivity > 5) issuesList.push("sensibilidade");
-    if (analysis.scores.vermelhidao && analysis.scores.vermelhidao > 0) issuesList.push("vermelhidão");
+    if (analysis.scores.vermelhidao && analysis.scores.vermelhidao > 0) issuesList.push("vermelhidÃ£o");
     
     if (issuesList.length === 0) {
-      return "A pele apresenta um perfil saudável. Mantenha uma rotina consistente para manter os resultados.";
+      return "A pele apresenta um perfil saudÃ¡vel. Mantenha uma rotina consistente para manter os resultados.";
     }
     
     // Construir frase baseada nos problemas detectados
@@ -391,7 +391,7 @@ const Results = () => {
           <ArrowLeft size={18} className="text-foreground" />
         </button>
         <div className="mx-auto rounded-full border border-border/70 bg-background/75 px-4 py-2 text-xs font-bold text-foreground backdrop-blur-xl">
-          Sua análise concluída
+          Sua anÃ¡lise concluÃ­da
         </div>
         <button className="w-10 h-10 rounded-2xl liquiglass-button flex items-center justify-center">
           <Ellipsis size={16} className="text-foreground" />
@@ -411,10 +411,10 @@ const Results = () => {
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-3 font-medium">
-          {confidence}% de confiança na análise
+          {confidence}% de confianÃ§a na anÃ¡lise
         </p>
 
-        {/* Mini metric donuts — top 3 scores */}
+        {/* Mini metric donuts â€” top 3 scores */}
         {metricCards.length > 0 && (
           <div className="mt-5 flex items-center justify-center gap-4 w-full">
             {metricCards.map((m, i) => {
@@ -464,7 +464,7 @@ const Results = () => {
         >
           <AlertTriangle size={18} className="text-warm-orange flex-shrink-0" />
           <p className="text-xs font-semibold text-foreground">
-            Confiança baixa. Por favor, revise os resultados e ajuste se necessário.
+            ConfianÃ§a baixa. Por favor, revise os resultados e ajuste se necessÃ¡rio.
           </p>
         </motion.div>
       )}
@@ -484,7 +484,7 @@ const Results = () => {
         />
       </motion.div>
 
-      {/* Premium upsell — imediatamente após o card de tipo de pele, só quando bloqueado */}
+      {/* Premium upsell â€” imediatamente apÃ³s o card de tipo de pele, sÃ³ quando bloqueado */}
       {isPremiumBlocked && (
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -496,20 +496,20 @@ const Results = () => {
         </motion.div>
       )}
 
-      {/* Voltar ao Início — logo após o card premium quando bloqueado */}
+      {/* Voltar ao InÃ­cio â€” logo apÃ³s o card premium quando bloqueado */}
       {isPremiumBlocked && (
         <button
           onClick={() => navigate("/dashboard")}
           className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base mb-8"
         >
-          Voltar ao Início
+          Voltar ao InÃ­cio
         </button>
       )}
 
       {/* Premium Content - All remaining analysis details */}
       {isPremiumBlocked ? (
         <div className="mb-4 hidden">
-          {/* Blur layer kept but hidden — real upsell card is rendered below */}
+          {/* Blur layer kept but hidden â€” real upsell card is rendered below */}
           <div className="blur-lg pointer-events-none select-none space-y-6">
             {/* RESULTADO - Moved to top and renamed */}
             <motion.div
@@ -520,7 +520,7 @@ const Results = () => {
             >
               <h3 className="text-sm font-bold text-[var(--fg-ink)] mb-3">Resultado</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                Sua análise facial está pronta. Idade da pele: <span className="font-bold text-foreground">{skinAge} anos</span>.
+                Sua anÃ¡lise facial estÃ¡ pronta. Idade da pele: <span className="font-bold text-foreground">{skinAge} anos</span>.
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {insight}
@@ -539,7 +539,7 @@ const Results = () => {
               )}
             </motion.div>
 
-            {/* PONTOS DE MELHORIA - Métricas com scores > 0 */}
+            {/* PONTOS DE MELHORIA - MÃ©tricas com scores > 0 */}
             {metrics.filter((m) => m.value > 0).length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -564,7 +564,7 @@ const Results = () => {
               </motion.div>
             )}
 
-            {/* PONTOS POSITIVOS - Métricas com scores = 0 */}
+            {/* PONTOS POSITIVOS - MÃ©tricas com scores = 0 */}
             {metrics.filter((m) => m.value === 0).length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -572,7 +572,7 @@ const Results = () => {
                 transition={{ delay: 0.65 }}
                 className="lg-surface p-5 rounded-2xl"
               >
-                <h3 className="text-sm font-bold text-[var(--fg-ink)] mb-4">✅ Pontos Positivos</h3>
+                <h3 className="text-sm font-bold text-[var(--fg-ink)] mb-4">âœ… Pontos Positivos</h3>
                 <div className="flex flex-wrap gap-2">
                   {metrics
                     .filter((m) => m.value === 0)
@@ -648,7 +648,7 @@ const Results = () => {
                           key={i}
                           onClick={() => carouselApi?.scrollTo(i)}
                           className={`h-1.5 rounded-full transition-all duration-300 ${i === carouselCurrent ? "w-4 bg-primary" : "w-1.5 bg-primary/25"}`}
-                          aria-label={`Ir para página ${i + 1}`}
+                          aria-label={`Ir para pÃ¡gina ${i + 1}`}
                         />
                       ))}
                     </div>
@@ -670,7 +670,7 @@ const Results = () => {
                       </AccordionTrigger>
                       <AccordionContent className="pt-3">
                         <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                          Indicados para: {extraReasonsText || "olheiras, textura e equilíbrio da pele"}.
+                          Indicados para: {extraReasonsText || "olheiras, textura e equilÃ­brio da pele"}.
                         </p>
                         <Carousel opts={{ align: "start", loop: extraRecommendations.length > 1 }} className="w-full">
                           <CarouselContent className="-ml-2">
@@ -698,10 +698,10 @@ const Results = () => {
             </motion.div>
           </div>
 
-          {/* (hidden — modal rendered below) */}
+          {/* (hidden â€” modal rendered below) */}
         </div>
       ) : (
-        /* Content não bloqueado */
+        /* Content nÃ£o bloqueado */
         <div className="mb-8 space-y-6">
           {/* RESULTADO - Moved to top and renamed */}
           <motion.div
@@ -731,7 +731,7 @@ const Results = () => {
             )}
           </motion.div>
 
-          {/* PONTOS DE MELHORIA - Métricas com scores > 0 */}
+          {/* PONTOS DE MELHORIA - MÃ©tricas com scores > 0 */}
           {metrics.filter((m) => m.value > 0).length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -756,7 +756,7 @@ const Results = () => {
             </motion.div>
           )}
 
-          {/* PONTOS POSITIVOS - Métricas com scores = 0 */}
+          {/* PONTOS POSITIVOS - MÃ©tricas com scores = 0 */}
           {metrics.filter((m) => m.value === 0).length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -764,7 +764,7 @@ const Results = () => {
               transition={{ delay: 0.65 }}
               className="glass-card p-5"
             >
-              <h3 className="text-sm font-bold text-foreground mb-4">Pontos não identificados</h3>
+              <h3 className="text-sm font-bold text-foreground mb-4">Pontos nÃ£o identificados</h3>
               <div className="flex flex-wrap gap-2">
                 {metrics
                   .filter((m) => m.value === 0)
@@ -825,7 +825,7 @@ const Results = () => {
                     </AccordionTrigger>
                     <AccordionContent className="pt-3">
                       <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                        Indicados para: {extraReasonsText || "olheiras, textura e equilíbrio da pele"}.
+                        Indicados para: {extraReasonsText || "olheiras, textura e equilÃ­brio da pele"}.
                       </p>
                       <Carousel opts={{ align: "start", loop: extraRecommendations.length > 1 }} className="w-full">
                         <CarouselContent className="-ml-2">
@@ -876,7 +876,7 @@ const Results = () => {
                     <Sparkles size={18} /> Ver rotina completa
                   </button>
                   <p className="text-center text-xs text-muted-foreground">
-                    Análise anterior — a rotina reflete sempre a análise mais recente
+                    AnÃ¡lise anterior â€” a rotina reflete sempre a anÃ¡lise mais recente
                   </p>
                   <button
                     onClick={() => navigate("/routine")}
@@ -907,11 +907,11 @@ const Results = () => {
             </button>
           );
         })()}
-        {/* Voltar ao Início só aparece no footer quando não é premium-bloqueado */}
+        {/* Voltar ao InÃ­cio sÃ³ aparece no footer quando nÃ£o Ã© premium-bloqueado */}
         {!isPremiumBlocked && (
           <button onClick={() => navigate("/dashboard")}
             className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base">
-            Voltar ao Início
+            Voltar ao InÃ­cio
           </button>
         )}
       </div>

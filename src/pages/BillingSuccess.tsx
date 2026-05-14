@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, Clock, LoaderCircle, Sparkles, XCircle, Zap, Gift } from "lucide-react";
@@ -35,7 +35,7 @@ const BillingSuccess = () => {
   );
   const planName = useMemo(() => {
     const plan = searchParams.get("plan");
-    if (plan === "credits") return "Análise Avulsa";
+    if (plan === "credits") return "AnÃ¡lise Avulsa";
     if (plan === "monthly") return "Plano Mensal";
     if (plan === "quarterly") return "Plano Trimestral";
     if (plan === "annual") return "Plano Anual";
@@ -72,12 +72,12 @@ const BillingSuccess = () => {
             }
           } catch {
             // Credits fetch failed, but subscription is active so continue
-            console.warn("Falha ao carregar quantidade de créditos");
+            console.warn("Falha ao carregar quantidade de crÃ©ditos");
           }
           return;
         }
 
-        // After MAX_POLL_MS stop insisting — webhook will confirm async
+        // After MAX_POLL_MS stop insisting â€” webhook will confirm async
         const elapsed = pollCount.current * POLL_INTERVAL_MS;
         if (elapsed >= MAX_POLL_MS) {
           setState("timeout");
@@ -88,7 +88,7 @@ const BillingSuccess = () => {
               setCreditsRemaining(credits);
             }
           } catch {
-            console.warn("Falha ao carregar quantidade de créditos");
+            console.warn("Falha ao carregar quantidade de crÃ©ditos");
           }
           return;
         }
@@ -111,7 +111,7 @@ const BillingSuccess = () => {
               setCreditsRemaining(credits);
             }
           } catch {
-            console.warn("Falha ao carregar quantidade de créditos");
+            console.warn("Falha ao carregar quantidade de crÃ©ditos");
           }
         }
       }
@@ -179,7 +179,7 @@ const BillingSuccess = () => {
         >
           {isActive && (
             <>
-              <h1 className="text-2xl font-extrabold text-foreground">Pagamento confirmado! 🎉</h1>
+              <h1 className="text-2xl font-extrabold text-foreground">Pagamento confirmado! ðŸŽ‰</h1>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Seu <strong>{planName}</strong> foi ativado com sucesso.
               </p>
@@ -196,7 +196,7 @@ const BillingSuccess = () => {
                     <Zap size={20} className="text-accent" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Créditos disponíveis</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">CrÃ©ditos disponÃ­veis</p>
                     <p className="text-lg font-black text-foreground">
                       {creditsRemaining !== null ? creditsRemaining : `+${creditsToAdd}`}
                     </p>
@@ -210,7 +210,7 @@ const BillingSuccess = () => {
             <>
               <h1 className="text-2xl font-extrabold text-foreground">Processando pagamento...</h1>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Seu pagamento foi recebido. Aguardando confirmação automática.
+                Seu pagamento foi recebido. Aguardando confirmaÃ§Ã£o automÃ¡tica.
               </p>
             </>
           )}
@@ -218,7 +218,7 @@ const BillingSuccess = () => {
             <>
               <h1 className="text-2xl font-extrabold text-foreground">Pagamento recebido</h1>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                O pagamento foi processado com sucesso. Os créditos serão liberados automaticamente em instantes — você receberá a confirmação e pode verificar na tela de <strong>Perfil</strong>.
+                O pagamento foi processado com sucesso. Os crÃ©ditos serÃ£o liberados automaticamente em instantes â€” vocÃª receberÃ¡ a confirmaÃ§Ã£o e pode verificar na tela de <strong>Perfil</strong>.
               </p>
             </>
           )}
@@ -239,7 +239,7 @@ const BillingSuccess = () => {
               className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-glow"
             >
               <Sparkles size={18} />
-              Iniciar análise agora
+              Iniciar anÃ¡lise agora
             </motion.button>
           )}
 
@@ -255,7 +255,7 @@ const BillingSuccess = () => {
             }`}
           >
             <Zap size={18} />
-            {isActive ? "Ver meus créditos" : "Ver meus créditos"}
+            {isActive ? "Ver meus crÃ©ditos" : "Ver meus crÃ©ditos"}
           </motion.button>
 
           <motion.button
@@ -265,7 +265,7 @@ const BillingSuccess = () => {
             onClick={() => navigate("/dashboard")}
             className="w-full py-3 rounded-2xl border border-border/70 text-sm font-semibold text-muted-foreground active:scale-[0.97] transition-transform hover:border-border"
           >
-            ← Voltar ao início
+            â† Voltar ao inÃ­cio
           </motion.button>
         </motion.div>
       </div>

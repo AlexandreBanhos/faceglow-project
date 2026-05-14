@@ -1,4 +1,4 @@
-import { apiClient } from "@/shared/services/api/ApiClient";
+﻿import { apiClient } from "@/shared/services/api/ApiClient";
 import { getAccessTokenWithWait } from "@/lib/auth";
 
 export type BillingPlanKey = "test" | "credits" | "monthly" | "quarterly" | "annual";
@@ -41,18 +41,14 @@ export type BillingStatusResponse = {
 };
 
 export const createBillingCheckout = async (request: BillingCheckoutRequest): Promise<BillingCheckoutResponse> => {
-  console.log("[Billing] Iniciando checkout:", request.planKey, request.gateway);
-
   // Aguarda token estar disponivel
   await getAccessTokenWithWait(5000);
 
   const response = await apiClient.post<BillingCheckoutResponse>("/billing/checkout", request);
 
   if (!response.ok || !response.data) {
-    throw new Error(response.error || "N�o foi poss�vel iniciar o pagamento");
+    throw new Error(response.error || "Nï¿½o foi possï¿½vel iniciar o pagamento");
   }
-
-  console.log("[Billing] Checkout criado:", response.data?.planKey, response.data?.status);
   return response.data;
 };
 
@@ -96,10 +92,9 @@ export const fetchBillingStatus = async (params?: {
   // Use retries: 1 (single attempt) instead of 0 to ensure the request is actually made
   const response = await apiClient.get<BillingStatusResponse>(`/billing/status${query}`, { retries: 1 });
 
-  // 404 significa usuário sem assinatura (esperado para novos usuários)
-  // Retornar status padrão em vez de lançar erro
+  // 404 significa usuÃ¡rio sem assinatura (esperado para novos usuÃ¡rios)
+  // Retornar status padrÃ£o em vez de lanÃ§ar erro
   if (response.status === 404) {
-    console.log("[fetchBillingStatus] Usuário sem assinatura (404 - esperado)");
     return {
       provider: "none",
       gateway: "stripe-card",
@@ -113,7 +108,7 @@ export const fetchBillingStatus = async (params?: {
   }
 
   if (!response.ok || !response.data) {
-    throw new Error(response.error || "Não foi possível consultar o status do pagamento");
+    throw new Error(response.error || "NÃ£o foi possÃ­vel consultar o status do pagamento");
   }
 
   return response.data;

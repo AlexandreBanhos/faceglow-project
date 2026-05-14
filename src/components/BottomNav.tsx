@@ -19,25 +19,13 @@ const getRightTabs = (isActive: boolean) => [
 
 const getLastAnalysis = () => {
   const cached = getCachedLatestAnalysis();
-  if (cached) {
-    console.debug("[BottomNav] Using cached analysis", { id: cached.id });
-    return cached;
-  }
+  if (cached) return cached;
 
   try {
     const raw = localStorage.getItem("faceglow-last-analysis");
-    if (raw) {
-      const normalized = normalizeAnalysis(JSON.parse(raw));
-      if (normalized) {
-        console.debug("[BottomNav] Using localStorage analysis", { id: normalized.id });
-        return normalized;
-      }
-    }
-  } catch (e) {
-    console.debug("[BottomNav] Error reading localStorage:", e);
-  }
+    if (raw) return normalizeAnalysis(JSON.parse(raw));
+  } catch { /* silent */ }
 
-  console.warn("[BottomNav] Cache and localStorage unavailable - will fetch from API");
   return null;
 };
 
@@ -45,43 +33,22 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isPremium, isLoading: premiumLoading, statusUnknown } = useIsPremium();
-  // Só mostra "Rotina" quando premium é confirmado; enquanto carrega ou status desconhecido, mostra Rotina (safe default)
   const showRoutineTab = isPremium || premiumLoading || statusUnknown;
-
   const rightTabs = getRightTabs(showRoutineTab);
 
   const handleRoutineClick = async () => {
     let analysis = getLastAnalysis();
 
-    console.debug("[BottomNav] Routine click - analysis available:", {
-      hasAnalysis: !!analysis,
-      analysisId: analysis?.id,
-      hasRoutine: !!(analysis?.routine?.morning?.length || analysis?.routine?.night?.length),
-      hasRecommendations: !!analysis?.recommendations?.length,
-      recommendationCount: analysis?.recommendations?.length ?? 0,
-    });
-
-    if (analysis && analysis.id && !analysis.recommendations?.length) {
+    if (analysis?.id && !analysis.recommendations?.length) {
       try {
-        console.debug("[BottomNav] Fetching full analysis with recommendations...");
         const fullAnalysis = await fetchAnalysisWithRecommendations(analysis.id);
-        if (fullAnalysis) {
-          analysis = fullAnalysis;
-          console.debug("[BottomNav] Fetched full analysis", {
-            id: analysis.id,
-            recommendationCount: analysis.recommendations?.length ?? 0,
-          });
-        }
-      } catch (error) {
-        console.error("[BottomNav] Failed to fetch full analysis:", error);
-      }
+        if (fullAnalysis) analysis = fullAnalysis;
+      } catch { /* navegação prossegue sem recomendações */ }
     }
 
     if (analysis) {
-      console.debug("[BottomNav] Navigating to routine with analysis", { id: analysis.id });
       navigate("/routine", { state: { analysis } });
     } else {
-      console.warn("[BottomNav] No analysis available - navigating to routine without data");
       navigate("/routine");
     }
   };
@@ -93,11 +60,8 @@ const BottomNav = () => {
       <button
         key={path}
         onClick={() => {
-          if (path === "/routine") {
-            handleRoutineClick();
-          } else {
-            navigate(path);
-          }
+          if (path === "/routine") void handleRoutineClick();
+          else navigate(path);
         }}
         className="relative flex h-12 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 transition-colors"
       >

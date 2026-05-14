@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronRight, TrendingUp, TrendingDown, Maximize2 } from "lucide-react";
@@ -141,9 +141,9 @@ const History = () => {
       </AnimatePresence>
 
       <div className="px-6 pt-14 pb-2">
-        <h1 className="text-2xl font-extrabold text-foreground">Histórico</h1>
+        <h1 className="text-2xl font-extrabold text-foreground">HistÃ³rico</h1>
         <p className="text-sm text-muted-foreground mt-1 font-medium">
-          Acompanhe a evolução da sua pele
+          Acompanhe a evoluÃ§Ã£o da sua pele
         </p>
       </div>
 
@@ -156,14 +156,14 @@ const History = () => {
         <div className="flex items-end justify-between">
           <div>
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Evolução Total
+              EvoluÃ§Ã£o Total
             </p>
             <p className="text-4xl font-extrabold text-foreground mt-1">
               {totalEvolution > 0 ? "+" : ""}
               {totalEvolution}
             </p>
             <p className="text-xs font-bold text-primary mt-1">
-              pontos de melhora ✨
+              pontos de melhora âœ¨
             </p>
           </div>
           <div className="flex items-end gap-1.5 h-16">
@@ -183,19 +183,19 @@ const History = () => {
 
       {latestAnalysis && analyses.length > 1 && (
         <>
-          {/* Análise Principal */}
+          {/* AnÃ¡lise Principal */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
             className="mx-6 my-6"
           >
-            <h2 className="text-sm font-bold text-foreground mb-3">Análise Mais Recente</h2>
+            <h2 className="text-sm font-bold text-foreground mb-3">AnÃ¡lise Mais Recente</h2>
             <div className="flex items-center gap-3 p-3 lg-surface rounded-2xl">
               <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 bg-muted flex-shrink-0">
                 <img
                   src={latestAnalysis.imageUrl || fallbackImage}
-                  alt="Análise principal"
+                  alt="AnÃ¡lise principal"
                   loading="eager"
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -219,7 +219,7 @@ const History = () => {
       {/* Analysis List */}
       <div className="px-6 space-y-2.5">
         <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
-          Análises Anteriores
+          AnÃ¡lises Anteriores
         </h2>
         {analyses.length === 0 && (
           <div className="lg-surface p-4 rounded-2xl text-sm text-muted-foreground">
@@ -288,7 +288,7 @@ const History = () => {
                     <button
                       onClick={() => handleCompare(item, latestAnalysis)}
                       className="w-8 h-8 rounded-lg glass flex items-center justify-center hover:bg-primary/20 transition-colors"
-                      title="Comparar com análise mais recente"
+                      title="Comparar com anÃ¡lise mais recente"
                     >
                       <Maximize2 size={16} className="text-foreground" />
                     </button>

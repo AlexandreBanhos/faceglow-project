@@ -34,7 +34,6 @@ const BillingPending = lazy(() => import("./pages/BillingPending"));
 const AdminProducts = lazy(() => import("./pages/AdminProducts").then(m => ({ default: m.AdminProducts })));
 const MeusProdutos  = lazy(() => import("./pages/MeusProdutos"));
 const NotFound      = lazy(() => import("./pages/NotFound"));
-const Debug         = lazy(() => import("./pages/Debug"));
 const VerifyEmail   = lazy(() => import("./pages/VerifyEmail"));
 const EmailConfirmed = lazy(() => import("./pages/EmailConfirmed"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
@@ -56,7 +55,6 @@ const App = () => (
               <Suspense fallback={<LoadingScreen />}>
                 <Routes>
                   <Route path="/"                 element={<Landing />} />
-                  <Route path="/debug"            element={<Debug />} />
                   <Route path="/onboarding"       element={<Onboarding />} />
                   <Route path="/auth"             element={<Auth />} />
                   <Route path="/verify-email"     element={<VerifyEmail />} />

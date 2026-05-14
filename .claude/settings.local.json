@@ -54,7 +54,9 @@
       "Bash(rtk ls *)",
       "Bash(git merge *)",
       "PowerShell(Rename-Item *)",
-      "mcp__claude_ai_Vercel__deploy_to_vercel"
+      "mcp__claude_ai_Vercel__deploy_to_vercel",
+      "Bash(grep -E \"\\\\.md$\")",
+      "Bash(grep -v \":0$\")"
     ]
   }
 }

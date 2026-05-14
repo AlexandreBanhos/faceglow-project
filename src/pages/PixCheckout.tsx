@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Copy, Clock, HourglassIcon, AlertCircle, Loader } from "lucide-react";
@@ -62,13 +62,13 @@ export const PixCheckout = () => {
         externalReference: state.externalReference,
       });
 
-      // Se status é "succeeded" ou "approved", redireciona para sucesso
+      // Se status Ã© "succeeded" ou "approved", redireciona para sucesso
       if (data.status === "succeeded" || data.status === "approved" || data.isActive) {
         navigate("/premium/success");
       } else if (data.status === "pending") {
-        setVerificationError("Pagamento ainda não confirmado. Processo pode levar alguns minutos.");
+        setVerificationError("Pagamento ainda nÃ£o confirmado. Processo pode levar alguns minutos.");
       } else {
-        setVerificationError("Pagamento não encontrado. Tente novamente ou entre em contato com suporte.");
+        setVerificationError("Pagamento nÃ£o encontrado. Tente novamente ou entre em contato com suporte.");
       }
     } catch (error) {
       console.error("Erro ao verificar:", error);
@@ -120,7 +120,7 @@ export const PixCheckout = () => {
             Pagamento PIX
           </h1>
           <p className="text-muted-foreground">
-            Escaneie o QR Code ou copie o código PIX
+            Escaneie o QR Code ou copie o cÃ³digo PIX
           </p>
         </motion.div>
 
@@ -185,7 +185,7 @@ export const PixCheckout = () => {
           }`}
         >
           <Copy size={18} />
-          {copied ? "Código copiado!" : "Copiar código PIX"}
+          {copied ? "CÃ³digo copiado!" : "Copiar cÃ³digo PIX"}
         </motion.button>
 
         {/* Verify Payment Button */}
@@ -229,10 +229,10 @@ export const PixCheckout = () => {
           <ol className="text-sm text-foreground space-y-2 list-decimal list-inside opacity-80">
             <li>Abra seu app de banco ou carteira digital</li>
             <li>
-              <strong>Escaneie o QR Code</strong> acima ou <strong>copie o código</strong>
+              <strong>Escaneie o QR Code</strong> acima ou <strong>copie o cÃ³digo</strong>
             </li>
-            <li>Confirme a transação</li>
-            <li>Seu acesso será ativado automaticamente</li>
+            <li>Confirme a transaÃ§Ã£o</li>
+            <li>Seu acesso serÃ¡ ativado automaticamente</li>
           </ol>
         </motion.div>
 
@@ -245,7 +245,7 @@ export const PixCheckout = () => {
         >
           <AlertCircle size={18} className="text-accent flex-shrink-0 mt-0.5" />
           <p className="text-xs text-accent opacity-80">
-            Seu pagamento é monitorado em tempo real. Assim que confirmar, você terá acesso imediato!
+            Seu pagamento Ã© monitorado em tempo real. Assim que confirmar, vocÃª terÃ¡ acesso imediato!
           </p>
         </motion.div>
       </div>

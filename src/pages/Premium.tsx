@@ -130,11 +130,9 @@ const Premium = () => {
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-      console.log("[Premium] Current user:", currentUser?.email);
 
       // Always force-refresh billing status (no cache) to get latest subscription state
       const status = await fetchBillingStatus({ forceRefresh: true });
-      console.log("[Premium] Billing status fetched:", {
         status: status?.status,
         isActive: status?.isActive,
         planName: status?.planName,
@@ -143,17 +141,10 @@ const Premium = () => {
       });
       setBillingStatus(status);
       const isPremiumActive = status?.isActive ?? false;
-      console.log("[Premium] Setting isPremium to:", isPremiumActive);
       setIsPremium(isPremiumActive);
       setRetryCount(0);
     } catch (err) {
-      console.error("[Premium] Erro ao carregar dados:", err);
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("[Premium] Erro details:", {
-        message: errorMsg,
-        stack: err instanceof Error ? err.stack : undefined,
-      });
-      // Apenas mostrar erro se não for 404 (sem assinatura é normal)
       if (!errorMsg.includes("404")) {
         setStatusError(errorMsg);
       }
@@ -386,13 +377,6 @@ const Premium = () => {
         {/* Premium Checkout (shown only if not premium) */}
         {!isCheckingStatus && !isPremium && (
           <>
-            {console.log("[Premium] Rendering checkout section - DEBUG STATE:", {
-              isCheckingStatus,
-              isPremium,
-              billingStatus,
-              hasStatus: !!billingStatus,
-            })}
-
             {/* Header */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}

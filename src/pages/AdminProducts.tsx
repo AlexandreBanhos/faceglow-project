@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+﻿import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
@@ -153,62 +153,50 @@ export function AdminProducts() {
 
   async function handleSubmit() {
     try {
-      console.log("[handleSubmit] Form submission started, editingId:", editingId);
       
       if (!formData.name.trim()) {
         toast({
-          title: "Validação",
-          description: "Nome é obrigatório",
+          title: "ValidaÃ§Ã£o",
+          description: "Nome Ã© obrigatÃ³rio",
           variant: "destructive",
         });
         return;
       }
 
       setIsSaving(true);
-      console.log("[handleSubmit] isSaving set to true");
       
       if (editingId) {
-        console.log("[handleSubmit] Updating product with ID:", editingId);
         await updateAdminProduct(editingId, formData);
         toast({ title: "Sucesso", description: "Produto atualizado" });
       } else {
-        console.log("[handleSubmit] Creating new product");
         await createAdminProduct(formData);
         toast({ title: "Sucesso", description: "Produto criado" });
       }
 
-      console.log("[handleSubmit] Product operation completed, closing form");
       setIsFormOpen(false);
       resetForm();
       
-      console.log("[handleSubmit] Reloading products list");
       await loadProducts();
-      console.log("[handleSubmit] Products reloaded");
     } catch (error) {
       console.error("[handleSubmit] Error caught:", error);
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Operação falhou",
+        description: error instanceof Error ? error.message : "OperaÃ§Ã£o falhou",
         variant: "destructive",
       });
     } finally {
-      console.log("[handleSubmit] Setting isSaving to false");
       setIsSaving(false);
     }
   }
 
   async function handleDelete(id: string) {
     try {
-      console.log("[handleDelete] Starting delete for product:", id);
       setIsSaving(true);
-      console.log("[handleDelete] isSaving set to true");
       
       await deleteAdminProduct(id);
-      console.log("[handleDelete] Delete completed, reloading products");
       
       toast({ title: "Sucesso", description: "Produto deletado" });
       await loadProducts();
-      console.log("[handleDelete] Products reloaded");
     } catch (error) {
       console.error("[handleDelete] Error caught:", error);
       toast({
@@ -217,7 +205,6 @@ export function AdminProducts() {
         variant: "destructive",
       });
     } finally {
-      console.log("[handleDelete] Setting isSaving to false");
       setIsSaving(false);
     }
   }
@@ -300,7 +287,7 @@ export function AdminProducts() {
       <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-slate-50 to-slate-100 gap-4">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-red-600 mb-2">Acesso Negado</h1>
-          <p className="text-slate-600 mb-6 max-w-md">{error || "Você não tem permissão para acessar esta página."}</p>
+          <p className="text-slate-600 mb-6 max-w-md">{error || "VocÃª nÃ£o tem permissÃ£o para acessar esta pÃ¡gina."}</p>
           <Button onClick={() => navigate("/dashboard")} variant="default">
             Voltar ao Dashboard
           </Button>
@@ -310,7 +297,7 @@ export function AdminProducts() {
   }
 
   if (isSaving) {
-    return <LoadingSpinnerFullScreen message="Salvando alterações..." />;
+    return <LoadingSpinnerFullScreen message="Salvando alteraÃ§Ãµes..." />;
   }
 
   return (
@@ -319,7 +306,7 @@ export function AdminProducts() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold text-slate-900">Catálogo de Produtos</h1>
+            <h1 className="text-2xl md:text-4xl font-bold text-slate-900">CatÃ¡logo de Produtos</h1>
             <p className="text-sm md:text-base text-slate-600 mt-1">Gerencie todos os produtos da plataforma</p>
           </div>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -343,7 +330,7 @@ export function AdminProducts() {
               </DialogHeader>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Formulário */}
+                {/* FormulÃ¡rio */}
                 <div className="lg:col-span-2 space-y-4">
                   <div>
                     <label className="block text-xs md:text-sm font-medium mb-2">Nome *</label>
@@ -359,7 +346,7 @@ export function AdminProducts() {
 
                   <div>
                     <label className="block text-xs md:text-sm font-medium mb-2">
-                      Descrição
+                      DescriÃ§Ã£o
                     </label>
                     <Input
                       value={formData.description}
@@ -369,7 +356,7 @@ export function AdminProducts() {
                           description: e.target.value,
                         }))
                       }
-                      placeholder="Descrição"
+                      placeholder="DescriÃ§Ã£o"
                       className="bg-white text-sm"
                     />
                   </div>
@@ -407,7 +394,7 @@ export function AdminProducts() {
                   <div className="grid grid-cols-2 gap-2 md:gap-4">
                     <div>
                       <label className="block text-xs md:text-sm font-medium mb-2">
-                        Preço Médio
+                        PreÃ§o MÃ©dio
                       </label>
                       <Input
                         type="number"
@@ -515,10 +502,10 @@ export function AdminProducts() {
                     <div className="space-y-0">
                       {/* Header */}
                       <div className="p-4 pb-3 border-b border-slate-200">
-                        <h3 className="font-semibold text-slate-900">Prévia do Produto</h3>
+                        <h3 className="font-semibold text-slate-900">PrÃ©via do Produto</h3>
                       </div>
 
-                      {/* Imagem - Aspect ratio 16/10 como padrão de produtos */}
+                      {/* Imagem - Aspect ratio 16/10 como padrÃ£o de produtos */}
                       <div className="px-4 pt-3 pb-0">
                         <div className="rounded-lg overflow-hidden bg-white border border-slate-100 aspect-[16/10] flex items-center justify-center">
                           {imagePreview ? (
@@ -537,26 +524,26 @@ export function AdminProducts() {
                         </div>
                       </div>
 
-                      {/* Informações */}
+                      {/* InformaÃ§Ãµes */}
                       <div className="p-4 space-y-3">
                         <div>
                           <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Categoria</p>
-                          <p className="text-xs text-slate-600 mt-0.5">{formData.category || "—"}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{formData.category || "â€”"}</p>
                         </div>
 
                         <div>
-                          <p className="text-sm font-bold text-slate-900 line-clamp-2">{formData.name || "—"}</p>
+                          <p className="text-sm font-bold text-slate-900 line-clamp-2">{formData.name || "â€”"}</p>
                         </div>
 
                         <div>
-                          <p className="text-xs text-slate-500 font-medium">{formData.brand || "—"}</p>
+                          <p className="text-xs text-slate-500 font-medium">{formData.brand || "â€”"}</p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 pt-2">
                           <div className="bg-slate-50 p-2 rounded">
-                            <p className="text-xs text-slate-500">Preço</p>
+                            <p className="text-xs text-slate-500">PreÃ§o</p>
                             <p className="font-semibold text-slate-900 text-sm">
-                              {formData.priceAvg ? `R$ ${formData.priceAvg.toFixed(2)}` : "—"}
+                              {formData.priceAvg ? `R$ ${formData.priceAvg.toFixed(2)}` : "â€”"}
                             </p>
                           </div>
                           <div className="bg-slate-50 p-2 rounded">
@@ -573,7 +560,7 @@ export function AdminProducts() {
                                 : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {formData.isActive ? "✓ Ativo" : "○ Inativo"}
+                            {formData.isActive ? "âœ“ Ativo" : "â—‹ Inativo"}
                           </span>
                         </div>
                       </div>
@@ -645,11 +632,11 @@ export function AdminProducts() {
             <tr>
               <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Nome</th>
               <th className="hidden sm:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Brand</th>
-              <th className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Preço</th>
+              <th className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">PreÃ§o</th>
               <th className="px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Status</th>
               <th className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-left text-xs md:text-sm font-semibold text-slate-900">Imagem</th>
               <th className="px-4 md:px-6 py-3 md:py-4 text-right text-xs md:text-sm font-semibold text-slate-900">
-                Ações
+                AÃ§Ãµes
               </th>
             </tr>
           </thead>
@@ -662,7 +649,7 @@ export function AdminProducts() {
                     <p className="text-sm md:text-base text-slate-500 font-medium">
                       {products.length === 0
                         ? "Nenhum produto encontrado"
-                        : "Nenhum produto atende aos critérios de busca"}
+                        : "Nenhum produto atende aos critÃ©rios de busca"}
                     </p>
                   </div>
                 </td>
@@ -673,7 +660,7 @@ export function AdminProducts() {
                   <td className="px-4 md:px-6 py-3 md:py-4 font-medium text-xs md:text-sm text-slate-900">{product.name}</td>
                   <td className="hidden sm:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-slate-600">{product.brand}</td>
                   <td className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-slate-600">
-                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "—"}
+                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "â€”"}
                   </td>
                   <td className="px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm">
                     <span
@@ -683,7 +670,7 @@ export function AdminProducts() {
                           : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      {product.isActive ? "✓ Ativo" : "○ Inativo"}
+                      {product.isActive ? "âœ“ Ativo" : "â—‹ Inativo"}
                     </span>
                   </td>
                   <td className="hidden lg:table-cell px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm">
@@ -721,9 +708,9 @@ export function AdminProducts() {
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
-                          <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                          <AlertDialogTitle>Confirmar exclusÃ£o</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta ação não pode ser desfeita.
+                            Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta aÃ§Ã£o nÃ£o pode ser desfeita.
                           </AlertDialogDescription>
                           <div className="flex justify-end gap-2">
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -753,7 +740,7 @@ export function AdminProducts() {
             <p className="text-sm text-slate-500 font-medium">
               {products.length === 0
                 ? "Nenhum produto encontrado"
-                : "Nenhum produto atende aos critérios de busca"}
+                : "Nenhum produto atende aos critÃ©rios de busca"}
             </p>
           </div>
         ) : (
@@ -774,7 +761,7 @@ export function AdminProducts() {
                   <h3 className="text-xs font-bold text-slate-900 truncate">{product.name}</h3>
                   <p className="text-xs text-slate-600">{product.brand}</p>
                   <p className="text-xs text-slate-600">
-                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "—"}
+                    {product.priceAvg ? `R$ ${product.priceAvg.toFixed(2)}` : "â€”"}
                   </p>
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-semibold rounded-full mt-1 ${
@@ -783,7 +770,7 @@ export function AdminProducts() {
                         : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {product.isActive ? "✓ Ativo" : "○ Inativo"}
+                    {product.isActive ? "âœ“ Ativo" : "â—‹ Inativo"}
                   </span>
                 </div>
               </div>
@@ -809,9 +796,9 @@ export function AdminProducts() {
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
-                    <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                    <AlertDialogTitle>Confirmar exclusÃ£o</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta ação não pode ser desfeita.
+                      Tem certeza que deseja deletar <strong>"{product.name}"</strong>? Esta aÃ§Ã£o nÃ£o pode ser desfeita.
                     </AlertDialogDescription>
                     <div className="flex justify-end gap-2">
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -840,7 +827,7 @@ export function AdminProducts() {
             size="sm"
             className="text-xs md:text-sm w-full md:w-auto"
           >
-            ← Anterior
+            â† Anterior
           </Button>
 
           <div className="flex gap-1 mx-0 md:mx-2 justify-center flex-wrap">
@@ -866,11 +853,11 @@ export function AdminProducts() {
             size="sm"
             className="text-xs md:text-sm w-full md:w-auto"
           >
-            Próximo →
+            PrÃ³ximo â†’
           </Button>
 
           <span className="ml-0 md:ml-4 text-xs md:text-sm font-medium text-slate-600 text-center md:text-left">
-            Página <span className="font-bold text-slate-900">{currentPage}</span> de {totalPages}
+            PÃ¡gina <span className="font-bold text-slate-900">{currentPage}</span> de {totalPages}
           </span>
         </div>
       )}
