@@ -52,7 +52,9 @@
       "Bash(Select-Object -Last 200)",
       "Bash(Out-String)",
       "Bash(rtk ls *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "PowerShell(Rename-Item *)",
+      "mcp__claude_ai_Vercel__deploy_to_vercel"
     ]
   }
 }

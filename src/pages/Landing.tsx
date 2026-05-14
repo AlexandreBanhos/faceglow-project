@@ -209,20 +209,20 @@ export function LandingPageContent() {
             <div>
               <h4 className="font-semibold text-gray-900 mb-4 text-sm">Legal</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-coral transition-colors">Privacidade</a></li>
-                <li><a href="#" className="hover:text-coral transition-colors">Termos</a></li>
-                <li><a href="#" className="hover:text-coral transition-colors">LGPD</a></li>
+                <li><a href="/privacidade" className="hover:text-coral transition-colors">Política de Privacidade</a></li>
+                <li><a href="/termos" className="hover:text-coral transition-colors">Termos de Uso</a></li>
+                <li><a href="mailto:privacidade@faceglow.com.br" className="hover:text-coral transition-colors">LGPD / Dados</a></li>
               </ul>
             </div>
           </div>
 
           {/* Bottom */}
-          <div className="border-t border-gray-200/50 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-600">
-            <p>© 2025 FaceGlow. Todos os direitos reservados.</p>
-            <div className="flex gap-6 mt-4 md:mt-0">
-              <a href="#" className="hover:text-coral transition-colors">Twitter</a>
-              <a href="#" className="hover:text-coral transition-colors">Instagram</a>
-              <a href="#" className="hover:text-coral transition-colors">LinkedIn</a>
+          <div className="border-t border-gray-200/50 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-600 gap-4">
+            <p>© {new Date().getFullYear()} FaceGlow. Todos os direitos reservados.</p>
+            <div className="flex flex-wrap gap-4 md:gap-6 items-center justify-center">
+              <a href="/privacidade" className="hover:text-coral transition-colors">Política de Privacidade</a>
+              <a href="/termos" className="hover:text-coral transition-colors">Termos de Uso</a>
+              <a href="mailto:suporte@faceglow.com.br" className="hover:text-coral transition-colors">Contato</a>
             </div>
           </div>
         </div>

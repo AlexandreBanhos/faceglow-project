@@ -430,6 +430,15 @@ const Auth = () => {
               </button>
             </p>
           )}
+
+          {!isLogin && !isRecoveryMode && (
+            <p className="text-center text-[var(--fg-ink-3)] mt-4 text-xs leading-relaxed">
+              Ao criar sua conta, você concorda com nossos{" "}
+              <a href="/termos" className="underline hover:text-[var(--fg-ink-2)] transition">Termos de Uso</a>
+              {" "}e nossa{" "}
+              <a href="/privacidade" className="underline hover:text-[var(--fg-ink-2)] transition">Política de Privacidade</a>.
+            </p>
+          )}
         </motion.div>
       </div>
     </div>

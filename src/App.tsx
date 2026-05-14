@@ -29,9 +29,12 @@ import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/RequireAuth";
 import RequireAdmin from "./components/RequireAdmin";
 import { UserProvider } from "./contexts/UserContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Debug from "./pages/Debug";
 import VerifyEmail from "./pages/VerifyEmail";
 import EmailConfirmed from "./pages/EmailConfirmed";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOfUse";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +48,7 @@ const App = () => (
           <GlobalLoadingOverlay />
         <BrowserRouter>
           <ScrollToTop />
+          <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/debug" element={<Debug />} />
@@ -52,6 +56,8 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/email-confirmed" element={<EmailConfirmed />} />
+            <Route path="/privacidade" element={<PrivacyPolicy />} />
+            <Route path="/termos" element={<TermsOfUse />} />
             <Route path="/premium/success" element={<BillingSuccess />} />
             <Route path="/premium/cancel" element={<BillingCancel />} />
             <Route path="/premium/pending" element={<BillingPending />} />
@@ -80,6 +86,7 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ErrorBoundary>
         </BrowserRouter>
         </TooltipProvider>
       </LoadingProvider>

@@ -376,6 +376,21 @@ const Routine = () => {
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [touchStartX, setTouchStartX] = useState<Record<string, number>>({});
   const [touchStartY, setTouchStartY] = useState<Record<string, number>>({});
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const trackSave = async (fn: () => Promise<unknown>) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    try {
+      await fn();
+      setSaveStatus("saved");
+      saveTimerRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch {
+      setSaveStatus("error");
+      saveTimerRef.current = setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  };
 
   const {
     steps: apiSteps,
@@ -1376,6 +1391,10 @@ const Routine = () => {
   }, [analysis?.id, selectedOptionByItem, apiSteps]);
 
   useEffect(() => {
+    localStorage.setItem(getMyProductsStorageKey(analysis?.id), JSON.stringify(customProductByItem));
+  }, [analysis?.id, customProductByItem]);
+
+  useEffect(() => {
     if (!analysis?.id) return;
     const displayNames: Record<string, string> = {};
     resolvedProductByItem.forEach((resolved, itemKey) => {
@@ -1551,14 +1570,13 @@ const Routine = () => {
     setCustomProductByItem(next);
     setCustomInputByItem((prev) => { const p = { ...prev }; delete p[itemKey]; return p; });
     setCustomImageInputByItem((prev) => { const p = { ...prev }; delete p[itemKey]; return p; });
-    // Persiste override no step estruturado
     if (analysis?.id) {
       const step = apiSteps.find((s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase());
       if (step) {
-        updateRoutineStep(analysis.id, step.id, {
+        void trackSave(() => updateRoutineStep(analysis.id, step.id, {
           overrideProductName: name,
           overrideImageUrl: imageUrl ?? null,
-        });
+        }));
       }
     }
   };
@@ -1567,11 +1585,10 @@ const Routine = () => {
     const next = { ...customProductByItem };
     delete next[itemKey];
     setCustomProductByItem(next);
-    // Remove override do step estruturado
     if (analysis?.id) {
       const step = apiSteps.find((s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase());
       if (step) {
-        updateRoutineStep(analysis.id, step.id, { overrideProductName: null, overrideImageUrl: null });
+        void trackSave(() => updateRoutineStep(analysis.id, step.id, { overrideProductName: null, overrideImageUrl: null }));
       }
     }
   };
@@ -1581,11 +1598,10 @@ const Routine = () => {
     setCustomProductByItem(next);
     setCatalogSearchByItem((prev) => ({ ...prev, [itemKey]: "" }));
     setCatalogSearchOpenByItem((prev) => ({ ...prev, [itemKey]: false }));
-    // Persiste override no step estruturado
     if (analysis?.id) {
       const step = apiSteps.find((s) => `${s.period}::${s.productName.toLowerCase()}` === itemKey.toLowerCase());
       if (step) {
-        updateRoutineStep(analysis.id, step.id, { overrideProductName: productName, overrideImageUrl: imageUrl ?? null });
+        void trackSave(() => updateRoutineStep(analysis.id, step.id, { overrideProductName: productName, overrideImageUrl: imageUrl ?? null }));
       }
     }
   };
@@ -1794,7 +1810,18 @@ const Routine = () => {
           >
             <ArrowLeft size={18} className="text-[var(--fg-ink)]" />
           </button>
-          <h1 className="text-lg font-bold text-[var(--fg-ink)] tracking-tight">Rotina Diaria</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-[var(--fg-ink)] tracking-tight">Rotina Diaria</h1>
+            {saveStatus === "saving" && (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Salvando..." />
+            )}
+            {saveStatus === "saved" && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400" title="Salvo" />
+            )}
+            {saveStatus === "error" && (
+              <span className="w-2 h-2 rounded-full bg-red-400" title="Erro ao salvar" />
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate("/meus-produtos")}
