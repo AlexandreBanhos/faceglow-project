@@ -63,8 +63,11 @@ export function LandingPageContent() {
       {/* Aurora backdrop */}
       <AuroraBackdrop tone="warm" className="-z-10" />
 
-      {/* Navigation — Liquid glass */}
-      <nav className="sticky top-0 z-50 px-4 md:px-8 py-3 mx-auto max-w-7xl">
+      {/* Navigation — Fixed over hero, glass effect */}
+      <nav
+        className="fixed left-0 right-0 top-0 z-50 px-4 py-3 md:px-8"
+      >
+        <div className="mx-auto max-w-7xl">
         <div className="lg-surface px-4 py-3 rounded-full flex justify-between items-center gap-3">
           {/* Logo */}
           <div className="flex items-center">
@@ -102,6 +105,7 @@ export function LandingPageContent() {
               Começar grátis
             </button>
           </div>
+        </div>
         </div>
       </nav>
 
