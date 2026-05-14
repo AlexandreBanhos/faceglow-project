@@ -53,6 +53,13 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Proteção global contra referências circulares na serialização JSON
+builder.Services.ConfigureHttpJsonOptions(opts =>
+{
+    opts.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    opts.SerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+});
+
 var supabaseUrl = builder.Configuration["Supabase:Url"]?.Trim().TrimEnd('/');
 var jwtAudience = builder.Configuration["Supabase:JwtAudience"]?.Trim();
 

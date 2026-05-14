@@ -70,13 +70,24 @@ public static class ProductEndpoints
             if (!isAdmin) { logger.LogWarning("[AdminProducts] Forbidden - user {UserId}", userGuid); return Results.Forbid(); }
 
             var search = httpContext.Request.Query["search"].FirstOrDefault()?.Trim().ToLowerInvariant();
-            var query = dbContext.Products.Include(p => p.Images).AsQueryable();
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(p => p.Name.ToLower().Contains(search) || p.Brand.ToLower().Contains(search));
 
-            var products = await query
+            // Projeção direta: evita referência circular Product ↔ ProductImage ↔ Product
+            var products = await dbContext.Products
+                .AsNoTracking()
+                .Where(p => string.IsNullOrEmpty(search) || p.Name.ToLower().Contains(search) || p.Brand.ToLower().Contains(search))
                 .OrderByDescending(p => p.CurationScore).ThenByDescending(p => p.CreatedAt)
-                .AsNoTracking().ToListAsync(cancellationToken);
+                .Select(p => new
+                {
+                    p.Id, p.Name, p.Brand, p.StepTypeKey,
+                    p.Description, p.Tagline,
+                    p.CompatibleSkinTypes, p.TargetsConcerns, p.SuitablePeriods,
+                    p.StrengthLevel, p.RecommendedFrequency,
+                    p.PriceAvg, p.PriceRange, p.Currency,
+                    p.CurationScore, p.IsStaffPick, p.IsDermaTested, p.IsActive,
+                    p.CreatedAt, p.UpdatedAt,
+                    PrimaryImageUrl = p.Images.OrderBy(i => i.Position).Select(i => i.PublicUrl).FirstOrDefault(),
+                })
+                .ToListAsync(cancellationToken);
 
             return Results.Ok(products);
         }
