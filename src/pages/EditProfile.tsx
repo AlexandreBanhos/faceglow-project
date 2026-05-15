@@ -207,7 +207,6 @@ const EditProfile = () => {
                   animate={{ opacity: isImageLoaded ? 1 : 0 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                   onLoad={() => {
-                    console.debug("[EditProfile] Imagem do avatar carregada com sucesso");
                     setIsImageLoaded(true);
                   }}
                   onError={(e) => {

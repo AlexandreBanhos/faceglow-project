@@ -372,11 +372,6 @@ export const fetchAnalysisWithRecommendations = async (analysisId: string): Prom
 
     const payload = (await response.json()) as unknown;
     const normalized = normalizeAnalysis(payload);
-    console.debug("[fetchAnalysisWithRecommendations] ✅ Fetched", {
-      id: analysisId,
-      hasRecommendations: !!normalized?.recommendations?.length,
-      count: normalized?.recommendations?.length ?? 0,
-    });
     return normalized;
   } catch (error) {
     console.error("[fetchAnalysisWithRecommendations] Error:", error);
@@ -418,7 +413,6 @@ export const saveRoutineCustomizations = async (
     }
 
     const payload = (await response.json()) as { routineId?: string; message?: string };
-    console.debug("[saveRoutineCustomizations] ✅ Customizações salvas", { analysisId, routineId: payload.routineId });
     return { success: true, routineId: payload.routineId };
   } catch (error) {
     console.error("[saveRoutineCustomizations] Error:", error);
@@ -456,7 +450,6 @@ export const deleteRoutineStep = async (
       return { success: false, error: `HTTP ${response.status}` };
     }
 
-    console.debug("[deleteRoutineStep] ✅ Passo deletado", { analysisId, stepId });
     return { success: true };
   } catch (error) {
     console.error("[deleteRoutineStep] Error:", error);
@@ -490,7 +483,6 @@ export const loadRoutineCustomizations = async (
     if (!response.ok) {
       // 404 is expected if no custom routine exists
       if (response.status === 404) {
-        console.debug(`[loadRoutineCustomizations] Nenhuma customização salva para ${analysisId}`);
         return null;
       }
       console.warn(`[loadRoutineCustomizations] HTTP ${response.status}`);
@@ -498,7 +490,6 @@ export const loadRoutineCustomizations = async (
     }
 
     const payload = (await response.json()) as { customizations: unknown; updatedAtUtc?: string };
-    console.debug("[loadRoutineCustomizations] ✅ Customizações carregadas", { analysisId, updated: payload.updatedAtUtc });
     return payload;
   } catch (error) {
     console.error("[loadRoutineCustomizations] Error:", error);

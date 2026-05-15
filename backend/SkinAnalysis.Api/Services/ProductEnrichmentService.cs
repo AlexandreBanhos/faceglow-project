@@ -180,10 +180,28 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
                 .GetString();
 
             if (string.IsNullOrWhiteSpace(text))
+            {
+                _logger.LogWarning("[Enrich] Gemini retornou texto vazio para '{Name}' ({Brand})", productName, brand);
                 return null;
+            }
+
+            // Remove markdown code fences se Gemini as incluir (```json ... ```)
+            var jsonText = text.Trim();
+            if (jsonText.StartsWith("```"))
+            {
+                var firstNewline = jsonText.IndexOf('\n');
+                var lastFence = jsonText.LastIndexOf("```");
+                if (firstNewline > 0 && lastFence > firstNewline)
+                    jsonText = jsonText[(firstNewline + 1)..lastFence].Trim();
+                else
+                    jsonText = jsonText.TrimStart('`').Trim();
+            }
+
+            _logger.LogDebug("[Enrich] JSON recebido ({Length} chars): {Preview}",
+                jsonText.Length, jsonText[..Math.Min(200, jsonText.Length)]);
 
             // Parse Gemini JSON response
-            var data = JsonSerializer.Deserialize<JsonElement>(text, JsonOptions);
+            var data = JsonSerializer.Deserialize<JsonElement>(jsonText, JsonOptions);
 
             // Normaliza e valida todos os valores contra os conjuntos aceitos pelo banco
             var stepTypeKey  = Normalize(GetString(data, "step_type_key"), ValidStepTypes);
@@ -221,7 +239,7 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "[Enrich] Falha ao parsear resposta Gemini para '{Name}'", productName);
+            _logger.LogError(ex, "[Enrich] Falha ao parsear JSON Gemini para '{Name}' ({Brand}). Verifique logs de Debug para ver o texto recebido.", productName, brand);
             return null;
         }
     }
