@@ -8,34 +8,33 @@ import { normalizeAnalysis } from "@/lib/analysis";
 import { getCachedLatestAnalysis, fetchAnalysisWithRecommendations } from "@/lib/analysisClient";
 
 // ── Constantes ────────────────────────────────────────────────────────────────
-const BUBBLE  = 52;  // diâmetro da bolha
-const NAV_H   = 64;  // altura da barra
-const DIP_D   = 32;  // profundidade do dip (aumentada para ser visível além da bolha)
-const DIP_W   = 88;  // largura total do dip (18px de cada lado da bolha)
+const BUBBLE  = 52;              // diâmetro da bolha
+const NAV_H   = 64;              // altura da barra
+const DIP_R   = BUBBLE / 2 + 4; // raio do dip = raio da bolha + 4px de folga (= 30)
 const EASING  = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+// Constante de Bézier para aproximar arco circular (κ ≈ 4(√2−1)/3 ≈ 0.5523)
+const K = 0.5523;
 
 interface Tab { path: string; icon: LucideIcon; label: string }
 
-// ── Path SVG da navbar: pill com dip afundado no topo ────────────────────────
-// Estrutura FIXA de 13 comandos → CSS transition interpola corretamente
-function buildNavPath(W: number, H: number, cx: number, dd = DIP_D): string {
-  const r  = 32;          // border-radius da pill
-  const dw = DIP_W;
-  // Garante que o dip não cruze os cantos arredondados
-  const safeCx = Math.min(Math.max(cx, r + dw / 2 + 2), W - r - dw / 2 - 2);
-  const lx = safeCx - dw / 2;
-  const rx = safeCx + dw / 2;
-  // Pontos de controle para curva suave (S-curve)
-  const cp1x = lx + dw * 0.44;
-  const cp2x = safeCx - dw * 0.1;
-  const cp3x = safeCx + dw * 0.1;
-  const cp4x = rx - dw * 0.44;
+// ── Path SVG: pill com arco semicircular envolvendo a base do círculo ─────────
+// Estrutura FIXA de 13 comandos → CSS transition interpola suavemente.
+// O dip é um semicírculo de raio DIP_R centrado em cx.
+// A bolha (raio BUBBLE/2=26) encaixa no dip (raio 30) como um botão numa cuba.
+function buildNavPath(W: number, H: number, cx: number): string {
+  const r = 32;  // pill border-radius
+  // Clamp: dip não cruza os cantos arredondados
+  const safeCx = Math.min(Math.max(cx, r + DIP_R + 2), W - r - DIP_R - 2);
+  const lx = safeCx - DIP_R;  // borda esquerda do dip
+  const rx = safeCx + DIP_R;  // borda direita do dip
 
   return [
     `M ${r} 0`,
     `L ${lx} 0`,
-    `C ${cp1x} 0 ${cp2x} ${dd} ${safeCx} ${dd}`,
-    `C ${cp3x} ${dd} ${cp4x} 0 ${rx} 0`,
+    // Metade esquerda do arco semicircular (bezier de 90°)
+    `C ${lx} ${DIP_R * K} ${safeCx - DIP_R * K} ${DIP_R} ${safeCx} ${DIP_R}`,
+    // Metade direita do arco semicircular (bezier de 90° espelhado)
+    `C ${safeCx + DIP_R * K} ${DIP_R} ${rx} ${DIP_R * K} ${rx} 0`,
     `L ${W - r} 0`,
     `Q ${W} 0 ${W} ${r}`,
     `L ${W} ${H - r}`,
@@ -233,7 +232,8 @@ const BottomNav = () => {
             transition={{ type: "spring", stiffness: 370, damping: 24, mass: 0.75 }}
             style={{
               position: "absolute",
-              bottom: NAV_H / 2 - BUBBLE / 2 + DIP_D / 2,  // centro da bolha no meio do dip
+              // Centro da bolha no topo da navbar → dip semicircular abraça sua base
+              bottom: NAV_H - BUBBLE / 2,
               left: 0,
               width: BUBBLE,
               height: BUBBLE,
@@ -298,8 +298,8 @@ const BottomNav = () => {
                 borderRadius: "50%",
                 background: "var(--grad-coral)",
                 border: "none",
-                // translateY para que o centro da câmera coincida com o fundo do dip
-                transform: `translateY(-${DIP_D / 2}px)`,
+                // Centro da câmera no topo da navbar, igual à bolha
+                transform: `translateY(-${BUBBLE / 2}px)`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
