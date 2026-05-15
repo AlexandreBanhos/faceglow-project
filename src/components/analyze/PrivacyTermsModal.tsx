@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, AlertCircle } from "lucide-react";
+import { Check, Shield } from "lucide-react";
 
 type PrivacyTermsModalProps = {
   onAccept: () => void;
@@ -14,115 +14,134 @@ const PrivacyTermsModal = ({ onAccept }: PrivacyTermsModalProps) => {
 
   return (
     <AnimatePresence>
+      {/* Backdrop claro */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-end justify-center"
+        style={{ background: "rgba(200,180,190,0.25)", backdropFilter: "blur(12px)" }}
       >
+        {/* Sheet liquiglass claro */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-white/20 max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", stiffness: 360, damping: 32 }}
+          className="w-full max-w-lg"
+          style={{
+            background: "linear-gradient(180deg,#FDF8F6 0%,#FAFAF8 100%)",
+            borderRadius: "28px 28px 0 0",
+            border: "1px solid rgba(255,255,255,0.95)",
+            borderBottom: "none",
+            boxShadow: "0 -8px 40px rgba(244,168,199,0.2), inset 0 1px 0 rgba(255,255,255,1)",
+            maxHeight: "90vh",
+            overflowY: "auto",
+          }}
+          onClick={e => e.stopPropagation()}
         >
+          {/* Handle */}
+          <div className="flex justify-center pt-3 pb-1">
+            <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(244,168,199,0.35)" }} />
+          </div>
+
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-b from-slate-800 to-transparent p-6 border-b border-white/10">
-            <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-              <AlertCircle size={24} className="text-pink-400" />
-              Antes de Começar
-            </h2>
-            <p className="text-xs text-white/60 mt-2">Leia e aceite os termos abaixo</p>
+          <div className="px-6 pt-4 pb-5 border-b" style={{ borderColor: "#F0EDE8" }}>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg,#F4A8C7 0%,#E8C4A0 100%)", boxShadow: "0 4px 16px rgba(244,168,199,0.4)" }}
+              >
+                <Shield size={20} color="#FFF" />
+              </div>
+              <div>
+                <h2 style={{ fontWeight: 800, fontSize: 18, color: "#1A1A1A", letterSpacing: "-0.3px" }}>
+                  Antes de Começar
+                </h2>
+                <p style={{ fontSize: 12, color: "#6B6B6B", marginTop: 1 }}>Leia e aceite os termos abaixo</p>
+              </div>
+            </div>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-6">
-            {/* Privacy Section */}
-            <div className="rounded-2xl border border-pink-400/30 bg-gradient-to-r from-pink-500/20 to-rose-500/10 backdrop-blur-xl p-5">
-              <h3 className="text-xs font-bold text-pink-300 mb-2 uppercase tracking-wide">
+          <div className="px-6 py-5 space-y-4">
+            {/* Privacy card */}
+            <div
+              className="p-4 rounded-2xl"
+              style={{ background: "rgba(244,168,199,0.08)", border: "1px solid rgba(244,168,199,0.22)" }}
+            >
+              <h3 style={{ fontSize: 11, fontWeight: 800, color: "#E8748A", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>
                 Nosso Compromisso com a Privacidade
               </h3>
-              <div className="space-y-2 text-xs text-white/90 leading-relaxed">
-                <p>
-                  Mínimo <strong>16 anos</strong>. Imagens usadas apenas para análise e <strong>excluídas logo após</strong>.
-                </p>
-                <p>
-                  Serviço oferecido pela <strong>Soora</strong>. Caráter informativo, não substitui profissional.
-                </p>
+              <div className="space-y-1.5" style={{ fontSize: 12, color: "#6B6B6B", lineHeight: 1.55 }}>
+                <p>Mínimo <strong style={{ color: "#1A1A1A" }}>16 anos</strong>. Imagens usadas apenas para análise e <strong style={{ color: "#1A1A1A" }}>excluídas logo após</strong>.</p>
+                <p>Serviço da <strong style={{ color: "#1A1A1A" }}>Soora</strong>. Caráter informativo — não substitui profissional de saúde.</p>
               </div>
             </div>
 
             {/* Checkboxes */}
-            <div className="space-y-3">
-              <motion.label
-                whileHover={{ scale: 1.01 }}
-                className="flex items-start gap-2 p-3 rounded-xl border border-white/20 bg-white/5 backdrop-blur-xl cursor-pointer hover:bg-white/10 transition-colors"
-              >
-                <div
-                  className={`flex-shrink-0 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all mt-0.5 ${
-                    privacyAccepted
-                      ? "bg-gradient-to-br from-pink-400 to-rose-500 border-pink-400"
-                      : "border-white/30 bg-transparent"
-                  }`}
+            <div className="space-y-2.5">
+              {[
+                { checked: privacyAccepted, onChange: setPrivacyAccepted, label: <><strong>Política de Privacidade</strong></> },
+                { checked: termsAccepted,   onChange: setTermsAccepted,   label: <><strong>Termos e Condições</strong></> },
+              ].map(({ checked, onChange, label }, i) => (
+                <motion.label
+                  key={i}
+                  whileTap={{ scale: 0.99 }}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer"
+                  style={{
+                    background: checked ? "rgba(244,168,199,0.1)" : "rgba(255,255,255,0.7)",
+                    border: `1px solid ${checked ? "rgba(244,168,199,0.4)" : "#F0EDE8"}`,
+                    transition: "all 0.2s ease",
+                  }}
                 >
-                  {privacyAccepted && <Check size={12} className="text-white" />}
-                </div>
-                <span className="text-xs text-white/90">
-                  Concordo com a <strong>Política de Privacidade</strong>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={privacyAccepted}
-                  onChange={(e) => setPrivacyAccepted(e.target.checked)}
-                  className="hidden"
-                />
-              </motion.label>
-
-              <motion.label
-                whileHover={{ scale: 1.01 }}
-                className="flex items-start gap-2 p-3 rounded-xl border border-white/20 bg-white/5 backdrop-blur-xl cursor-pointer hover:bg-white/10 transition-colors"
-              >
-                <div
-                  className={`flex-shrink-0 w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all mt-0.5 ${
-                    termsAccepted
-                      ? "bg-gradient-to-br from-pink-400 to-rose-500 border-pink-400"
-                      : "border-white/30 bg-transparent"
-                  }`}
-                >
-                  {termsAccepted && <Check size={12} className="text-white" />}
-                </div>
-                <span className="text-xs text-white/90">
-                  Aceito os <strong>Termos e Condições</strong>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="hidden"
-                />
-              </motion.label>
+                  <div
+                    className="flex-shrink-0 w-5 h-5 rounded-lg flex items-center justify-center transition-all"
+                    style={{
+                      background: checked ? "linear-gradient(135deg,#E8748A,#F4A8C7)" : "transparent",
+                      border: checked ? "none" : "2px solid #D0C8C0",
+                      boxShadow: checked ? "0 2px 8px rgba(232,116,138,0.35)" : "none",
+                    }}
+                  >
+                    {checked && <Check size={12} color="#FFF" strokeWidth={3} />}
+                  </div>
+                  <span style={{ fontSize: 13, color: "#1A1A1A" }}>
+                    Concordo com a {label}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={e => onChange(e.target.checked)}
+                    className="hidden"
+                  />
+                </motion.label>
+              ))}
             </div>
 
-            {/* Info Text */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-2">
-              <p className="text-[11px] text-white/60 leading-relaxed">
-                Clicar em "Continuar" = confirmação de 16+ anos e aceito dos termos.
-              </p>
-            </div>
+            {/* Info */}
+            <p style={{ fontSize: 11, color: "#9B9B9B", lineHeight: 1.55, textAlign: "center" }}>
+              Clicar em "Continuar" confirma que você tem 16+ anos e aceita os termos.
+            </p>
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 bg-gradient-to-t from-slate-800 via-slate-800 to-transparent p-6 border-t border-white/10 flex gap-3">
+          <div className="px-6 pb-8 pt-2">
             <motion.button
-              whileHover={{ scale: canProceed ? 1.02 : 1 }}
-              whileTap={{ scale: canProceed ? 0.98 : 1 }}
-              onClick={onAccept}
-              disabled={!canProceed}
-              className={`flex-1 py-4 rounded-xl font-bold text-base transition-all ${
-                canProceed
-                  ? "bg-gradient-to-r from-pink-400 to-rose-500 text-white shadow-[0_15px_40px_rgba(244,114,182,0.3)] cursor-pointer"
-                  : "bg-white/10 text-white/50 cursor-not-allowed"
-              }`}
+              whileTap={canProceed ? { scale: 0.97 } : undefined}
+              onClick={canProceed ? onAccept : undefined}
+              style={{
+                width: "100%",
+                height: 54,
+                borderRadius: 14,
+                background: canProceed
+                  ? "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)"
+                  : "#F0EDE8",
+                color: canProceed ? "#FFF" : "#B0A8A0",
+                fontWeight: 700,
+                fontSize: 16,
+                border: "none",
+                cursor: canProceed ? "pointer" : "not-allowed",
+                boxShadow: canProceed ? "0 6px 20px rgba(232,116,138,0.35)" : "none",
+                transition: "all 0.2s ease",
+              }}
             >
               Continuar
             </motion.button>

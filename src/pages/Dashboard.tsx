@@ -329,7 +329,12 @@ const Dashboard = () => {
         >
           <div>
             <p className="fg-mono text-xs text-[var(--fg-ink-3)] font-medium">
-              QUARTA · 28 ABR
+              {(() => {
+                const d = new Date();
+                const days = ["DOMINGO","SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"];
+                const months = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+                return `${days[d.getDay()]} · ${d.getDate()} ${months[d.getMonth()]}`;
+              })()}
             </p>
             <h1 className="text-2xl font-bold text-[var(--fg-ink)] mt-1">
               {firstName ? `Olá, ${firstName}` : "Olá"}
