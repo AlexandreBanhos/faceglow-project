@@ -10,8 +10,8 @@ import { getCachedLatestAnalysis, fetchAnalysisWithRecommendations } from "@/lib
 // ── Constantes ────────────────────────────────────────────────────────────────
 const BUBBLE  = 52;  // diâmetro da bolha
 const NAV_H   = 64;  // altura da barra
-const DIP_D   = 20;  // profundidade do dip (sink effect)
-const DIP_W   = 68;  // largura total do dip
+const DIP_D   = 32;  // profundidade do dip (aumentada para ser visível além da bolha)
+const DIP_W   = 88;  // largura total do dip (18px de cada lado da bolha)
 const EASING  = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
 interface Tab { path: string; icon: LucideIcon; label: string }
@@ -233,7 +233,7 @@ const BottomNav = () => {
             transition={{ type: "spring", stiffness: 370, damping: 24, mass: 0.75 }}
             style={{
               position: "absolute",
-              bottom: NAV_H / 2 - BUBBLE / 2 + DIP_D - 6,  // centro alinhado ao fundo do dip
+              bottom: NAV_H / 2 - BUBBLE / 2 + DIP_D / 2,  // centro da bolha no meio do dip
               left: 0,
               width: BUBBLE,
               height: BUBBLE,
@@ -299,7 +299,7 @@ const BottomNav = () => {
                 background: "var(--grad-coral)",
                 border: "none",
                 // translateY para que o centro da câmera coincida com o fundo do dip
-                transform: `translateY(-${DIP_D / 2 + 6}px)`,
+                transform: `translateY(-${DIP_D / 2}px)`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
