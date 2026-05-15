@@ -19,37 +19,64 @@ import { PeriodSelector, type Period } from "@/components/routine/PeriodSelector
 import { toast } from "@/components/ui/sonner";
 import { AuroraBackdrop } from "@/components/shared";
 
-// ── Constantes ────────────────────────────────────────────────────────────────
+// ── Constantes (sincronizadas com step_types e products do banco) ─────────────
+
+// step_types ordenados por default_order
 const CATEGORIES = [
-  "Limpeza", "Hidratante", "Sérum", "Protetor Solar", "Tônico",
-  "Esfoliante", "Máscara", "Contorno dos Olhos", "Retinol", "Ácido",
+  "Limpeza",           // cleanser  — order 10
+  "Tônico",            // toner     — order 20
+  "Sérum",             // serum     — order 30
+  "Ácido",             // acid      — order 40
+  "Retinol/Retinoide", // retinoid  — order 50
+  "Creme para Olhos",  // eye_cream — order 60
+  "Hidratante",        // moisturizer — order 70
+  "Óleo Facial",       // oil       — order 75
+  "Protetor Solar",    // sunscreen — order 80
+  "Tratamento Pontual",// spot_treatment — order 90
+  "Máscara",
+  "Esfoliante",
 ];
 
+// marcas presentes em products (deduplicated, normalized)
 const BRANDS = [
-  "La Roche-Posay", "Neutrogena", "Vichy", "Eucerin", "Cetaphil",
-  "Bioderma", "Avène", "Cosrx", "The Ordinary", "Garnier",
-  "Nivea", "SVR", "Mantecorp", "Adcos", "Neostrata",
-  "Isdin", "Dermage", "Anasol", "L'Oréal", "Skinceuticals",
+  "Acnezil", "Actine", "Avène", "Bepantol", "Bioderma", "Biore",
+  "Botik", "CeraVe", "Cetaphil", "Creamy", "Darrow", "Dermage",
+  "Dermotivin", "Differin", "Epidrat", "Episol", "Eucerin", "Galderma",
+  "Garnier", "Granado", "Isdin", "L'Oréal", "La Roche-Posay", "Medley",
+  "Neostrata", "Neutrogena", "Nivea", "Nutrel", "Panvel", "Payot",
+  "Principia", "Sallve", "Simple", "Skin Aqua", "SkinCeuticals",
+  "The Ordinary", "Vichy",
 ];
 
-const SKIN_TYPES = ["Todos", "Seca", "Oleosa", "Mista", "Normal", "Sensível"];
-const TREATMENTS = ["Acne", "Manchas", "Hidratação", "Anti-idade", "Poros", "Sensibilidade", "Uniformidade"];
+// compatible_skin_types do banco (oleosa, seca, mista, sensivel, normal)
+const SKIN_TYPES = ["Oleosa", "Seca", "Mista", "Sensível", "Normal", "Todos"];
+
+// target_concerns do banco
+const TREATMENTS = [
+  "Acne", "Cravos", "Manchas", "Rugas", "Olheiras",
+  "Hidratação", "Oleosidade", "Sensibilidade", "Poros", "Vermelhidão", "Firmeza",
+];
+
 const PRODUCT_TYPES = ["Leave-on", "Rinse-off", "Pontual", "Proteção solar", "Tratamento noturno"];
 
-// ── Ícone por categoria ───────────────────────────────────────────────────────
+// ── Ícone por categoria (alinhado com step_types) ────────────────────────────
 const CATEGORY_ICON: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
-  "Limpeza":            { Icon: Droplets,     color: "text-cyan-500",    bg: "bg-cyan-50"    },
-  "Hidratante":         { Icon: Heart,         color: "text-pink-400",    bg: "bg-pink-50"    },
-  "Sérum":              { Icon: Pipette,       color: "text-violet-500",  bg: "bg-violet-50"  },
-  "Protetor Solar":     { Icon: Shield,        color: "text-amber-500",   bg: "bg-amber-50"   },
-  "Tônico":             { Icon: Layers,        color: "text-teal-500",    bg: "bg-teal-50"    },
-  "Esfoliante":         { Icon: Sparkles,      color: "text-orange-400",  bg: "bg-orange-50"  },
-  "Máscara":            { Icon: Sparkles,      color: "text-fuchsia-500", bg: "bg-fuchsia-50" },
-  "Contorno dos Olhos": { Icon: Eye,           color: "text-indigo-400",  bg: "bg-indigo-50"  },
-  "Retinol":            { Icon: Zap,           color: "text-yellow-500",  bg: "bg-yellow-50"  },
-  "Ácido":              { Icon: FlaskConical,  color: "text-lime-600",    bg: "bg-lime-50"    },
-  "Óleo":               { Icon: Droplet,       color: "text-amber-600",   bg: "bg-amber-50"   },
-  "Tratamento Pontual": { Icon: Target,        color: "text-rose-500",    bg: "bg-rose-50"    },
+  "Limpeza":            { Icon: Droplets,    color: "text-cyan-500",    bg: "bg-cyan-50"    },
+  "Tônico":             { Icon: Layers,      color: "text-teal-500",    bg: "bg-teal-50"    },
+  "Sérum":              { Icon: Pipette,     color: "text-violet-500",  bg: "bg-violet-50"  },
+  "Ácido":              { Icon: FlaskConical,color: "text-lime-600",    bg: "bg-lime-50"    },
+  "Retinol/Retinoide":  { Icon: Zap,         color: "text-yellow-500",  bg: "bg-yellow-50"  },
+  "Creme para Olhos":   { Icon: Eye,         color: "text-indigo-400",  bg: "bg-indigo-50"  },
+  "Hidratante":         { Icon: Heart,        color: "text-pink-400",    bg: "bg-pink-50"    },
+  "Óleo Facial":        { Icon: Droplet,     color: "text-amber-600",   bg: "bg-amber-50"   },
+  "Protetor Solar":     { Icon: Shield,      color: "text-amber-500",   bg: "bg-amber-50"   },
+  "Tratamento Pontual": { Icon: Target,      color: "text-rose-500",    bg: "bg-rose-50"    },
+  "Esfoliante":         { Icon: Sparkles,    color: "text-orange-400",  bg: "bg-orange-50"  },
+  "Máscara":            { Icon: Sparkles,    color: "text-fuchsia-500", bg: "bg-fuchsia-50" },
+  // aliases para compatibilidade com dados antigos
+  "Retinol":            { Icon: Zap,         color: "text-yellow-500",  bg: "bg-yellow-50"  },
+  "Contorno dos Olhos": { Icon: Eye,         color: "text-indigo-400",  bg: "bg-indigo-50"  },
+  "Óleo":               { Icon: Droplet,     color: "text-amber-600",   bg: "bg-amber-50"   },
 };
 
 const CategoryIcon = ({ category, size = 18 }: { category?: string; size?: number }) => {
@@ -110,8 +137,9 @@ async function fetchRoutineUsage(analysisId: string): Promise<RoutineUsage> {
 
 const categoryDefaultPeriod = (cat: string): Period => {
   const n = cat.toLowerCase();
-  if (n.includes("protetor") || n.includes("solar")) return "morning";
-  if (n.includes("retinol") || n.includes("ácido") || n.includes("acido")) return "night";
+  if (n.includes("protetor") || n.includes("solar") || n.includes("sunscreen")) return "morning";
+  if (n.includes("retinol") || n.includes("retinoide") || n.includes("ácido") || n.includes("acido") || n.includes("acid")) return "night";
+  if (n.includes("óleo") || n.includes("oleo") || n.includes("oil")) return "night";
   return "both";
 };
 
