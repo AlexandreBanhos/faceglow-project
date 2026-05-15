@@ -6,175 +6,163 @@ export type Period = "morning" | "night" | "both";
 interface Props {
   value: Period;
   onChange: (p: Period) => void;
-  /** Trava somente noite (retinol, ácidos) */
   locked?: boolean;
   lockedReason?: string;
+  /** "lg" = cards (padrão) | "sm" = pill compacto para cards de produto */
+  size?: "lg" | "sm";
   className?: string;
 }
 
-// ── Arte decorativa por período ───────────────────────────────────────────────
-
-const SunArt = ({ active }: { active: boolean }) => (
-  <svg viewBox="0 0 64 64" className="absolute inset-0 w-full h-full opacity-100 pointer-events-none" aria-hidden>
-    {/* Halo externo */}
-    <circle cx="32" cy="28" r="22"
-      fill="none" stroke={active ? "rgba(255,255,255,0.15)" : "rgba(245,158,11,0.12)"} strokeWidth="8" />
-    {/* Halo médio */}
-    <circle cx="32" cy="28" r="15"
-      fill={active ? "rgba(255,255,255,0.18)" : "rgba(251,191,36,0.18)"} />
-    {/* Sol */}
-    <circle cx="32" cy="28" r="9"
-      fill={active ? "rgba(255,255,255,0.35)" : "rgba(251,191,36,0.5)"} />
-    {/* Raios */}
-    {[0,45,90,135,180,225,270,315].map((deg, i) => {
-      const rad = (deg * Math.PI) / 180;
-      const x1 = 32 + 13 * Math.cos(rad), y1 = 28 + 13 * Math.sin(rad);
-      const x2 = 32 + 18 * Math.cos(rad), y2 = 28 + 18 * Math.sin(rad);
-      return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-        stroke={active ? "rgba(255,255,255,0.4)" : "rgba(251,191,36,0.4)"} strokeWidth="2" strokeLinecap="round" />;
-    })}
-  </svg>
-);
-
-const NightArt = ({ active }: { active: boolean }) => (
-  <svg viewBox="0 0 64 64" className="absolute inset-0 w-full h-full opacity-100 pointer-events-none" aria-hidden>
-    {/* Lua crescente */}
-    <path d="M38 18 A14 14 0 1 0 38 46 A10 10 0 1 1 38 18Z"
-      fill={active ? "rgba(255,255,255,0.28)" : "rgba(99,102,241,0.3)"} />
-    {/* Estrelas */}
-    {[[50,14,1.5],[12,20,1],[52,40,1],[8,36,1.2],[44,52,1],[20,52,0.9]].map(([x,y,r],i) => (
-      <circle key={i} cx={x} cy={y} r={r}
-        fill={active ? "rgba(255,255,255,0.7)" : "rgba(99,102,241,0.5)"} />
-    ))}
-    {/* Brilho de estrela */}
-    {[[50,14],[12,20]].map(([x,y],i) => (
-      <g key={i}>
-        <line x1={x} y1={y-3} x2={x} y2={y+3} stroke={active ? "rgba(255,255,255,0.5)" : "rgba(99,102,241,0.4)"} strokeWidth="0.8" />
-        <line x1={x-3} y1={y} x2={x+3} y2={y} stroke={active ? "rgba(255,255,255,0.5)" : "rgba(99,102,241,0.4)"} strokeWidth="0.8" />
-      </g>
-    ))}
-  </svg>
-);
-
-const BothArt = ({ active }: { active: boolean }) => (
-  <svg viewBox="0 0 80 64" className="absolute inset-0 w-full h-full opacity-100 pointer-events-none" aria-hidden>
-    {/* Sol lado esquerdo */}
-    <circle cx="22" cy="32" r="10"
-      fill={active ? "rgba(255,255,255,0.28)" : "rgba(251,191,36,0.35)"} />
-    <circle cx="22" cy="32" r="6"
-      fill={active ? "rgba(255,255,255,0.35)" : "rgba(251,191,36,0.55)"} />
-    {[0,60,120,180,240,300].map((deg,i) => {
-      const rad = (deg*Math.PI)/180;
-      return <line key={i} x1={22+9*Math.cos(rad)} y1={32+9*Math.sin(rad)} x2={22+13*Math.cos(rad)} y2={32+13*Math.sin(rad)}
-        stroke={active ? "rgba(255,255,255,0.35)" : "rgba(251,191,36,0.5)"} strokeWidth="1.5" strokeLinecap="round" />;
-    })}
-    {/* Divisor */}
-    <line x1="40" y1="10" x2="40" y2="54"
-      stroke={active ? "rgba(255,255,255,0.2)" : "rgba(200,200,200,0.3)"} strokeWidth="1" strokeDasharray="3 2" />
-    {/* Lua lado direito */}
-    <path d="M56 20 A12 12 0 1 0 56 44 A9 9 0 1 1 56 20Z"
-      fill={active ? "rgba(255,255,255,0.28)" : "rgba(99,102,241,0.3)"} />
-    {/* Estrelas lado direito */}
-    {[[70,16,1.2],[67,48,1],[74,34,0.9]].map(([x,y,r],i) => (
-      <circle key={i} cx={x} cy={y} r={r}
-        fill={active ? "rgba(255,255,255,0.6)" : "rgba(99,102,241,0.45)"} />
-    ))}
-  </svg>
-);
-
-// ── Opções ────────────────────────────────────────────────────────────────────
-const OPTIONS = [
+// ── Paleta de cada período (gradientes claros, texto escuro) ──────────────────
+const PERIODS = [
   {
     value: "morning" as const,
-    label: "Manhã",
     emoji: "☀️",
-    gradientActive: "linear-gradient(135deg,#f59e0b 0%,#fb923c 100%)",
-    bgInactive: "bg-amber-50 dark:bg-amber-950/30",
-    borderActive: "border-amber-400/60",
-    borderInactive: "border-amber-200/60 dark:border-amber-800/40",
-    textActive: "text-white",
-    textInactive: "text-amber-700 dark:text-amber-400",
-    Art: SunArt,
+    label: "Manhã",
+    // card (lg)
+    gradActive:  "linear-gradient(135deg,#fde68a 0%,#fdba74 100%)",
+    bgInactive:  "bg-amber-50",
+    borderActive:   "border-amber-300/70",
+    borderInactive: "border-amber-200/60",
+    textActive:   "text-amber-900",
+    textInactive: "text-amber-600",
+    // pill (sm)
+    pillActive: "linear-gradient(90deg,#fde68a 0%,#fbbf24 100%)",
+    pillText:   "text-amber-900",
   },
   {
     value: "both" as const,
-    label: "Ambos",
     emoji: "✦",
-    gradientActive: "linear-gradient(135deg,#f59e0b 0%,#a855f7 55%,#6366f1 100%)",
-    bgInactive: "bg-violet-50 dark:bg-violet-950/20",
-    borderActive: "border-violet-400/60",
-    borderInactive: "border-violet-200/60 dark:border-violet-800/40",
-    textActive: "text-white",
-    textInactive: "text-violet-700 dark:text-violet-400",
-    Art: BothArt,
+    label: "Ambos",
+    gradActive:  "linear-gradient(135deg,#fde68a 0%,#f9a8d4 45%,#c4b5fd 100%)",
+    bgInactive:  "bg-violet-50",
+    borderActive:   "border-violet-300/70",
+    borderInactive: "border-violet-200/60",
+    textActive:   "text-violet-900",
+    textInactive: "text-violet-500",
+    pillActive: "linear-gradient(90deg,#fbbf24 0%,#f472b6 50%,#a78bfa 100%)",
+    pillText:   "text-violet-900",
   },
   {
     value: "night" as const,
-    label: "Noite",
     emoji: "🌙",
-    gradientActive: "linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)",
-    bgInactive: "bg-indigo-50 dark:bg-indigo-950/30",
-    borderActive: "border-indigo-500/60",
-    borderInactive: "border-indigo-200/60 dark:border-indigo-800/40",
-    textActive: "text-white",
-    textInactive: "text-indigo-700 dark:text-indigo-400",
-    Art: NightArt,
+    label: "Noite",
+    gradActive:  "linear-gradient(135deg,#c7d2fe 0%,#ddd6fe 100%)",
+    bgInactive:  "bg-indigo-50",
+    borderActive:   "border-indigo-300/70",
+    borderInactive: "border-indigo-200/60",
+    textActive:   "text-indigo-900",
+    textInactive: "text-indigo-500",
+    pillActive: "linear-gradient(90deg,#a5b4fc 0%,#c4b5fd 100%)",
+    pillText:   "text-indigo-900",
   },
 ] as const;
 
-// ── Componente ────────────────────────────────────────────────────────────────
-export const PeriodSelector = ({ value, onChange, locked, lockedReason, className = "" }: Props) => {
-  if (locked) {
-    return (
-      <div className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/30 ${className}`}>
-        <div className="w-9 h-9 rounded-xl bg-indigo-500 flex items-center justify-center flex-shrink-0 shadow-sm">
-          <Moon size={18} className="text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Somente noite</p>
-          {lockedReason && <p className="text-xs text-indigo-500 mt-0.5">{lockedReason}</p>}
-        </div>
-      </div>
-    );
-  }
+// ── Locked state ──────────────────────────────────────────────────────────────
+const LockedNight = ({ reason }: { reason?: string }) => (
+  <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl border border-indigo-200 bg-indigo-50">
+    <div className="w-9 h-9 rounded-xl bg-indigo-400 flex items-center justify-center flex-shrink-0 shadow-sm">
+      <Moon size={18} className="text-white" />
+    </div>
+    <div>
+      <p className="text-sm font-bold text-indigo-800">Somente noite</p>
+      {reason && <p className="text-xs text-indigo-500 mt-0.5">{reason}</p>}
+    </div>
+  </div>
+);
 
+// ── Variante SM — pill horizontal animado ─────────────────────────────────────
+const PeriodPill = ({ value, onChange }: { value: Period; onChange: (p: Period) => void }) => {
+  const idx = PERIODS.findIndex((p) => p.value === value);
   return (
-    <div className={`grid grid-cols-3 gap-2 ${className}`}>
-      {OPTIONS.map(({ value: opt, label, emoji, gradientActive, bgInactive, borderActive, borderInactive, textActive, textInactive, Art }) => {
+    <div className="relative flex rounded-2xl bg-muted/40 p-1 gap-0.5">
+      {/* Indicador deslizante */}
+      <motion.div
+        className="absolute top-1 bottom-1 rounded-xl shadow-sm"
+        animate={{ left: `calc(${idx} * (100% - 8px) / 3 + 4px)` }}
+        style={{
+          width: "calc((100% - 8px) / 3)",
+          background: PERIODS[idx].pillActive,
+        }}
+        transition={{ type: "spring", stiffness: 380, damping: 28 }}
+      />
+      {PERIODS.map(({ value: opt, emoji, label, pillText, textInactive }) => {
         const isActive = value === opt;
         return (
           <motion.button
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            whileTap={{ scale: 0.95 }}
-            animate={{ scale: isActive ? 1.02 : 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 22 }}
-            className={`relative overflow-hidden rounded-2xl border-2 h-[72px] flex flex-col items-center justify-center gap-1 transition-all duration-200 ${
-              isActive ? `${borderActive} shadow-md` : `${bgInactive} ${borderInactive} hover:border-opacity-80`
-            }`}
-            style={isActive ? { background: gradientActive, borderColor: "transparent" } : undefined}
+            whileTap={{ scale: 0.96 }}
+            className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 h-10 z-10 rounded-xl transition-colors`}
           >
-            {/* Arte de fundo */}
-            <Art active={isActive} />
-
-            {/* Conteúdo */}
-            <span className="relative z-10 text-xl leading-none">{emoji}</span>
-            <span className={`relative z-10 text-[11px] font-bold tracking-wide ${isActive ? textActive : textInactive}`}>
+            <span className="text-sm leading-none">{emoji}</span>
+            <span className={`text-[9px] font-bold tracking-wide transition-colors ${isActive ? pillText : textInactive}`}>
               {label}
             </span>
-
-            {/* Glow ao redor quando ativo */}
-            {isActive && (
-              <motion.div
-                layoutId="period-glow"
-                className="absolute inset-0 rounded-2xl opacity-30"
-                style={{ background: gradientActive, filter: "blur(8px)", transform: "scale(1.1)" }}
-              />
-            )}
           </motion.button>
         );
       })}
+    </div>
+  );
+};
+
+// ── Variante LG — cards animados ─────────────────────────────────────────────
+const PeriodCards = ({ value, onChange }: { value: Period; onChange: (p: Period) => void }) => (
+  <div className="grid grid-cols-3 gap-2">
+    {PERIODS.map(({ value: opt, emoji, label, gradActive, bgInactive, borderActive, borderInactive, textActive, textInactive }) => {
+      const isActive = value === opt;
+      return (
+        <motion.button
+          key={opt}
+          type="button"
+          onClick={() => onChange(opt)}
+          whileTap={{ scale: 0.95 }}
+          animate={{ scale: isActive ? 1.03 : 1, y: isActive ? -2 : 0 }}
+          transition={{ type: "spring", stiffness: 420, damping: 24 }}
+          className={`relative overflow-hidden rounded-2xl border-2 h-[72px] flex flex-col items-center justify-center gap-1.5 transition-colors ${
+            isActive
+              ? `${borderActive} shadow-lg`
+              : `${bgInactive} ${borderInactive} hover:scale-[1.01]`
+          }`}
+          style={isActive ? { background: gradActive, borderColor: "transparent" } : undefined}
+        >
+          {/* Emoji grande */}
+          <span className="text-2xl leading-none select-none">{emoji}</span>
+          <span className={`text-[11px] font-bold tracking-wide ${isActive ? textActive : textInactive}`}>
+            {label}
+          </span>
+
+          {/* Halo de brilho quando ativo */}
+          {isActive && (
+            <motion.div
+              className="absolute inset-[-4px] rounded-[18px] pointer-events-none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{ background: gradActive, filter: "blur(10px)", zIndex: -1 }}
+            />
+          )}
+        </motion.button>
+      );
+    })}
+  </div>
+);
+
+// ── Export principal ──────────────────────────────────────────────────────────
+export const PeriodSelector = ({
+  value, onChange,
+  locked, lockedReason,
+  size = "lg",
+  className = "",
+}: Props) => {
+  if (locked) return <LockedNight reason={lockedReason} />;
+
+  return (
+    <div className={className}>
+      {size === "sm"
+        ? <PeriodPill value={value} onChange={onChange} />
+        : <PeriodCards value={value} onChange={onChange} />
+      }
     </div>
   );
 };

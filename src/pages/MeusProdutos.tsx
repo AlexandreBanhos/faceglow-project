@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen,
-  Pencil, Lightbulb, Check, Sun, Moon, Loader2, Package,
+  Pencil, Lightbulb, Check, Loader2, Package,
+  Droplets, Pipette, Shield, Layers, Sparkles, Eye, Zap, FlaskConical, Target, Droplet, Heart,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
@@ -33,6 +35,33 @@ const CATEGORY_FALLBACK: Record<string, string> = {
 };
 
 const getImg = (url?: string, cat?: string) => url || (cat ? CATEGORY_FALLBACK[cat] : undefined);
+
+// ── Ícone por categoria (fallback quando não há imagem nem fallback de URL) ───
+const CATEGORY_ICON: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
+  "Limpeza":            { Icon: Droplets,     color: "text-cyan-500",    bg: "bg-cyan-50"    },
+  "Hidratante":         { Icon: Heart,         color: "text-pink-400",    bg: "bg-pink-50"    },
+  "Sérum":              { Icon: Pipette,       color: "text-violet-500",  bg: "bg-violet-50"  },
+  "Protetor Solar":     { Icon: Shield,        color: "text-amber-500",   bg: "bg-amber-50"   },
+  "Tônico":             { Icon: Layers,        color: "text-teal-500",    bg: "bg-teal-50"    },
+  "Esfoliante":         { Icon: Sparkles,      color: "text-orange-400",  bg: "bg-orange-50"  },
+  "Máscara":            { Icon: Sparkles,      color: "text-fuchsia-500", bg: "bg-fuchsia-50" },
+  "Contorno dos Olhos": { Icon: Eye,           color: "text-indigo-400",  bg: "bg-indigo-50"  },
+  "Retinol":            { Icon: Zap,           color: "text-yellow-500",  bg: "bg-yellow-50"  },
+  "Ácido":              { Icon: FlaskConical,  color: "text-lime-600",    bg: "bg-lime-50"    },
+  "Óleo":               { Icon: Droplet,       color: "text-amber-600",   bg: "bg-amber-50"   },
+  "Tratamento Pontual": { Icon: Target,        color: "text-rose-500",    bg: "bg-rose-50"    },
+};
+
+const CategoryIcon = ({ category, size = 20 }: { category?: string; size?: number }) => {
+  const entry = category ? CATEGORY_ICON[category] : undefined;
+  if (!entry) return <Package size={size} className="text-muted-foreground/50" />;
+  const { Icon, color, bg } = entry;
+  return (
+    <div className={`w-full h-full flex items-center justify-center rounded-lg ${bg}`}>
+      <Icon size={size} className={color} />
+    </div>
+  );
+};
 
 const periodLabel = (p: "morning" | "night" | "both") =>
   p === "morning" ? "manhã" : p === "night" ? "noite" : "manhã e noite";
@@ -80,7 +109,14 @@ async function fetchRoutineUsage(analysisId: string): Promise<RoutineUsage> {
   }
 }
 
-const emptyForm = { name: "", category: "", imageUrl: "", note: "" };
+const emptyForm = { name: "", category: "", imageUrl: "", note: "", defaultPeriod: "both" as Period };
+
+const categoryDefaultPeriod = (cat: string): Period => {
+  const n = cat.toLowerCase();
+  if (n.includes("protetor") || n.includes("solar")) return "morning";
+  if (n.includes("retinol") || n.includes("ácido") || n.includes("acido")) return "night";
+  return "both";
+};
 
 // ── Componente ────────────────────────────────────────────────────────────────
 export default function MeusProdutos() {
@@ -150,7 +186,13 @@ export default function MeusProdutos() {
 
   const openEdit = (p: UserCatalogProduct) => {
     setEditingId(p.id);
-    setForm({ name: p.name, category: p.category, imageUrl: p.imageUrl ?? "", note: p.note ?? "" });
+    setForm({
+      name: p.name,
+      category: p.category,
+      imageUrl: p.imageUrl ?? "",
+      note: p.note ?? "",
+      defaultPeriod: categoryDefaultPeriod(p.category),
+    });
     setFormOpen(true);
   };
 
@@ -326,21 +368,23 @@ export default function MeusProdutos() {
                     return (
                       <motion.div key={p.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                         className="lg-surface flex flex-col items-center text-center rounded-xl p-2.5">
-                        {/* Image */}
-                        <div className="w-full h-16 rounded-lg flex items-center justify-center mb-1.5 relative">
-                          {img
-                            ? <img src={img} alt={p.name} className="h-full object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                            : <Image size={20} className="text-muted-foreground" />
-                          }
+                        {/* Image / icon */}
+                        <div className="w-full h-16 rounded-lg flex items-center justify-center mb-1.5 relative overflow-hidden">
+                          {img ? (
+                            <img src={img} alt={p.name} className="h-full object-contain"
+                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                          ) : (
+                            <CategoryIcon category={p.category} size={22} />
+                          )}
                           {usagePeriod && (
-                            <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-sm">
+                            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-sm z-10">
                               <Check size={10} className="text-white" />
                             </div>
                           )}
                         </div>
 
                         {/* Name */}
-                        <p className="text-[10px] font-semibold text-foreground line-clamp-2 leading-tight">{p.name}</p>
+                        <p className="text-[10px] font-semibold text-foreground line-clamp-2 leading-tight w-full text-center">{p.name}</p>
 
                         {/* Period badge when in routine */}
                         {usagePeriod
@@ -348,29 +392,19 @@ export default function MeusProdutos() {
                           : p.note && <p className="text-[8px] text-muted-foreground line-clamp-1 mt-0.5">{p.note}</p>
                         }
 
-                        {/* Add to routine */}
+                        {/* Toggle período + adicionar */}
                         {addedToRoutine[p.id] ? (
                           <div className="flex items-center gap-1 mt-2 justify-center">
                             <Check size={11} className="text-green-600" />
                             <span className="text-[9px] font-bold text-green-600">Adicionado!</span>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-0.5 mt-2 w-full">
-                            <button title="Manhã" disabled={!!addingToRoutine[p.id]}
-                              onClick={() => requestAdd(p.name, p.imageUrl, p.category, "morning", p.id)}
-                              className="flex-1 h-6 rounded-l-lg border border-border/50 bg-background flex items-center justify-center hover:bg-amber-50 transition-colors">
-                              <Sun size={10} className="text-amber-500" />
-                            </button>
-                            <button title="Noite" disabled={!!addingToRoutine[p.id]}
-                              onClick={() => requestAdd(p.name, p.imageUrl, p.category, "night", p.id)}
-                              className="flex-1 h-6 border-y border-border/50 bg-background flex items-center justify-center hover:bg-indigo-50 transition-colors">
-                              <Moon size={10} className="text-indigo-500" />
-                            </button>
-                            <button title="Manhã e noite" disabled={!!addingToRoutine[p.id]}
-                              onClick={() => requestAdd(p.name, p.imageUrl, p.category, "both", p.id)}
-                              className="flex-1 h-6 rounded-r-lg border border-border/50 bg-background flex items-center justify-center gap-0.5 hover:bg-primary/5 transition-colors">
-                              <Sun size={8} className="text-amber-500" /><Moon size={8} className="text-indigo-500" />
-                            </button>
+                          <div className="mt-2 w-full" onClick={(e) => e.stopPropagation()}>
+                            <PeriodSelector
+                              size="sm"
+                              value={categoryDefaultPeriod(p.category)}
+                              onChange={(period) => !addingToRoutine[p.id] && requestAdd(p.name, p.imageUrl, p.category, period, p.id)}
+                            />
                           </div>
                         )}
 
@@ -443,10 +477,10 @@ export default function MeusProdutos() {
                                 </div>
                               )}
 
-                              <div className="w-full h-16 rounded-lg flex items-center justify-center mb-1.5">
+                              <div className="w-full h-16 rounded-lg flex items-center justify-center mb-1.5 overflow-hidden">
                                 {p.imageUrl
                                   ? <img src={p.imageUrl} alt={p.product} className="h-full object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                                  : <Image size={18} className="text-muted-foreground" />
+                                  : <CategoryIcon category={p.type} size={20} />
                                 }
                               </div>
 
@@ -565,7 +599,7 @@ export default function MeusProdutos() {
                 <div className="relative">
                   <input
                     value={form.category}
-                    onChange={(e) => { setForm((f) => ({ ...f, category: e.target.value })); setCatOpen(true); }}
+                    onChange={(e) => { setForm((f) => ({ ...f, category: e.target.value, defaultPeriod: categoryDefaultPeriod(e.target.value) })); setCatOpen(true); }}
                     onFocus={() => setCatOpen(true)}
                     onBlur={() => setTimeout(() => setCatOpen(false), 150)}
                     placeholder="Categoria  (Limpeza, Sérum…)"
@@ -575,7 +609,7 @@ export default function MeusProdutos() {
                     <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-40">
                       {catSuggestions.map((s) => (
                         <button key={s} type="button" onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setForm((f) => ({ ...f, category: s })); setCatOpen(false); }}
+                          onClick={() => { setForm((f) => ({ ...f, category: s, defaultPeriod: categoryDefaultPeriod(s) })); setCatOpen(false); }}
                           className="w-full px-3 py-2 text-left text-sm font-semibold text-foreground hover:bg-muted transition-colors">
                           {s}
                         </button>
@@ -584,6 +618,22 @@ export default function MeusProdutos() {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Período de uso */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Período de uso</label>
+              <PeriodSelector
+                size="sm"
+                value={form.defaultPeriod}
+                onChange={(p) => setForm((f) => ({ ...f, defaultPeriod: p }))}
+                locked={
+                  form.category.toLowerCase().includes("retinol") ||
+                  form.category.toLowerCase().includes("ácido") ||
+                  form.category.toLowerCase().includes("acido")
+                }
+                lockedReason="Retinol e ácidos são de uso noturno"
+              />
             </div>
 
             {/* Observação */}
