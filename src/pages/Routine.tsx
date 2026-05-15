@@ -2305,79 +2305,6 @@ const Routine = () => {
                       </div>
                     ) : (
                     <div className="flex flex-col w-full">
-                      {/* Edit mode controls */}
-                      {isEditing && (
-                        <div className="flex items-center justify-between gap-2 px-3 pt-3">
-                          <div className="flex items-center gap-2">
-                            {/* Drag handle — DnD (mouse + touch) */}
-                            <RoutineDragHandle />
-                            {/* Fallback: botões cima/baixo */}
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => moveStep(itemPeriod, item.key, "up")}
-                                disabled={isFirst}
-                                className="w-7 h-7 rounded-lg border border-border/60 bg-background flex items-center justify-center disabled:opacity-30"
-                                aria-label="Mover para cima"
-                              >
-                                <ChevronUp size={13} className="text-foreground" />
-                              </button>
-                              <button
-                                onClick={() => moveStep(itemPeriod, item.key, "down")}
-                                disabled={isLast}
-                                className="w-7 h-7 rounded-lg border border-border/60 bg-background flex items-center justify-center disabled:opacity-30"
-                                aria-label="Mover para baixo"
-                              >
-                                <ChevronDown size={13} className="text-foreground" />
-                              </button>
-                            </div>
-                            {periodLabel && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground">
-                                {periodLabel === "Manhã" ? <Sun size={11} className="inline mr-0.5" /> : <Moon size={11} className="inline mr-0.5" />}
-                                {periodLabel}
-                              </span>
-                            )}
-                          </div>
-                          {item.isCustom && (
-                            <div className="flex items-center gap-1.5">
-                              {(["morning", "both", "night"] as const).map((p) => {
-                                const siblingId = item.key.replace(/^custom::(morning|night)::/, (_, pp) =>
-                                  `custom::${pp === "morning" ? "night" : "morning"}`
-                                );
-                                const hasSibling = customSteps.some((s) => s.id === siblingId);
-                                const isActive =
-                                  p === "both" ? hasSibling :
-                                  p === item.period && !hasSibling;
-                                return (
-                                  <button
-                                    key={p}
-                                    onClick={() => changeCustomStepPeriod(item.key, p)}
-                                    className={`h-6 px-2 rounded-full text-[10px] font-bold flex items-center gap-0.5 transition-colors ${
-                                      isActive ? "bg-primary text-white" : "border border-border/60 bg-background text-muted-foreground"
-                                    }`}
-                                  >
-                                    {p === "morning" && <><Sun size={9} />Manhã</>}
-                                    {p === "night" && <><Moon size={9} />Noite</>}
-                                    {p === "both" && <><Sun size={9} /><Moon size={9} />Ambos</>}
-                                  </button>
-                                );
-                              })}
-                              <button
-                                onClick={() => {
-                                  const siblingId = item.key.replace(/^custom::(morning|night)::/, (_, pp) =>
-                                    `custom::${pp === "morning" ? "night" : "morning"}`
-                                  );
-                                  removeCustomStep(item.key);
-                                  removeCustomStep(siblingId);
-                                }}
-                                className="w-6 h-6 rounded-full border border-destructive/40 bg-destructive/10 flex items-center justify-center ml-1"
-                                aria-label="Remover passo"
-                              >
-                                <Trash2 size={11} className="text-destructive" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
 
                       {/* Main card row: image + details + check */}
                       <div className="flex items-center gap-3 p-3">
@@ -2462,58 +2389,94 @@ const Routine = () => {
                             )}
                             {item.isCustom && !isEditing && (
                               <button
-                                onClick={() => {
-                                  setStepPendingDelete({ id: item.key, name: getDisplayProductName(item) });
-                                }}
+                                onClick={() => setStepPendingDelete({ id: item.key, name: getDisplayProductName(item) })}
                                 className="w-6 h-6 rounded-full hover:bg-destructive/10 flex items-center justify-center transition-colors"
                                 aria-label="Deletar passo"
-                                title="Deletar este passo"
                               >
                                 <Trash2 size={12} className="text-destructive" />
                               </button>
                             )}
+                            {/* Em edição, a exclusão fica no stack lateral direito */}
                           </div>
                         </div>
 
-                        {/* Check button — 44px touch target, spring animation */}
-                        <motion.button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (!isEditing) toggleChecklist(item.key);
-                          }}
-                          whileTap={{ scale: 0.88 }}
-                          animate={isChecked
-                            ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } }
-                            : { scale: 1 }
-                          }
-                          className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center flex-shrink-0"
-                          style={isChecked
-                            ? { background: "var(--grad-coral)", border: "2px solid transparent" }
-                            : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
-                          }
-                          aria-label={isChecked ? "Desmarcar item" : "Marcar item"}
-                        >
-                          {isChecked && (
-                            <motion.svg
-                              width="14" height="14" viewBox="0 0 12 12" fill="none"
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ duration: 0.15 }}
+                        {/* Direita: stack de edição OU checkbox */}
+                        {isEditing ? (
+                          <div className="flex flex-col items-center gap-1 flex-shrink-0 pl-1">
+                            <button
+                              onClick={() => moveStep(itemPeriod, item.key, "up")}
+                              disabled={isFirst}
+                              className="w-8 h-8 rounded-xl border border-border/50 bg-background/80 flex items-center justify-center disabled:opacity-25 hover:bg-muted/50 transition-colors"
+                              aria-label="Mover para cima"
                             >
-                              <motion.path
-                                d="M2 6L5 9L10 3"
-                                stroke="white"
-                                strokeWidth="2.2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                initial={{ pathLength: 0 }}
-                                animate={{ pathLength: 1 }}
-                                transition={{ duration: 0.22, ease: "easeOut" }}
-                              />
-                            </motion.svg>
-                          )}
-                        </motion.button>
+                              <ChevronUp size={15} className="text-foreground" />
+                            </button>
+                            <RoutineDragHandle className="w-8 h-8 rounded-xl border border-border/50 bg-background/80" />
+                            <button
+                              onClick={() => moveStep(itemPeriod, item.key, "down")}
+                              disabled={isLast}
+                              className="w-8 h-8 rounded-xl border border-border/50 bg-background/80 flex items-center justify-center disabled:opacity-25 hover:bg-muted/50 transition-colors"
+                              aria-label="Mover para baixo"
+                            >
+                              <ChevronDown size={15} className="text-foreground" />
+                            </button>
+                            {item.isCustom && (
+                              <button
+                                onClick={() => {
+                                  const siblingId = item.key.replace(/^custom::(morning|night)::/, (_, pp) =>
+                                    `custom::${pp === "morning" ? "night" : "morning"}`
+                                  );
+                                  removeCustomStep(item.key);
+                                  removeCustomStep(siblingId);
+                                }}
+                                className="w-8 h-8 rounded-xl border border-destructive/40 bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors mt-0.5"
+                                aria-label="Remover passo"
+                              >
+                                <Trash2 size={13} className="text-destructive" />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          /* Check button — 44px touch target, spring animation */
+                          <motion.button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleChecklist(item.key);
+                            }}
+                            whileTap={{ scale: 0.88 }}
+                            animate={isChecked
+                              ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } }
+                              : { scale: 1 }
+                            }
+                            className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center flex-shrink-0"
+                            style={isChecked
+                              ? { background: "var(--grad-coral)", border: "2px solid transparent" }
+                              : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
+                            }
+                            aria-label={isChecked ? "Desmarcar item" : "Marcar item"}
+                          >
+                            {isChecked && (
+                              <motion.svg
+                                width="14" height="14" viewBox="0 0 12 12" fill="none"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.15 }}
+                              >
+                                <motion.path
+                                  d="M2 6L5 9L10 3"
+                                  stroke="white"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  initial={{ pathLength: 0 }}
+                                  animate={{ pathLength: 1 }}
+                                  transition={{ duration: 0.22, ease: "easeOut" }}
+                                />
+                              </motion.svg>
+                            )}
+                          </motion.button>
+                        )}
                       </div>
 
                       {/* Admin Edit Panel */}
