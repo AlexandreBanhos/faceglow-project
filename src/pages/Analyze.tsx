@@ -9,11 +9,12 @@ import { invalidateAnalysisCache } from "@/lib/analysisClient";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
-import { AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, Sparkles, RotateCcw } from "lucide-react";
 import ScanningView from "@/components/analyze/ScanningView";
-import SelfieGuidelines from "@/components/analyze/SelfieGuidelines";
 import LoadingAnalysisView from "@/components/analyze/LoadingAnalysisView";
-import { AuroraBackdrop } from "@/components/shared";
+import { AnalysisInfoPage } from "@/components/analyze/AnalysisInfoPage";
+import { ScanInstructionsPage } from "@/components/analyze/ScanInstructionsPage";
+import { AnalysisTermsModal } from "@/components/analyze/AnalysisTermsModal";
 
 const MAX_IMAGE_BYTES = 1600 * 1024;
 const MAX_IMAGE_DIMENSION = 1280;
@@ -94,7 +95,8 @@ const optimizeImageForUpload = async (file: File): Promise<string> => {
   return optimizeImageDataUrl(originalDataUrl);
 };
 
-type AnalyzePhase = "scanner" | "preview" | "loading";
+type AnalyzePhase = "info" | "instructions" | "scanner" | "preview" | "loading";
+const TERMS_ACCEPTED_KEY = "faceglow-analysis-terms-accepted";
 type FaceValidationState = "unknown" | "checking" | "valid" | "invalid" | "unsupported";
 
 const validateFaceInImage = async (dataUrl: string): Promise<FaceValidationState> => {
@@ -117,14 +119,15 @@ const Analyze = () => {
   const { setUserStatus } = useUserContext();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   useUserStatus(isAuthenticated);
-  const [phase, setPhase] = useState<AnalyzePhase>("scanner");
+  const [phase, setPhase] = useState<AnalyzePhase>("info");
   const [image, setImage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null);
   const [loadingFinished, setLoadingFinished] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [faceValidation, setFaceValidation] = useState<FaceValidationState>("unknown");
   const [pendingAnalysisId, setPendingAnalysisId] = useState<string | null>(null);
-  const [showGuidelines, setShowGuidelines] = useState(true);
+  const [showTerms, setShowTerms] = useState(false);
+  const termsAccepted = () => !!localStorage.getItem(TERMS_ACCEPTED_KEY);
 
   useEffect(() => {
     let mounted = true;
@@ -162,7 +165,6 @@ const Analyze = () => {
     setImage(savedImage);
     setFaceValidation(savedFace ?? "unknown");
     setPhase("preview");
-    setShowGuidelines(false);
   }, [image]);
 
   useEffect(() => {
@@ -338,25 +340,52 @@ const Analyze = () => {
     }
   };
 
-  if (showGuidelines) {
+  // ── 1. Página informativa ─────────────────────────────────────────────────
+  if (phase === "info") {
     return (
-      <SelfieGuidelines
-        onStartCamera={() => setShowGuidelines(false)}
-        onBack={() => navigate(isAuthenticated ? "/dashboard" : "/")}
+      <>
+        <AnalysisInfoPage
+          onStart={() => {
+            if (!termsAccepted()) { setShowTerms(true); return; }
+            setPhase("instructions");
+          }}
+          onClose={() => navigate(isAuthenticated ? "/dashboard" : "/")}
+        />
+        <AnalysisTermsModal
+          open={showTerms}
+          onAccept={() => {
+            localStorage.setItem(TERMS_ACCEPTED_KEY, "1");
+            setShowTerms(false);
+            setPhase("instructions");
+          }}
+          onDecline={() => setShowTerms(false)}
+        />
+      </>
+    );
+  }
+
+  // ── 2. Instruções de câmera ────────────────────────────────────────────────
+  if (phase === "instructions") {
+    return (
+      <ScanInstructionsPage
+        onContinue={() => setPhase("scanner")}
+        onBack={() => setPhase("info")}
       />
     );
   }
 
+  // ── 3. Câmera ─────────────────────────────────────────────────────────────
   if (phase === "scanner") {
     return (
       <ScanningView
-        onBack={() => setShowGuidelines(true)}
+        onBack={() => setPhase("instructions")}
         onCapture={handleCapture}
         onGalleryFile={handleGalleryFile}
       />
     );
   }
 
+  // ── 4. Loading / polling ──────────────────────────────────────────────────
   if (phase === "loading" && image) {
     return (
       <LoadingAnalysisView
@@ -370,73 +399,97 @@ const Analyze = () => {
     );
   }
 
+  // ── 5. Preview da imagem capturada ────────────────────────────────────────
+  const resetCapture = () => {
+    setImage(null);
+    localStorage.removeItem(PENDING_ANALYZE_IMAGE_KEY);
+    localStorage.removeItem(PENDING_ANALYZE_FACE_KEY);
+    localStorage.removeItem(PENDING_ANALYZE_AT_KEY);
+    setPhase("scanner");
+  };
+
   return (
-    <div className="relative w-full min-h-screen pb-8 overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
-      <AuroraBackdrop tone="warm" className="-z-10" />
-      <div className="relative z-10 mx-auto flex h-screen w-full max-w-md flex-col px-6 py-6">
-        <div className="mb-6 flex items-center justify-between">
-          <button onClick={() => setPhase("scanner")} className="text-sm font-semibold text-[var(--fg-ink-2)]">
-            Nova captura
-          </button>
-          <p className="text-base font-bold text-[var(--fg-ink)]">Pré-visualização</p>
-          <button onClick={() => navigate(isAuthenticated ? "/dashboard" : "/")} className="text-sm font-semibold text-[var(--fg-ink-2)]">
-            Fechar
-          </button>
-        </div>
+    <div className="flex flex-col min-h-screen" style={{ background: "#FAFAF8" }}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-6 pb-4">
+        <button
+          onClick={resetCapture}
+          className="flex items-center gap-1.5 text-sm font-semibold"
+          style={{ color: "#6B6B6B", background: "none", border: "none", cursor: "pointer" }}
+        >
+          <RotateCcw size={15} /> Nova captura
+        </button>
+        <span style={{ fontWeight: 700, fontSize: 16, color: "#1A1A1A" }}>Pré-visualização</span>
+        <button
+          onClick={() => navigate(isAuthenticated ? "/dashboard" : "/")}
+          style={{ color: "#6B6B6B", background: "none", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+        >
+          Fechar
+        </button>
+      </div>
 
-        <div className="relative mb-6 overflow-hidden rounded-[2rem] lg-surface-strong shadow-glow" style={{ height: "52vh" }}>
-          <img src={image ?? ""} alt="Imagem capturada" className="h-full w-full object-cover" />
+      {/* Image preview */}
+      <div className="px-5 mb-5">
+        <div style={{ borderRadius: 24, overflow: "hidden", aspectRatio: "3/4", background: "#F0EDE8", boxShadow: "0 8px 32px rgba(244,168,199,0.2)" }}>
+          <img src={image ?? ""} alt="Imagem capturada" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </div>
+      </div>
 
+      <div className="flex-1 px-5 pb-6 space-y-3">
+        {/* Error */}
         {analysisError && (
-          <div className="mb-4 rounded-2xl lg-surface px-4 py-4 flex gap-3 border border-coral/20">
-            <AlertCircle size={18} className="text-coral flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-coral font-medium leading-relaxed">{analysisError}</p>
+          <div className="flex items-start gap-3 p-4 rounded-2xl" style={{ background: "rgba(232,116,138,0.08)", border: "1px solid rgba(232,116,138,0.25)" }}>
+            <AlertCircle size={17} style={{ color: "#E8748A", flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 13, color: "#E8748A", fontWeight: 500, lineHeight: 1.5 }}>{analysisError}</p>
           </div>
         )}
 
-        <div className="mt-auto space-y-3 pb-4">
-          {faceValidation !== "invalid" && (
-            <button
-              onClick={startAnalysis}
-              disabled={faceValidation === "checking" || (isAuthenticated && !canAnalyze)}
-              className="coral-button w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              <Sparkles size={18} />
-              {faceValidation === "checking" ? "Validando rosto..." : "Iniciar análise"}
-            </button>
-          )}
-          {isAuthenticated && !canAnalyze && (
-            <div className="rounded-2xl lg-surface px-4 py-3 text-sm text-coral font-medium text-center border border-coral/20">
-              Sem créditos disponíveis.{" "}
-              <button className="underline font-bold" onClick={() => navigate("/billing")}>Adquirir créditos</button>
-            </div>
-          )}
-          {faceValidation === "invalid" && (
-            <div className="rounded-2xl lg-surface px-4 py-3 text-sm text-coral font-medium border border-coral/20">
-              Sem rosto válido na foto. Use "Capturar novamente" para tirar outra imagem.
-            </div>
-          )}
-          <button
-            onClick={() => {
-              setImage(null);
-              localStorage.removeItem(PENDING_ANALYZE_IMAGE_KEY);
-              localStorage.removeItem(PENDING_ANALYZE_FACE_KEY);
-              localStorage.removeItem(PENDING_ANALYZE_AT_KEY);
-              setPhase("scanner");
-            }}
-            className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base"
-          >
-            Capturar novamente
-          </button>
-          <div className="flex items-center gap-2 rounded-2xl lg-surface px-4 py-3 text-sm text-[var(--fg-ink-3)]">
-            <CheckCircle2 size={16} className="shrink-0 text-coral flex-shrink-0" />
-            <span>
-              A análise usa enquadramento facial, textura e sinais de pele para gerar seu plano.
-              {creditsRemaining > 0 && <> · <strong>{creditsRemaining} crédito{creditsRemaining !== 1 ? "s" : ""}</strong> disponíve{creditsRemaining !== 1 ? "is" : "l"}</>}
+        {/* Credits info */}
+        {creditsRemaining > 0 && (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-2xl" style={{ background: "#FFF", border: "1px solid #F0EDE8" }}>
+            <CheckCircle2 size={15} style={{ color: "#E8748A", flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: "#6B6B6B" }}>
+              <strong style={{ color: "#1A1A1A" }}>{creditsRemaining} crédito{creditsRemaining !== 1 ? "s" : ""}</strong> disponíve{creditsRemaining !== 1 ? "is" : "l"}
             </span>
           </div>
-        </div>
+        )}
+
+        {/* No credits warning */}
+        {isAuthenticated && !canAnalyze && (
+          <div className="px-4 py-3 rounded-2xl text-sm text-center font-medium" style={{ background: "rgba(232,116,138,0.08)", border: "1px solid rgba(232,116,138,0.25)", color: "#E8748A" }}>
+            Sem créditos disponíveis.{" "}
+            <button style={{ textDecoration: "underline", fontWeight: 700, background: "none", border: "none", color: "inherit", cursor: "pointer" }} onClick={() => navigate("/premium")}>Adquirir</button>
+          </div>
+        )}
+
+        {/* Face invalid warning */}
+        {faceValidation === "invalid" && (
+          <div className="px-4 py-3 rounded-2xl text-sm font-medium" style={{ background: "rgba(232,116,138,0.08)", border: "1px solid rgba(232,116,138,0.25)", color: "#E8748A" }}>
+            Nenhum rosto detectado. Capture novamente com o rosto centralizado.
+          </div>
+        )}
+      </div>
+
+      {/* Footer actions */}
+      <div className="px-5 pb-8 pt-3 space-y-3" style={{ borderTop: "1px solid #F0EDE8", background: "#FAFAF8" }}>
+        {faceValidation !== "invalid" && (
+          <button
+            onClick={startAnalysis}
+            disabled={faceValidation === "checking" || (isAuthenticated && !canAnalyze)}
+            className="w-full flex items-center justify-center gap-2 font-bold text-white"
+            style={{ height: 54, borderRadius: 14, background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)", fontSize: 16, border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(232,116,138,0.3)", opacity: (faceValidation === "checking" || (isAuthenticated && !canAnalyze)) ? 0.6 : 1 }}
+          >
+            <Sparkles size={18} />
+            {faceValidation === "checking" ? "Validando rosto..." : "Iniciar análise"}
+          </button>
+        )}
+        <button
+          onClick={resetCapture}
+          className="w-full font-semibold"
+          style={{ height: 46, borderRadius: 14, background: "#FFF", border: "1.5px solid #F0EDE8", color: "#6B6B6B", fontSize: 15, cursor: "pointer" }}
+        >
+          Capturar novamente
+        </button>
       </div>
     </div>
   );
