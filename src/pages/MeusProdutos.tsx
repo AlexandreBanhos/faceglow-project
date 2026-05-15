@@ -1,8 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen,
+  ArrowLeft, Plus, Trash2, Upload, X, PackageOpen,
   Pencil, Lightbulb, Check, Loader2, Package,
   Droplets, Pipette, Shield, Layers, Sparkles, Eye, Zap, FlaskConical, Target, Droplet, Heart,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -24,19 +25,18 @@ const CATEGORIES = [
   "Esfoliante", "Máscara", "Contorno dos Olhos", "Retinol", "Ácido",
 ];
 
-const CATEGORY_FALLBACK: Record<string, string> = {
-  "Retinol": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263050155-fojzlv.png",
-  "Ácido": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263050155-fojzlv.png",
-  "Tônico": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776263016335-s8ggzz.png",
-  "Protetor Solar": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224363237-e81o0d.png",
-  "Hidratante": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224296863-0qst29.png",
-  "Sérum": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224156505-c7bgop.png",
-  "Limpeza": "https://hemoqtqlczjgtrfibudj.supabase.co/storage/v1/object/public/product-images/57b9be3c-9834-4a62-951a-6f8d16d3c92b/1776224112164-r15mn9.png",
-};
+const BRANDS = [
+  "La Roche-Posay", "Neutrogena", "Vichy", "Eucerin", "Cetaphil",
+  "Bioderma", "Avène", "Cosrx", "The Ordinary", "Garnier",
+  "Nivea", "SVR", "Mantecorp", "Adcos", "Neostrata",
+  "Isdin", "Dermage", "Anasol", "L'Oréal", "Skinceuticals",
+];
 
-const getImg = (url?: string, cat?: string) => url || (cat ? CATEGORY_FALLBACK[cat] : undefined);
+const SKIN_TYPES = ["Todos", "Seca", "Oleosa", "Mista", "Normal", "Sensível"];
+const TREATMENTS = ["Acne", "Manchas", "Hidratação", "Anti-idade", "Poros", "Sensibilidade", "Uniformidade"];
+const PRODUCT_TYPES = ["Leave-on", "Rinse-off", "Pontual", "Proteção solar", "Tratamento noturno"];
 
-// ── Ícone por categoria (fallback quando não há imagem nem fallback de URL) ───
+// ── Ícone por categoria ───────────────────────────────────────────────────────
 const CATEGORY_ICON: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
   "Limpeza":            { Icon: Droplets,     color: "text-cyan-500",    bg: "bg-cyan-50"    },
   "Hidratante":         { Icon: Heart,         color: "text-pink-400",    bg: "bg-pink-50"    },
@@ -52,7 +52,7 @@ const CATEGORY_ICON: Record<string, { Icon: LucideIcon; color: string; bg: strin
   "Tratamento Pontual": { Icon: Target,        color: "text-rose-500",    bg: "bg-rose-50"    },
 };
 
-const CategoryIcon = ({ category, size = 20 }: { category?: string; size?: number }) => {
+const CategoryIcon = ({ category, size = 18 }: { category?: string; size?: number }) => {
   const entry = category ? CATEGORY_ICON[category] : undefined;
   if (!entry) return <Package size={size} className="text-muted-foreground/50" />;
   const { Icon, color, bg } = entry;
@@ -64,22 +64,21 @@ const CategoryIcon = ({ category, size = 20 }: { category?: string; size?: numbe
 };
 
 const periodLabel = (p: "morning" | "night" | "both") =>
-  p === "morning" ? "manhã" : p === "night" ? "noite" : "manhã e noite";
+  p === "morning" ? "☀️ Manhã" : p === "night" ? "🌙 Noite" : "☀️🌙 Ambas";
 
 const PeriodBadge = ({ period }: { period: "morning" | "night" | "both" }) => {
   if (period === "both") return (
-    <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold w-fit mx-auto mt-0.5 text-white"
-      style={{ background: "linear-gradient(90deg, #f59e0b 0%, #6366f1 100%)" }}>
-      <span>☀️</span><span>🌙</span><span>Ambas</span>
-    </div>
+    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
+      style={{ background: "linear-gradient(90deg,#f59e0b 0%,#6366f1 100%)" }}>
+      ☀️🌙 Ambas
+    </span>
   );
   return (
-    <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold w-fit mx-auto mt-0.5 ${
+    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
       period === "morning" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
     }`}>
-      <span>{period === "morning" ? "☀️" : "🌙"}</span>
-      <span>{period === "morning" ? "Manhã" : "Noite"}</span>
-    </div>
+      {period === "morning" ? "☀️ Manhã" : "🌙 Noite"}
+    </span>
   );
 };
 
@@ -109,13 +108,28 @@ async function fetchRoutineUsage(analysisId: string): Promise<RoutineUsage> {
   }
 }
 
-const emptyForm = { name: "", category: "", imageUrl: "", note: "", defaultPeriod: "both" as Period };
-
 const categoryDefaultPeriod = (cat: string): Period => {
   const n = cat.toLowerCase();
   if (n.includes("protetor") || n.includes("solar")) return "morning";
   if (n.includes("retinol") || n.includes("ácido") || n.includes("acido")) return "night";
   return "both";
+};
+
+type FormState = {
+  name: string;
+  brand: string;
+  category: string;
+  imageUrl: string;
+  note: string;
+  defaultPeriod: Period;
+  skinTypes: string[];
+  treatments: string[];
+  productType: string;
+};
+
+const emptyForm: FormState = {
+  name: "", brand: "", category: "", imageUrl: "", note: "",
+  defaultPeriod: "both", skinTypes: [], treatments: [], productType: "",
 };
 
 // ── Componente ────────────────────────────────────────────────────────────────
@@ -127,25 +141,30 @@ export default function MeusProdutos() {
   const [products, setProducts] = useState<UserCatalogProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [activeTab, setActiveTab] = useState<"meus" | "indicados">("meus");
+
+  // "Indicados" data
   const [recommendedProducts, setRecommendedProducts] = useState<Array<{
     type: string; product: string; description: string; imageUrl?: string;
   }>>([]);
+  const [analysisRoutine, setAnalysisRoutine] = useState<{ morning: string[]; night: string[] }>({ morning: [], night: [] });
+  const [additionalRecs, setAdditionalRecs] = useState<string>("");
   const [routineUsage, setRoutineUsage] = useState<RoutineUsage>(new Map());
 
   // ── Form Sheet ────────────────────────────────────────────────────────────
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [catOpen, setCatOpen] = useState(false);
+  const [brandOpen, setBrandOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // ── Routine add ───────────────────────────────────────────────────────────
-  const [addingToRoutine, setAddingToRoutine] = useState<Record<string, boolean>>({});
-  const [addedToRoutine, setAddedToRoutine] = useState<Record<string, string>>({});
-
   type PendingAdd = { productName: string; imageUrl?: string; category: string; period: Period; id: string };
   const [pendingAdd, setPendingAdd] = useState<PendingAdd | null>(null);
+  const [addingToRoutine, setAddingToRoutine] = useState<Record<string, boolean>>({});
+  const [addedToRoutine, setAddedToRoutine] = useState<Record<string, string>>({});
 
   // ── Load data ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -162,6 +181,12 @@ export default function MeusProdutos() {
           const analysis = getCachedLatestAnalysis();
           if (analysis?.recommendations?.length) {
             setRecommendedProducts(analysis.recommendations);
+          }
+          if (analysis?.routine) {
+            setAnalysisRoutine(analysis.routine);
+          }
+          if (analysis?.additionalRecommendations) {
+            setAdditionalRecs(analysis.additionalRecommendations);
           }
           if (analysis?.id) {
             setRoutineUsage(await fetchRoutineUsage(analysis.id));
@@ -181,6 +206,7 @@ export default function MeusProdutos() {
   const openAdd = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setAdvancedOpen(false);
     setFormOpen(true);
   };
 
@@ -188,11 +214,16 @@ export default function MeusProdutos() {
     setEditingId(p.id);
     setForm({
       name: p.name,
+      brand: p.brand ?? "",
       category: p.category,
       imageUrl: p.imageUrl ?? "",
       note: p.note ?? "",
-      defaultPeriod: categoryDefaultPeriod(p.category),
+      defaultPeriod: p.defaultPeriod ?? categoryDefaultPeriod(p.category),
+      skinTypes: p.skinTypes ?? [],
+      treatments: p.treatments ?? [],
+      productType: p.productType ?? "",
     });
+    setAdvancedOpen(false);
     setFormOpen(true);
   };
 
@@ -213,9 +244,14 @@ export default function MeusProdutos() {
     try {
       const data = {
         name: form.name.trim(),
+        brand: form.brand.trim() || undefined,
         category: form.category.trim(),
         imageUrl: form.imageUrl.trim() || undefined,
         note: form.note.trim() || undefined,
+        defaultPeriod: form.defaultPeriod,
+        skinTypes: form.skinTypes.length ? form.skinTypes : undefined,
+        treatments: form.treatments.length ? form.treatments : undefined,
+        productType: form.productType || undefined,
       };
       if (editingId) {
         const updated = await updateMyProduct(editingId, data);
@@ -263,7 +299,6 @@ export default function MeusProdutos() {
         addRoutineStep(analysis.id, { period: p, productName, imageUrl, category, recurrence: "daily" })
       ));
       invalidateAnalysisCache();
-      // Atualiza routineUsage localmente sem refetch
       setRoutineUsage((prev) => {
         const next = new Map(prev);
         const key = productName.toLowerCase().trim();
@@ -281,18 +316,26 @@ export default function MeusProdutos() {
     finally { setAddingToRoutine((prev) => ({ ...prev, [id]: false })); }
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────
+  // ── Autocomplete helpers ──────────────────────────────────────────────────
+  const catSuggestions = CATEGORIES.filter((c) =>
+    c.toLowerCase().includes(form.category.toLowerCase()) && form.category.length > 0
+  );
+  const brandSuggestions = BRANDS.filter((b) =>
+    b.toLowerCase().includes(form.brand.toLowerCase()) && form.brand.length > 0
+  );
+
+  // ── Grouped products ──────────────────────────────────────────────────────
   const grouped = products.reduce<Record<string, UserCatalogProduct[]>>((acc, p) => {
     const key = p.category || "Sem categoria";
     acc[key] = [...(acc[key] ?? []), p];
     return acc;
   }, {});
 
-  const catSuggestions = CATEGORIES.filter((c) =>
-    c.toLowerCase().includes(form.category.toLowerCase())
-  );
-
-  const previewImg = form.imageUrl || CATEGORY_FALLBACK[form.category];
+  // ── Indicados: check if any data ──────────────────────────────────────────
+  const hasIndicados =
+    recommendedProducts.length > 0 ||
+    analysisRoutine.morning.length > 0 ||
+    analysisRoutine.night.length > 0;
 
   return (
     <div className="relative min-h-screen overflow-hidden pb-28" style={{ background: "var(--grad-aurora)" }}>
@@ -337,9 +380,9 @@ export default function MeusProdutos() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-md px-4 pt-5 space-y-6">
+      <div className="mx-auto max-w-md px-4 pt-5 space-y-5">
 
-        {/* ── Meus Produtos ─────────────────────────────────────────────────── */}
+        {/* ── Meus Produtos ──────────────────────────────────────────────────── */}
         {activeTab === "meus" && (
           <>
             {products.length === 0 && !loadingProducts && (
@@ -350,7 +393,7 @@ export default function MeusProdutos() {
                 </div>
                 <div>
                   <p className="font-bold text-foreground">Nenhum produto cadastrado</p>
-                  <p className="text-sm text-muted-foreground mt-1">Adicione os produtos que você tem em casa para organizar sua rotina.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Adicione os produtos que você usa para organizar sua rotina.</p>
                 </div>
                 <button onClick={openAdd} className="coral-button h-11 px-6 rounded-full text-sm font-bold text-white">
                   Adicionar primeiro produto
@@ -359,66 +402,55 @@ export default function MeusProdutos() {
             )}
 
             {Object.entries(grouped).map(([category, items]) => (
-              <div key={category} className="space-y-2">
+              <div key={category} className="space-y-1.5">
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">{category}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {items.map((p) => {
-                    const img = getImg(p.imageUrl, p.category);
+                <div className="space-y-1.5">
+                  {items.map((p, idx) => {
                     const usagePeriod = inRoutine(p.name);
+                    const displayPeriod = usagePeriod ?? p.defaultPeriod;
                     return (
-                      <motion.div key={p.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                        className="lg-surface flex flex-col items-center text-center rounded-xl p-2.5">
-                        {/* Image / icon */}
-                        <div className="w-full h-16 rounded-lg flex items-center justify-center mb-1.5 relative overflow-hidden">
-                          {img ? (
-                            <img src={img} alt={p.name} className="h-full object-contain"
-                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                          ) : (
-                            <CategoryIcon category={p.category} size={22} />
-                          )}
-                          {usagePeriod && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-sm z-10">
-                              <Check size={10} className="text-white" />
-                            </div>
-                          )}
+                      <motion.div key={p.id} layout
+                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.03 }}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
+                        style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.6)", boxShadow: "0 1px 6px rgba(244,168,199,0.08)" }}
+                      >
+                        {/* Category icon */}
+                        <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
+                          <CategoryIcon category={p.category} size={16} />
                         </div>
 
-                        {/* Name */}
-                        <p className="text-[10px] font-semibold text-foreground line-clamp-2 leading-tight w-full text-center">{p.name}</p>
+                        {/* Name + brand */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate leading-tight">{p.name}</p>
+                          {p.brand && <p className="text-[11px] text-muted-foreground truncate">{p.brand}</p>}
+                        </div>
 
-                        {/* Period badge when in routine */}
-                        {usagePeriod
-                          ? <PeriodBadge period={usagePeriod} />
-                          : p.note && <p className="text-[8px] text-muted-foreground line-clamp-1 mt-0.5">{p.note}</p>
-                        }
+                        {/* Period badge */}
+                        {displayPeriod && (
+                          <PeriodBadge period={displayPeriod} />
+                        )}
 
-                        {/* Toggle período + adicionar */}
-                        {addedToRoutine[p.id] ? (
-                          <div className="flex items-center gap-1 mt-2 justify-center">
-                            <Check size={11} className="text-green-600" />
-                            <span className="text-[9px] font-bold text-green-600">Adicionado!</span>
-                          </div>
-                        ) : (
-                          <div className="mt-2 w-full" onClick={(e) => e.stopPropagation()}>
-                            <PeriodSelector
-                              size="sm"
-                              value={categoryDefaultPeriod(p.category)}
-                              onChange={(period) => !addingToRoutine[p.id] && requestAdd(p.name, p.imageUrl, p.category, period, p.id)}
-                            />
+                        {/* In-routine indicator */}
+                        {usagePeriod && (
+                          <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                            <Check size={10} className="text-white" />
                           </div>
                         )}
 
-                        {/* Edit / delete */}
-                        <div className="flex items-center gap-1 mt-1 w-full">
-                          <button onClick={() => openEdit(p)}
-                            className="flex-1 h-6 rounded-lg border border-border/50 bg-background flex items-center justify-center hover:bg-muted transition-colors">
-                            <Pencil size={10} className="text-muted-foreground" />
-                          </button>
-                          <button onClick={() => remove(p.id)}
-                            className="flex-1 h-6 rounded-lg border border-destructive/40 bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors">
-                            <Trash2 size={10} className="text-destructive" />
-                          </button>
-                        </div>
+                        {/* Edit */}
+                        <button onClick={() => openEdit(p)}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                          style={{ background: "rgba(244,168,199,0.12)", border: "1px solid rgba(244,168,199,0.25)" }}>
+                          <Pencil size={13} style={{ color: "#E8748A" }} />
+                        </button>
+
+                        {/* Delete */}
+                        <button onClick={() => remove(p.id)}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                          <Trash2 size={13} className="text-destructive" />
+                        </button>
                       </motion.div>
                     );
                   })}
@@ -428,10 +460,10 @@ export default function MeusProdutos() {
           </>
         )}
 
-        {/* ── Indicados ─────────────────────────────────────────────────────── */}
+        {/* ── Indicados ──────────────────────────────────────────────────────── */}
         {activeTab === "indicados" && (
           <>
-            {recommendedProducts.length === 0 ? (
+            {!hasIndicados ? (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                 className="py-16 flex flex-col items-center gap-4 text-center">
                 <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center">
@@ -444,100 +476,195 @@ export default function MeusProdutos() {
                 </button>
               </motion.div>
             ) : (
-              (() => {
-                const grouped = recommendedProducts.reduce<Record<string, typeof recommendedProducts>>((acc, p) => {
-                  const key = p.type || "Outros";
-                  acc[key] = [...(acc[key] ?? []), p];
-                  return acc;
-                }, {});
-
-                return Object.entries(grouped).map(([type, items]) => (
-                  <div key={type} className="space-y-2">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">{type}</p>
-                    <div className="relative rounded-2xl bg-gradient-to-b from-amber-50 to-amber-100 p-3 shadow-md border border-amber-200">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <>
+                {/* Recomendados — agrupados por tipo */}
+                {recommendedProducts.length > 0 && (() => {
+                  const grouped = recommendedProducts.reduce<Record<string, typeof recommendedProducts>>((acc, p) => {
+                    const key = p.type || "Outros";
+                    acc[key] = [...(acc[key] ?? []), p];
+                    return acc;
+                  }, {});
+                  return Object.entries(grouped).map(([type, items]) => (
+                    <div key={type} className="space-y-1.5">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">{type}</p>
+                      <div className="space-y-1.5">
                         {items.map((p, idx) => {
                           const usagePeriod = inRoutine(p.product);
                           const typeNorm = (p.type ?? "").toLowerCase();
-                          const defaultPeriod: "morning" | "night" | "both" =
+                          const defaultPeriod: Period =
                             typeNorm.includes("protetor") || typeNorm.includes("solar") ? "morning" :
                             typeNorm.includes("retinol") || typeNorm.includes("retinoide") ? "night" : "both";
                           const recId = `rec-${p.product}`;
                           return (
                             <motion.div key={`${type}-${idx}`}
-                              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: idx * 0.04 }}
-                              className={`flex flex-col items-center text-center rounded-xl border shadow-sm p-2 relative ${
-                                usagePeriod ? "bg-green-50 border-green-200" : "bg-white border-border/40"
-                              }`}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
+                              style={{
+                                background: usagePeriod ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.72)",
+                                border: usagePeriod ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(255,255,255,0.6)",
+                                boxShadow: "0 1px 6px rgba(244,168,199,0.08)",
+                              }}
                             >
-                              {usagePeriod && (
-                                <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-md z-10">
-                                  <Check size={10} className="text-white" />
-                                </div>
-                              )}
-
-                              <div className="w-full h-16 rounded-lg flex items-center justify-center mb-1.5 overflow-hidden">
-                                {p.imageUrl
-                                  ? <img src={p.imageUrl} alt={p.product} className="h-full object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                                  : <CategoryIcon category={p.type} size={20} />
-                                }
+                              {/* Category icon */}
+                              <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
+                                <CategoryIcon category={p.type} size={16} />
                               </div>
 
-                              <p className="text-[10px] font-semibold text-foreground line-clamp-2 leading-tight">{p.product}</p>
+                              {/* Name + description */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate leading-tight">{p.product}</p>
+                                {p.description && (
+                                  <p className="text-[11px] text-muted-foreground line-clamp-1">{p.description}</p>
+                                )}
+                              </div>
 
-                              {usagePeriod
-                                ? <PeriodBadge period={usagePeriod} />
-                                : p.description && <p className="text-[8px] text-muted-foreground line-clamp-1 mt-0.5">{p.description}</p>
-                              }
+                              {/* Period badge */}
+                              <PeriodBadge period={defaultPeriod} />
 
-                              {addedToRoutine[recId] ? (
-                                <div className="flex items-center gap-1 mt-2 justify-center">
-                                  <Check size={10} className="text-green-600" />
-                                  <span className="text-[9px] font-bold text-green-600">Adicionado!</span>
+                              {/* In-routine indicator */}
+                              {usagePeriod ? (
+                                <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                  <Check size={10} className="text-white" />
                                 </div>
+                              ) : addedToRoutine[recId] ? (
+                                <Check size={14} className="text-green-500 flex-shrink-0" />
                               ) : (
-                                <div className="flex items-center gap-0.5 mt-2 w-full">
-                                  {(defaultPeriod === "morning" || defaultPeriod === "both") && (
-                                    <button title="Manhã" disabled={!!addingToRoutine[recId]}
-                                      onClick={() => requestAdd(p.product, p.imageUrl, p.type ?? "", "morning", recId)}
-                                      className="flex-1 h-5 rounded-l-lg border border-border/50 bg-white flex items-center justify-center hover:bg-amber-50 transition-colors">
-                                      <Sun size={9} className="text-amber-500" />
-                                    </button>
-                                  )}
-                                  {(defaultPeriod === "night" || defaultPeriod === "both") && (
-                                    <button title="Noite" disabled={!!addingToRoutine[recId]}
-                                      onClick={() => requestAdd(p.product, p.imageUrl, p.type ?? "", "night", recId)}
-                                      className="flex-1 h-5 border border-border/50 bg-white flex items-center justify-center hover:bg-indigo-50 transition-colors">
-                                      <Moon size={9} className="text-indigo-500" />
-                                    </button>
-                                  )}
-                                  {defaultPeriod === "both" && (
-                                    <button title="Ambas" disabled={!!addingToRoutine[recId]}
-                                      onClick={() => requestAdd(p.product, p.imageUrl, p.type ?? "", "both", recId)}
-                                      className="flex-1 h-5 rounded-r-lg border border-border/50 bg-white flex items-center justify-center gap-0.5 hover:bg-primary/5 transition-colors">
-                                      <Sun size={8} className="text-amber-500" /><Moon size={8} className="text-indigo-500" />
-                                    </button>
-                                  )}
-                                </div>
+                                <button
+                                  disabled={!!addingToRoutine[recId]}
+                                  onClick={() => requestAdd(p.product, p.imageUrl, p.type ?? "", defaultPeriod, recId)}
+                                  className="flex-shrink-0 h-8 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 disabled:opacity-50"
+                                  style={{ background: "linear-gradient(135deg,#E8748A,#F4A8C7)" }}
+                                >
+                                  {addingToRoutine[recId] ? <Loader2 size={11} className="animate-spin" /> : "+ Rotina"}
+                                </button>
                               )}
                             </motion.div>
                           );
                         })}
                       </div>
                     </div>
+                  ));
+                })()}
+
+                {/* Rotina sugerida — manhã */}
+                {analysisRoutine.morning.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">☀️ Rotina manhã sugerida</p>
+                    <div className="space-y-1.5">
+                      {analysisRoutine.morning.map((name, idx) => {
+                        const usagePeriod = inRoutine(name);
+                        const recId = `morning-${name}`;
+                        return (
+                          <motion.div key={recId}
+                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.03 }}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
+                            style={{
+                              background: usagePeriod ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.72)",
+                              border: usagePeriod ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(255,255,255,0.6)",
+                              boxShadow: "0 1px 6px rgba(244,168,199,0.08)",
+                            }}
+                          >
+                            <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
+                              <div className="w-full h-full flex items-center justify-center bg-amber-50">
+                                <span style={{ fontSize: 16 }}>☀️</span>
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                            </div>
+                            <PeriodBadge period="morning" />
+                            {usagePeriod ? (
+                              <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                <Check size={10} className="text-white" />
+                              </div>
+                            ) : (
+                              <button
+                                disabled={!!addingToRoutine[recId]}
+                                onClick={() => requestAdd(name, undefined, "", "morning", recId)}
+                                className="flex-shrink-0 h-8 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 disabled:opacity-50"
+                                style={{ background: "linear-gradient(135deg,#E8748A,#F4A8C7)" }}
+                              >
+                                {addingToRoutine[recId] ? <Loader2 size={11} className="animate-spin" /> : "+ Rotina"}
+                              </button>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   </div>
-                ));
-              })()
+                )}
+
+                {/* Rotina sugerida — noite */}
+                {analysisRoutine.night.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">🌙 Rotina noite sugerida</p>
+                    <div className="space-y-1.5">
+                      {analysisRoutine.night.map((name, idx) => {
+                        const usagePeriod = inRoutine(name);
+                        const recId = `night-${name}`;
+                        return (
+                          <motion.div key={recId}
+                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.03 }}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
+                            style={{
+                              background: usagePeriod ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.72)",
+                              border: usagePeriod ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(255,255,255,0.6)",
+                              boxShadow: "0 1px 6px rgba(244,168,199,0.08)",
+                            }}
+                          >
+                            <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
+                              <div className="w-full h-full flex items-center justify-center bg-indigo-50">
+                                <span style={{ fontSize: 16 }}>🌙</span>
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                            </div>
+                            <PeriodBadge period="night" />
+                            {usagePeriod ? (
+                              <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                <Check size={10} className="text-white" />
+                              </div>
+                            ) : (
+                              <button
+                                disabled={!!addingToRoutine[recId]}
+                                onClick={() => requestAdd(name, undefined, "", "night", recId)}
+                                className="flex-shrink-0 h-8 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 disabled:opacity-50"
+                                style={{ background: "linear-gradient(135deg,#E8748A,#F4A8C7)" }}
+                              >
+                                {addingToRoutine[recId] ? <Loader2 size={11} className="animate-spin" /> : "+ Rotina"}
+                              </button>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Observações adicionais */}
+                {additionalRecs && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">Observações adicionais</p>
+                    <div className="px-4 py-3 rounded-2xl text-sm text-muted-foreground leading-relaxed"
+                      style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.6)" }}>
+                      {additionalRecs}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
       </div>
 
-      {/* ── Form Sheet (Add / Edit) ──────────────────────────────────────────── */}
+      {/* ── Form Sheet ───────────────────────────────────────────────────────── */}
       <Sheet open={formOpen} onOpenChange={(o) => { if (!o) setFormOpen(false); }}>
         <SheetContent side="bottom"
-          className="rounded-t-3xl px-0 pb-8 pt-0 max-h-[90vh] overflow-hidden flex flex-col"
+          className="rounded-t-3xl px-0 pb-8 pt-0 max-h-[92vh] overflow-hidden flex flex-col"
           style={{ background: "var(--bg-card, white)" }}
         >
           <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
@@ -553,70 +680,68 @@ export default function MeusProdutos() {
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-2">
-            {/* Image + campos lado a lado */}
-            <div className="flex gap-3">
-              {/* Image preview / upload */}
-              <div className="flex-shrink-0">
-                <div className="w-20 h-20 rounded-2xl bg-muted/40 border border-border/40 overflow-hidden flex items-center justify-center relative">
-                  {previewImg ? (
-                    <>
-                      <img src={previewImg} alt="Preview" className="w-full h-full object-contain p-1"
-                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                      {form.imageUrl && (
-                        <button type="button" onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center">
-                          <X size={9} className="text-white" />
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-                      className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground/60 hover:text-muted-foreground disabled:cursor-default transition-colors">
-                      {uploading ? <Loader2 size={20} className="animate-spin" /> : <><Upload size={18} /><span className="text-[9px] font-medium">Foto</span></>}
-                    </button>
-                  )}
-                </div>
-                {previewImg && !form.imageUrl && (
-                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-                    className="w-20 mt-1 h-6 rounded-lg border border-dashed border-border/60 bg-background text-[9px] font-semibold text-primary flex items-center justify-center gap-1 hover:bg-muted/20 disabled:opacity-50">
-                    <Upload size={10} /> {uploading ? "…" : "Trocar"}
-                  </button>
-                )}
-                <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
-              </div>
 
-              {/* Nome + categoria */}
-              <div className="flex-1 space-y-2">
+            {/* Nome */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Nome do produto *</label>
+              <input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Ex: Sérum Vitamina C"
+                autoFocus
+                className="w-full h-11 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+
+            {/* Categoria */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Categoria</label>
+              <div className="relative">
                 <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="Nome do produto *"
-                  autoFocus
-                  className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  value={form.category}
+                  onChange={(e) => { setForm((f) => ({ ...f, category: e.target.value, defaultPeriod: categoryDefaultPeriod(e.target.value) })); setCatOpen(true); }}
+                  onFocus={() => setCatOpen(true)}
+                  onBlur={() => setTimeout(() => setCatOpen(false), 150)}
+                  placeholder="Limpeza, Sérum, Hidratante…"
+                  className="w-full h-11 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
+                {catOpen && catSuggestions.length > 0 && (
+                  <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-40">
+                    {catSuggestions.map((s) => (
+                      <button key={s} type="button" onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setForm((f) => ({ ...f, category: s, defaultPeriod: categoryDefaultPeriod(s) })); setCatOpen(false); }}
+                        className="w-full px-3 py-2.5 text-left text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-                {/* Categoria com autocomplete */}
-                <div className="relative">
-                  <input
-                    value={form.category}
-                    onChange={(e) => { setForm((f) => ({ ...f, category: e.target.value, defaultPeriod: categoryDefaultPeriod(e.target.value) })); setCatOpen(true); }}
-                    onFocus={() => setCatOpen(true)}
-                    onBlur={() => setTimeout(() => setCatOpen(false), 150)}
-                    placeholder="Categoria  (Limpeza, Sérum…)"
-                    className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  {catOpen && catSuggestions.length > 0 && (
-                    <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-40">
-                      {catSuggestions.map((s) => (
-                        <button key={s} type="button" onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setForm((f) => ({ ...f, category: s, defaultPeriod: categoryDefaultPeriod(s) })); setCatOpen(false); }}
-                          className="w-full px-3 py-2 text-left text-sm font-semibold text-foreground hover:bg-muted transition-colors">
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+            {/* Marca */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Marca</label>
+              <div className="relative">
+                <input
+                  value={form.brand}
+                  onChange={(e) => { setForm((f) => ({ ...f, brand: e.target.value })); setBrandOpen(true); }}
+                  onFocus={() => setBrandOpen(true)}
+                  onBlur={() => setTimeout(() => setBrandOpen(false), 150)}
+                  placeholder="La Roche-Posay, Cosrx, The Ordinary…"
+                  className="w-full h-11 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                {brandOpen && brandSuggestions.length > 0 && (
+                  <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-40">
+                    {brandSuggestions.map((b) => (
+                      <button key={b} type="button" onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setForm((f) => ({ ...f, brand: b })); setBrandOpen(false); }}
+                        className="w-full px-3 py-2.5 text-left text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -636,15 +761,146 @@ export default function MeusProdutos() {
               />
             </div>
 
-            {/* Observação */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Observação (opcional)</label>
-              <input
-                value={form.note}
-                onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                placeholder="Ex: Uso à noite, pele seca"
-                className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+            {/* Seção colapsável */}
+            <div className="rounded-2xl border border-border/40 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAdvancedOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors"
+              >
+                <span>Mais informações <span className="text-muted-foreground font-normal">(opcional)</span></span>
+                {advancedOpen ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+              </button>
+
+              <AnimatePresence initial={false}>
+                {advancedOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 space-y-4 border-t border-border/30">
+
+                      {/* Foto do produto */}
+                      <div className="pt-3">
+                        <label className="text-xs font-semibold text-muted-foreground block mb-2">Foto do produto</label>
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 h-16 rounded-xl bg-muted/40 border border-border/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {form.imageUrl ? (
+                              <img src={form.imageUrl} alt="Preview" className="w-full h-full object-contain p-1"
+                                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                            ) : (
+                              <Package size={22} className="text-muted-foreground/40" />
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                              className="h-8 px-3 rounded-lg border border-dashed border-border/60 text-xs font-semibold text-primary flex items-center gap-1.5 hover:bg-muted/20 disabled:opacity-50">
+                              {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                              {uploading ? "Enviando…" : form.imageUrl ? "Trocar foto" : "Enviar foto"}
+                            </button>
+                            {form.imageUrl && (
+                              <button type="button" onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                                className="h-8 px-3 rounded-lg border border-destructive/30 text-xs font-semibold text-destructive flex items-center gap-1.5">
+                                <X size={12} /> Remover
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                      </div>
+
+                      {/* Tipo de pele */}
+                      <div>
+                        <label className="text-xs font-semibold text-muted-foreground block mb-2">Tipo de pele indicado</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {SKIN_TYPES.map((st) => {
+                            const selected = form.skinTypes.includes(st);
+                            return (
+                              <button key={st} type="button"
+                                onClick={() => setForm((f) => ({
+                                  ...f,
+                                  skinTypes: selected ? f.skinTypes.filter(x => x !== st) : [...f.skinTypes, st],
+                                }))}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                                  selected
+                                    ? "text-white"
+                                    : "bg-muted/40 text-muted-foreground border border-border/40"
+                                }`}
+                                style={selected ? { background: "linear-gradient(135deg,#E8748A,#F4A8C7)" } : undefined}
+                              >
+                                {st}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Tratamento */}
+                      <div>
+                        <label className="text-xs font-semibold text-muted-foreground block mb-2">Objetivo de tratamento</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {TREATMENTS.map((tr) => {
+                            const selected = form.treatments.includes(tr);
+                            return (
+                              <button key={tr} type="button"
+                                onClick={() => setForm((f) => ({
+                                  ...f,
+                                  treatments: selected ? f.treatments.filter(x => x !== tr) : [...f.treatments, tr],
+                                }))}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                                  selected
+                                    ? "text-white"
+                                    : "bg-muted/40 text-muted-foreground border border-border/40"
+                                }`}
+                                style={selected ? { background: "linear-gradient(135deg,#E8748A,#F4A8C7)" } : undefined}
+                              >
+                                {tr}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Tipo de produto */}
+                      <div>
+                        <label className="text-xs font-semibold text-muted-foreground block mb-2">Tipo de produto</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PRODUCT_TYPES.map((pt) => {
+                            const selected = form.productType === pt;
+                            return (
+                              <button key={pt} type="button"
+                                onClick={() => setForm((f) => ({ ...f, productType: selected ? "" : pt }))}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                                  selected
+                                    ? "text-white"
+                                    : "bg-muted/40 text-muted-foreground border border-border/40"
+                                }`}
+                                style={selected ? { background: "linear-gradient(135deg,#E8748A,#F4A8C7)" } : undefined}
+                              >
+                                {pt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Observação */}
+                      <div>
+                        <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Observação</label>
+                        <input
+                          value={form.note}
+                          onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+                          placeholder="Ex: Uso à noite, evitar ao sol"
+                          className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -655,13 +911,13 @@ export default function MeusProdutos() {
             </button>
             <button onClick={save} disabled={!form.name.trim() || saving}
               className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm disabled:opacity-40 flex items-center justify-center gap-2">
-              {saving ? <><Loader2 size={16} className="animate-spin" /> Salvando…</> : editingId ? "Salvar alterações" : "Cadastrar produto"}
+              {saving ? <><Loader2 size={16} className="animate-spin" /> Salvando…</> : editingId ? "Salvar" : "Cadastrar"}
             </button>
           </div>
         </SheetContent>
       </Sheet>
 
-      {/* ── Confirmation dialog — z-[60] para ficar acima do BottomNav z-50 ── */}
+      {/* ── Confirmation dialog ───────────────────────────────────────────────── */}
       <AnimatePresence>
         {pendingAdd && (
           <motion.div
@@ -676,24 +932,15 @@ export default function MeusProdutos() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-card rounded-3xl p-6 shadow-2xl space-y-4 mb-2"
             >
-              {/* Produto */}
               <div className="flex items-center gap-3">
-                {pendingAdd.imageUrl ? (
-                  <img src={pendingAdd.imageUrl} alt={pendingAdd.productName}
-                    className="w-14 h-14 rounded-2xl object-contain bg-muted/40 border border-border/30 flex-shrink-0"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                ) : (
-                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Package size={22} className="text-primary" />
-                  </div>
-                )}
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Package size={20} className="text-primary" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground leading-snug truncate">{pendingAdd.productName}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Adicionar à rotina</p>
+                  <p className="text-sm font-bold text-foreground truncate">{pendingAdd.productName}</p>
+                  <p className="text-xs text-muted-foreground">Adicionar à rotina</p>
                 </div>
               </div>
-
-              {/* Período — ajustável antes de confirmar */}
               <div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-2">Período</p>
                 <PeriodSelector

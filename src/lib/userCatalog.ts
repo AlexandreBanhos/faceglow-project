@@ -1,9 +1,14 @@
 export type UserCatalogProduct = {
   id: string;
   name: string;
+  brand?: string;
   category: string;
   imageUrl?: string;
   note?: string;
+  defaultPeriod?: "morning" | "night" | "both";
+  skinTypes?: string[];
+  treatments?: string[];
+  productType?: string;
   createdAt: string;
 };
 
