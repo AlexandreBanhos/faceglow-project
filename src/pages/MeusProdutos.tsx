@@ -12,6 +12,7 @@ import { type UserCatalogProduct, getUserCatalog, saveUserCatalog } from "@/lib/
 import { fetchMyProducts, createMyProduct, updateMyProduct, deleteMyProduct } from "@/lib/userProducts";
 import { getCurrentUser } from "@/lib/auth";
 import { getCachedLatestAnalysis, fetchRoutineSteps, addRoutineStep, invalidateAnalysisCache } from "@/lib/analysisClient";
+import { PeriodSelector, type Period } from "@/components/routine/PeriodSelector";
 import { toast } from "@/components/ui/sonner";
 import { AuroraBackdrop } from "@/components/shared";
 
@@ -107,7 +108,7 @@ export default function MeusProdutos() {
   const [addingToRoutine, setAddingToRoutine] = useState<Record<string, boolean>>({});
   const [addedToRoutine, setAddedToRoutine] = useState<Record<string, string>>({});
 
-  type PendingAdd = { productName: string; imageUrl?: string; category: string; period: "morning" | "night" | "both"; id: string };
+  type PendingAdd = { productName: string; imageUrl?: string; category: string; period: Period; id: string };
   const [pendingAdd, setPendingAdd] = useState<PendingAdd | null>(null);
 
   // ── Load data ─────────────────────────────────────────────────────────────
@@ -203,7 +204,7 @@ export default function MeusProdutos() {
   };
 
   // ── Routine add handlers ──────────────────────────────────────────────────
-  const requestAdd = (productName: string, imageUrl: string | undefined, category: string, period: "morning" | "night" | "both", id: string) => {
+  const requestAdd = (productName: string, imageUrl: string | undefined, category: string, period: Period, id: string) => {
     setPendingAdd({ productName, imageUrl, category, period, id });
   };
 
@@ -625,7 +626,8 @@ export default function MeusProdutos() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-card rounded-3xl p-6 shadow-2xl space-y-4 mb-2"
             >
-              <div className="flex items-start gap-3">
+              {/* Produto */}
+              <div className="flex items-center gap-3">
                 {pendingAdd.imageUrl ? (
                   <img src={pendingAdd.imageUrl} alt={pendingAdd.productName}
                     className="w-14 h-14 rounded-2xl object-contain bg-muted/40 border border-border/30 flex-shrink-0"
@@ -635,13 +637,19 @@ export default function MeusProdutos() {
                     <Package size={22} className="text-primary" />
                   </div>
                 )}
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-foreground leading-snug">{pendingAdd.productName}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Adicionar à rotina da{" "}
-                    <span className="font-semibold text-foreground">{periodLabel(pendingAdd.period)}</span>?
-                  </p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground leading-snug truncate">{pendingAdd.productName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Adicionar à rotina</p>
                 </div>
+              </div>
+
+              {/* Período — ajustável antes de confirmar */}
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-2">Período</p>
+                <PeriodSelector
+                  value={pendingAdd.period}
+                  onChange={(p) => setPendingAdd((prev) => prev ? { ...prev, period: p } : null)}
+                />
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setPendingAdd(null)}

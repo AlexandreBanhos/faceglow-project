@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronRight, Loader2, Moon, Package, Search, Sun, X, Star } from "lucide-react";
+import { Check, ChevronRight, Loader2, Package, Search, X, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
 import { fetchCatalogProducts, type CatalogProduct } from "@/lib/analysisClient";
 import { fetchMyProducts, type UserCatalogProduct } from "@/lib/userProducts";
+import { PeriodSelector, type Period } from "./PeriodSelector";
 
 type ProductOption = {
   key: string;
@@ -15,7 +16,7 @@ type ProductOption = {
   imageUrl?: string;
 };
 
-type Scope = "both" | "morning" | "night";
+type Scope = Period;
 
 interface Props {
   open: boolean;
@@ -357,39 +358,9 @@ export const ProductSwitchSheet = ({
 
           {/* Scope selector */}
           {hasCounterpart && options.length > 0 && !showCustomForm && (
-            <div className="rounded-2xl border border-border/40 p-3 bg-muted/20">
-              <p className="text-xs text-muted-foreground mb-2.5 font-medium">Aplicar em:</p>
-              <div className="relative flex rounded-full bg-muted/50 p-1">
-                <div
-                  className={`absolute top-1 bottom-1 rounded-full shadow-sm transition-all duration-300 ease-out ${
-                    pendingScope === "morning" ? "bg-amber-400" :
-                    pendingScope === "night"   ? "bg-indigo-500" : "bg-primary"
-                  }`}
-                  style={{
-                    width: "calc((100% - 8px) / 3)",
-                    left: "4px",
-                    transform: `translateX(calc(${
-                      pendingScope === "morning" ? 0 : pendingScope === "both" ? 1 : 2
-                    } * 100%))`,
-                  }}
-                />
-                {([
-                  { scope: "morning" as Scope, icon: <Sun size={13} />, label: "Manhã" },
-                  { scope: "both"    as Scope, icon: <span className="flex items-center gap-0.5"><Sun size={11} /><Moon size={11} /></span>, label: "Ambos" },
-                  { scope: "night"   as Scope, icon: <Moon size={13} />, label: "Noite" },
-                ] as const).map(({ scope, icon, label }) => (
-                  <button
-                    key={scope}
-                    onClick={() => onScopeChange(scope)}
-                    className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 h-10 text-[10px] font-semibold z-10 transition-colors ${
-                      pendingScope === scope ? "text-white" : "text-muted-foreground"
-                    }`}
-                  >
-                    <span>{icon}</span>
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Aplicar em</p>
+              <PeriodSelector value={pendingScope} onChange={onScopeChange} />
             </div>
           )}
         </div>

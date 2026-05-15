@@ -26,6 +26,7 @@ import { apiBaseUrl } from "@/lib/api";
 import { AuroraBackdrop } from "@/components/shared";
 import { ProductSwitchSheet } from "@/components/routine/ProductSwitchSheet";
 import { RoutineSuggestionsPanel } from "@/components/routine/RoutineSuggestionsPanel";
+import { PeriodSelector } from "@/components/routine/PeriodSelector";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 
@@ -3235,46 +3236,12 @@ const Routine = () => {
             {/* Período */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Período</label>
-              {isNightOnlyCategory(newStepLabel) ? (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-indigo-50 border border-indigo-200">
-                  <Moon size={14} className="text-indigo-500 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-indigo-700">Somente noite</span>
-                  <span className="text-xs text-indigo-400 ml-auto">Retinol e ácidos são de uso noturno</span>
-                </div>
-              ) : (
-                <div className="relative flex rounded-full bg-muted/50 p-1">
-                  <div
-                    className={`absolute top-1 bottom-1 rounded-full shadow-sm transition-all duration-300 ease-out ${
-                      newStepPeriod === "morning" ? "bg-amber-400" :
-                      newStepPeriod === "night"   ? "bg-indigo-500" : "bg-primary"
-                    }`}
-                    style={{
-                      width: "calc((100% - 8px) / 3)",
-                      left: "4px",
-                      transform: `translateX(calc(${
-                        newStepPeriod === "morning" ? 0 : newStepPeriod === "both" ? 1 : 2
-                      } * 100%))`,
-                    }}
-                  />
-                  {([
-                    { value: "morning" as const, icon: <Sun size={13} />, label: "Manhã" },
-                    { value: "both"    as const, icon: <span className="flex items-center gap-0.5"><Sun size={11} /><Moon size={11} /></span>, label: "Ambos" },
-                    { value: "night"   as const, icon: <Moon size={13} />, label: "Noite" },
-                  ] as const).map(({ value, icon, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setNewStepPeriod(value)}
-                      className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 h-10 text-[10px] font-semibold z-10 transition-colors ${
-                        newStepPeriod === value ? "text-white" : "text-muted-foreground"
-                      }`}
-                    >
-                      <span className="flex items-center gap-0.5">{icon}</span>
-                      <span>{label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <PeriodSelector
+                value={newStepPeriod}
+                onChange={setNewStepPeriod}
+                locked={isNightOnlyCategory(newStepLabel)}
+                lockedReason="Retinol e ácidos são de uso noturno"
+              />
             </div>
 
             {/* Frequência */}
