@@ -125,6 +125,8 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
         _logger = logger;
     }
 
+    private static readonly int[] RetryDelaysMs = [0, 600, 1200];
+
     public async Task<ProductEnrichmentResult?> EnrichAsync(string productName, string brand, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
@@ -133,32 +135,50 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
             throw new InvalidOperationException("Gemini API key não configurada.");
         }
 
-        var prompt = $"{EnrichmentPrompt}\n\nProduto: {productName}\nMarca: {brand}";
-
-        var payload = new
+        var payloadJson = JsonSerializer.Serialize(new
         {
-            contents = new[]
-            {
-                new { parts = new[] { new { text = prompt } } }
-            },
-            generationConfig = new
-            {
-                temperature = 0.1,
-                maxOutputTokens = 2048,
-                responseMimeType = "application/json"
-            }
-        };
+            contents = new[] { new { parts = new[] { new { text = $"{EnrichmentPrompt}\n\nProduto: {productName}\nMarca: {brand}" } } } },
+            generationConfig = new { temperature = 0.1, maxOutputTokens = 2048, responseMimeType = "application/json" }
+        });
 
-        var client = _httpClientFactory.CreateClient("Gemini");
         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{_options.Model}:generateContent?key={_options.ApiKey}";
+
+        for (int attempt = 1; attempt <= RetryDelaysMs.Length; attempt++)
+        {
+            if (attempt > 1)
+            {
+                _logger.LogInformation("[Enrich] Retry {Attempt}/{Max} para '{Name}' ({Brand})", attempt, RetryDelaysMs.Length, productName, brand);
+                await Task.Delay(RetryDelaysMs[attempt - 1], cancellationToken);
+            }
+
+            try
+            {
+                var result = await AttemptEnrichAsync(url, payloadJson, productName, brand, cancellationToken);
+                if (result is not null) return result;
+                // null = resposta vazia ou JSON inválido → retry
+            }
+            catch (TimeoutException) when (attempt < RetryDelaysMs.Length)
+            {
+                _logger.LogWarning("[Enrich] Timeout na tentativa {Attempt}, retentando...", attempt);
+            }
+            // InvalidOperationException (HTTP error, API key) propaga imediatamente
+        }
+
+        _logger.LogError("[Enrich] Todas as tentativas falharam para '{Name}' ({Brand})", productName, brand);
+        return null;
+    }
+
+    private async Task<ProductEnrichmentResult?> AttemptEnrichAsync(string url, string payloadJson, string productName, string brand, CancellationToken cancellationToken)
+    {
+        var client = _httpClientFactory.CreateClient("Gemini");
 
         using var message = new HttpRequestMessage(HttpMethod.Post, url)
         {
-            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            Content = new StringContent(payloadJson, Encoding.UTF8, "application/json")
         };
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(20));
+        cts.CancelAfter(TimeSpan.FromSeconds(25));
 
         try
         {
@@ -200,19 +220,16 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
             _logger.LogDebug("[Enrich] JSON recebido ({Length} chars): {Preview}",
                 jsonText.Length, jsonText[..Math.Min(200, jsonText.Length)]);
 
-            // Parse Gemini JSON response
             var data = JsonSerializer.Deserialize<JsonElement>(jsonText, JsonOptions);
 
-            // Normaliza e valida todos os valores contra os conjuntos aceitos pelo banco
-            var stepTypeKey  = Normalize(GetString(data, "step_type_key"), ValidStepTypes);
+            var stepTypeKey   = Normalize(GetString(data, "step_type_key"), ValidStepTypes);
             var strengthLevel = Normalize(GetString(data, "strength_level"), ValidStrengthLevels);
-            var priceRange   = Normalize(GetString(data, "price_range"), ValidPriceRanges);
+            var priceRange    = Normalize(GetString(data, "price_range"), ValidPriceRanges);
 
             var skinTypes = NormalizeArray(data, "compatible_skin_types", ValidSkinTypes);
             var concerns  = NormalizeArray(data, "targets_concerns", ValidConcerns);
             var periods   = NormalizeArray(data, "suitable_periods", ValidPeriods);
 
-            // image_url_suggestion: só aceita se for URL válida
             var imageUrl = GetString(data, "image_url_suggestion");
             if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out _)) imageUrl = null;
 
@@ -234,12 +251,12 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("[Enrich] Timeout ao enriquecer produto '{Name}' ({Brand})", productName, brand);
-            throw new TimeoutException("Gemini demorou mais de 20s. Tente novamente.");
+            _logger.LogWarning("[Enrich] Timeout na tentativa para '{Name}' ({Brand})", productName, brand);
+            throw new TimeoutException("Gemini demorou mais de 25s.");
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "[Enrich] Falha ao parsear JSON Gemini para '{Name}' ({Brand}). Verifique logs de Debug para ver o texto recebido.", productName, brand);
+            _logger.LogError(ex, "[Enrich] JSON inválido do Gemini para '{Name}' ({Brand})", productName, brand);
             return null;
         }
     }
