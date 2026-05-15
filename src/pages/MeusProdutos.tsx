@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen, Pencil, Lightbulb, Check, Sun, Moon } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen, Pencil, Lightbulb, Check, Sun, Moon, ChevronRight } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
@@ -7,7 +7,7 @@ import { uploadProductImage } from "@/lib/storage";
 import { type UserCatalogProduct, getUserCatalog, saveUserCatalog } from "@/lib/userCatalog";
 import { fetchMyProducts, createMyProduct, updateMyProduct, deleteMyProduct } from "@/lib/userProducts";
 import { getCurrentUser } from "@/lib/auth";
-import { getCachedLatestAnalysis, loadRoutineCustomizations, addRoutineStep, invalidateAnalysisCache } from "@/lib/analysisClient";
+import { getCachedLatestAnalysis, fetchRoutineSteps, addRoutineStep, invalidateAnalysisCache } from "@/lib/analysisClient";
 import { toast } from "@/components/ui/sonner";
 import { AuroraBackdrop } from "@/components/shared";
 
@@ -34,45 +34,23 @@ const getProductImageUrl = (imageUrl: string | undefined, category: string): str
 
 const emptyForm = { name: "", category: "", imageUrl: "", note: "" };
 
-// Helper function to get the ACTUAL routine with user's product swaps applied (loaded from BD)
-async function getActualRoutineWithSwaps(analysis: any): Promise<string[]> {
-  if (!analysis?.id) return [];
-  
+// Busca nomes de produtos em uso na rotina atual (via API v2 — dados sempre frescos)
+async function fetchProductNamesInRoutine(analysisId: string): Promise<Set<string>> {
   try {
-    // Load the original routine from analysis
-    const originalRoutine = [
-      ...(analysis.routine?.morning || []),
-      ...(analysis.routine?.night || []),
-    ];
-    
-    const customizationData = await loadRoutineCustomizations(analysis.id);
-    if (!customizationData?.customizations) return originalRoutine;
-
-    const customizations = customizationData.customizations as any;
-    const selectedOptions: Record<string, string> = customizations.selectedByItem || {};
-    if (Object.keys(selectedOptions).length === 0) return originalRoutine;
-
-    const recommendationsByType = new Map<string, any>();
-    analysis.recommendations?.forEach((rec: any) => {
-      const type = (rec.type || "").toLowerCase().trim();
-      if (!recommendationsByType.has(type)) recommendationsByType.set(type, []);
-      recommendationsByType.get(type).push(rec);
+    const steps = await fetchRoutineSteps(analysisId);
+    const names = new Set<string>();
+    steps.forEach((s) => {
+      // Nome resolvido do step (override tem prioridade)
+      const main = (s.overrideProductName ?? s.productName ?? "").toLowerCase().trim();
+      if (main) names.add(main);
+      // Slots selecionados
+      s.slots?.filter(sl => sl.isSelected && sl.productName).forEach(sl => {
+        names.add(sl.productName!.toLowerCase().trim());
+      });
     });
-
-    return originalRoutine.map((step) => {
-      if (!step) return step;
-      const category = step.includes(":") ? step.split(":")[0].toLowerCase().trim() : "";
-      if (!category) return step;
-      const selectedOption = Object.entries(selectedOptions).find(([key]) => key.toLowerCase().includes(category))?.[1];
-      if (!selectedOption) return step;
-      const categoryRecs = recommendationsByType.get(category) || [];
-      const optionType = selectedOption.split("::")[1];
-      const swapped = optionType === "best" ? categoryRecs[0]?.product : optionType === "second" ? categoryRecs[1]?.product : categoryRecs[2]?.product;
-      return swapped ? `${category}: ${swapped}` : step;
-    });
-  } catch (error) {
-    console.error("[getActualRoutineWithSwaps] Error:", error);
-    return [];
+    return names;
+  } catch {
+    return new Set();
   }
 }
 
@@ -108,7 +86,11 @@ export default function MeusProdutos() {
       ));
       invalidateAnalysisCache();
       setAddedToRoutine((prev) => ({ ...prev, [id]: period }));
-      setTimeout(() => setAddedToRoutine((prev) => { const n = { ...prev }; delete n[id]; return n; }), 2500);
+      toast.success("Adicionado à rotina!", {
+        duration: 3000,
+        action: { label: "Ver rotina →", onClick: () => navigate("/routine") },
+      });
+      setTimeout(() => setAddedToRoutine((prev) => { const n = { ...prev }; delete n[id]; return n; }), 3000);
     } finally {
       setAddingToRoutine((prev) => ({ ...prev, [id]: false }));
     }
@@ -120,33 +102,8 @@ export default function MeusProdutos() {
   const [recommendedProducts, setRecommendedProducts] = useState<Array<{ type: string; product: string; description: string; imageUrl?: string }>>([]);
   const [productsInUse, setProductsInUse] = useState<Set<string>>(new Set());
 
-  // Function to check if a product name is in the routine (more strict matching)
-  const isProductInRoutine = (productName: string, routineSteps: string[]): boolean => {
-    if (!productName || !routineSteps || routineSteps.length === 0) return false;
-    const lowerName = productName.toLowerCase().trim();
-    
-    const found = routineSteps.some(step => {
-      if (!step) return false;
-      const lowerStep = step.toLowerCase().trim();
-      
-      // Format: "Category: Product Name (period)" or "Category: Product Name"
-      // Extract product name: everything after ":" and before "("
-      let productFromStep = lowerStep;
-      
-      if (lowerStep.includes(":")) {
-        // Get everything after the colon
-        productFromStep = lowerStep.split(":")[1].trim();
-        // Remove the period suffix like "(morning)", "(night)", etc
-        if (productFromStep.includes("(")) {
-          productFromStep = productFromStep.split("(")[0].trim();
-        }
-      }
-      
-      return productFromStep === lowerName || lowerStep.includes(lowerName) || lowerName.includes(productFromStep);
-    });
-
-    return found;
-  };
+  const isProductInRoutine = (productName: string): boolean =>
+    productsInUse.has(productName.toLowerCase().trim());
 
   useEffect(() => {
     getCurrentUser().then(async (user) => {
@@ -160,22 +117,12 @@ export default function MeusProdutos() {
           // keep localStorage fallback
         }
         
-        // Load recommended products from latest analysis
+        // Carrega recomendações e verifica quais estão em uso na rotina (API v2)
         try {
           const latestAnalysis = getCachedLatestAnalysis();
-          if (latestAnalysis && latestAnalysis.recommendations && Array.isArray(latestAnalysis.recommendations)) {
+          if (latestAnalysis?.recommendations?.length) {
             setRecommendedProducts(latestAnalysis.recommendations);
-            
-            // Get the ACTUAL routine with user's product swaps applied (from BD)
-            const actualRoutineSteps: string[] = (await getActualRoutineWithSwaps(latestAnalysis))
-              .filter(step => step && typeof step === 'string' && step.trim().length > 0);
-            
-            const inUse = new Set<string>();
-            latestAnalysis.recommendations.forEach((rec) => {
-              if (actualRoutineSteps.length > 0 && isProductInRoutine(rec.product, actualRoutineSteps)) {
-                inUse.add(rec.product);
-              }
-            });
+            const inUse = await fetchProductNamesInRoutine(latestAnalysis.id);
             setProductsInUse(inUse);
           }
         } catch { /* falha silenciosa — não crítico */ }
@@ -601,7 +548,7 @@ export default function MeusProdutos() {
                         {/* Products grid - Responsive: 2 col mobile, 3 col tablet, 4 col desktop */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 relative z-10">
                           {items.map((p, idx) => {
-                            const isInUse = productsInUse.has(p.product);
+                            const isInUse = isProductInRoutine(p.product);
                             const typeNorm = (p.type ?? "").toLowerCase();
                             const recPeriod = typeNorm.includes("protetor") || typeNorm.includes("solar")
                               ? "morning"
