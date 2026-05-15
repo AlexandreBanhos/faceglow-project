@@ -25,7 +25,7 @@ export const AnalysisTermsModal = ({ open, onAccept, onDecline }: Props) => (
           onClick={onDecline}
         />
 
-        {/* Sheet liquiglass claro */}
+        {/* Sheet — fundo sólido claro, sem backdrop-filter (evita absorver overlay escuro) */}
         <motion.div
           initial={{ y: "100%" }}
           animate={{ y: 0 }}
@@ -33,16 +33,11 @@ export const AnalysisTermsModal = ({ open, onAccept, onDecline }: Props) => (
           transition={{ type: "spring", stiffness: 360, damping: 32 }}
           className="fixed bottom-0 left-0 right-0 z-50"
           style={{
-            background: "var(--glass-bg-strong, rgba(255,255,255,0.85))",
-            backdropFilter: "blur(40px) saturate(1.8)",
-            WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+            background: "linear-gradient(180deg,#FDF8F6 0%,#FAFAF8 100%)",
             borderRadius: "28px 28px 0 0",
-            border: "1px solid rgba(255,255,255,0.9)",
+            border: "1px solid rgba(255,255,255,0.95)",
             borderBottom: "none",
-            boxShadow:
-              "0 -12px 48px rgba(244,168,199,0.18)," +
-              "0 -2px 0 rgba(255,255,255,0.9)," +
-              "inset 0 1px 0 rgba(255,255,255,0.95)",
+            boxShadow: "0 -8px 40px rgba(244,168,199,0.2), inset 0 1px 0 rgba(255,255,255,1)",
             maxHeight: "90vh",
             overflowY: "auto",
           }}
