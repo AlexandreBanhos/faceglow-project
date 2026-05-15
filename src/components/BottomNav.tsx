@@ -174,6 +174,7 @@ const BottomNav = () => {
           maxWidth: 448,
           margin: "0 auto",
           overflow: "visible",
+          pointerEvents: "auto",
         }}
       >
         {/* ── Camada 1: Fundo liquiglass com dip (clip-path: path) ─────────── */}
@@ -190,6 +191,7 @@ const BottomNav = () => {
               clipPath: navPath ? `path('${navPath}')` : undefined,
               transition: `clip-path 0.4s ${EASING}`,
               zIndex: 1,
+              pointerEvents: "none",
             }}
           />
         )}
