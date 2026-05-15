@@ -27,6 +27,7 @@ import { AuroraBackdrop } from "@/components/shared";
 import { ProductSwitchSheet } from "@/components/routine/ProductSwitchSheet";
 import { RoutineSuggestionsPanel } from "@/components/routine/RoutineSuggestionsPanel";
 import { PeriodSelector } from "@/components/routine/PeriodSelector";
+import { SortableRoutineList, SortableRoutineItem, RoutineDragHandle } from "@/components/routine/SortableRoutineList";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 
@@ -1007,6 +1008,16 @@ const Routine = () => {
       if (orderedIds.length > 0) {
         reorderApiSteps(period, orderedIds);
       }
+    }
+  };
+
+  // Handler para dnd-kit (substitui handleDrop para mobile+desktop)
+  const handleDndReorder = (newOrder: string[]) => {
+    const period = selectedPeriod as "morning" | "night";
+    persistRoutineOrder({ ...routineOrder, [period]: newOrder });
+    if (analysis?.id) {
+      const orderedIds = newOrder.filter((k) => apiSteps.some((s) => s.id === k));
+      if (orderedIds.length > 0) reorderApiSteps(period, orderedIds);
     }
   };
 
@@ -2225,6 +2236,15 @@ const Routine = () => {
                 </div>
               )}
 
+              <SortableRoutineList
+                items={isEditing ? editAllItems.map((i) => i.key) : []}
+                onReorder={handleDndReorder}
+                disabled={!isEditing}
+                overlayLabel={(id) => {
+                  const found = editAllItems.find((i) => i.key === id);
+                  return found ? getDisplayProductName(found) : "Passo";
+                }}
+              >
               {(isEditing ? editAllItems : activeChecklistItems).map((item) => {
                 const itemPeriod: "morning" | "night" = item.period;
                 const options = getAvailableOptions(item, itemPeriod);
@@ -2238,15 +2258,14 @@ const Routine = () => {
 
                 const cardBg = pastelColors[(item.stepNumber - 1) % pastelColors.length];
                 return (
-                  <div
+                  <SortableRoutineItem
                     key={item.key}
-                    className={`lg-surface-step overflow-hidden ${isChecked && !isEditing ? "opacity-55" : "opacity-100"} ${draggingKey === item.key ? "opacity-40" : ""} ${dragOverKey === item.key && draggingKey !== item.key ? "ring-2 ring-primary/40" : ""}`}
-                    draggable={isEditing}
-                    onDragStart={() => setDraggingKey(item.key)}
-                    onDragEnd={() => setDraggingKey(null)}
-                    onDragOver={(e) => { e.preventDefault(); setDragOverKey(item.key); }}
-                    onDragLeave={() => setDragOverKey(null)}
-                    onDrop={(e) => { e.preventDefault(); setDragOverKey(null); handleDrop(item.key); }}
+                    id={item.key}
+                    disabled={!isEditing}
+                    className={`lg-surface-step overflow-hidden ${isChecked && !isEditing ? "opacity-55" : "opacity-100"}`}
+                  >
+                  {/* Inner div: swipe-to-check via touch (não interfere com o DnD handle) */}
+                  <div
                     onTouchStart={(e) => {
                       setTouchStartX((prev) => ({ ...prev, [item.key]: e.touches[0].clientX }));
                       setTouchStartY((prev) => ({ ...prev, [item.key]: e.touches[0].clientY }));
@@ -2290,22 +2309,25 @@ const Routine = () => {
                       {isEditing && (
                         <div className="flex items-center justify-between gap-2 px-3 pt-3">
                           <div className="flex items-center gap-2">
+                            {/* Drag handle — DnD (mouse + touch) */}
+                            <RoutineDragHandle />
+                            {/* Fallback: botões cima/baixo */}
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => moveStep(itemPeriod, item.key, "up")}
                                 disabled={isFirst}
-                                className="w-8 h-8 rounded-lg border border-border/60 bg-background flex items-center justify-center disabled:opacity-30"
+                                className="w-7 h-7 rounded-lg border border-border/60 bg-background flex items-center justify-center disabled:opacity-30"
                                 aria-label="Mover para cima"
                               >
-                                <ChevronUp size={14} className="text-foreground" />
+                                <ChevronUp size={13} className="text-foreground" />
                               </button>
                               <button
                                 onClick={() => moveStep(itemPeriod, item.key, "down")}
                                 disabled={isLast}
-                                className="w-8 h-8 rounded-lg border border-border/60 bg-background flex items-center justify-center disabled:opacity-30"
+                                className="w-7 h-7 rounded-lg border border-border/60 bg-background flex items-center justify-center disabled:opacity-30"
                                 aria-label="Mover para baixo"
                               >
-                                <ChevronDown size={14} className="text-foreground" />
+                                <ChevronDown size={13} className="text-foreground" />
                               </button>
                             </div>
                             {periodLabel && (
@@ -2922,9 +2944,11 @@ const Routine = () => {
                       })()}
                     </div>
                     )} {/* end skeleton conditional */}
-                  </div>
+                  </div> {/* end inner touch div */}
+                  </SortableRoutineItem>
                 );
               })}
+              </SortableRoutineList>
 
               {/* Empty state quando rotina não tem passos */}
               {!stepsLoading && (isEditing ? editAllItems : activeChecklistItems).length === 0 && (
