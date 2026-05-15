@@ -223,12 +223,12 @@ const BottomNav = () => {
             transition={SPRING}
             style={{
               position: "absolute",
-              bottom: NAV_H - DIP_D + CR_BOT,
+              bottom: NAV_H - DIP_D + 14,
               left: 0,
               width: DIP_HW * 2,
               height: WAVE_H,
               overflow: "hidden",
-              borderRadius: `0 0 ${CR_BOT - 4}px ${CR_BOT - 4}px`,
+              borderRadius: `0 0 ${14 - 4}px ${14 - 4}px`,
               zIndex: 4,
               pointerEvents: "none",
             }}
