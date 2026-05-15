@@ -1279,6 +1279,24 @@ const Routine = () => {
     }
   };
 
+  const markAllComplete = () => {
+    if (isFutureDay) return;
+    const updates: Record<string, boolean> = {};
+    activeChecklistItems.forEach((item) => {
+      const key = `${selectedDay}::${item.key}`;
+      if (!productSchedule.checkedByDayItem[key]) {
+        updates[key] = true;
+        if (selectedDay === todayStr) persistStepCompletion(item.key);
+      }
+    });
+    if (Object.keys(updates).length > 0) {
+      persistSchedule({
+        ...productSchedule,
+        checkedByDayItem: { ...productSchedule.checkedByDayItem, ...updates },
+      });
+    }
+  };
+
   const toggleProductDay = (itemKey: string, day: WeekDayKey) => {
     const current = productSchedule.daysByItem[itemKey] ?? [...allDays];
     const exists = current.includes(day);
@@ -2096,10 +2114,24 @@ const Routine = () => {
                   )}
                 </motion.div>
               </button>
-              <div className="text-right">
+              <div className="flex flex-col items-end gap-1">
                 <p className="text-[11px] font-semibold" style={{ color: "#9CA3AF" }}>
                   {completedInVisible}/{activeChecklistItems.length} feitos
                 </p>
+                {/* Marcar tudo — aparece quando há itens pendentes e não é dia futuro */}
+                {!isEditing && !isFutureDay && completedInVisible < activeChecklistItems.length && activeChecklistItems.length > 0 && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileTap={{ scale: 0.93 }}
+                    onClick={markAllComplete}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors"
+                    style={{ background: "rgba(255,255,255,0.75)", color: "var(--fg-ink, #2D2D2D)", border: "1px solid rgba(0,0,0,0.08)" }}
+                  >
+                    <ListChecks size={11} />
+                    Marcar tudo
+                  </motion.button>
+                )}
               </div>
             </div>
           </div>
