@@ -342,14 +342,24 @@ const Analyze = () => {
 
   // ── 1. Página informativa ─────────────────────────────────────────────────
   if (phase === "info") {
+    const handleStart = () => {
+      // Usuário autenticado sem créditos → bloqueia antes do fluxo
+      if (isAuthenticated && !canAnalyze) {
+        navigate("/premium");
+        return;
+      }
+      if (!termsAccepted()) { setShowTerms(true); return; }
+      setPhase("instructions");
+    };
+
     return (
       <>
         <AnalysisInfoPage
-          onStart={() => {
-            if (!termsAccepted()) { setShowTerms(true); return; }
-            setPhase("instructions");
-          }}
+          onStart={handleStart}
           onClose={() => navigate(isAuthenticated ? "/dashboard" : "/")}
+          noCredits={isAuthenticated && !canAnalyze}
+          creditsRemaining={creditsRemaining}
+          onGetCredits={() => navigate("/premium")}
         />
         <AnalysisTermsModal
           open={showTerms}

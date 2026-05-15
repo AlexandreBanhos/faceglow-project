@@ -1,10 +1,13 @@
 import { motion } from "framer-motion";
-import { X, ChevronRight } from "lucide-react";
+import { X, ChevronRight, Sparkles, AlertCircle } from "lucide-react";
 
 interface Props {
   onStart: () => void;
   onClose: () => void;
   onExample?: () => void;
+  noCredits?: boolean;
+  creditsRemaining?: number;
+  onGetCredits?: () => void;
 }
 
 const CHIPS = [
@@ -26,7 +29,7 @@ const fadeUp = (delay = 0) => ({
   transition: { delay, duration: 0.38, ease: [0.22, 1, 0.36, 1] },
 });
 
-export const AnalysisInfoPage = ({ onStart, onClose, onExample }: Props) => (
+export const AnalysisInfoPage = ({ onStart, onClose, onExample, noCredits, creditsRemaining = 0, onGetCredits }: Props) => (
   <div className="flex flex-col min-h-screen" style={{ background: "#FAFAF8" }}>
 
     {/* Header */}
@@ -130,33 +133,78 @@ export const AnalysisInfoPage = ({ onStart, onClose, onExample }: Props) => (
 
     {/* Footer CTA — sticky */}
     <div className="px-5 pb-8 pt-4" style={{ borderTop: "1px solid #F0EDE8", background: "#FAFAF8" }}>
-      <motion.button
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.55 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={onStart}
-        className="w-full flex items-center justify-center gap-2 font-bold text-white"
-        style={{
-          height: 54,
-          borderRadius: 14,
-          background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)",
-          fontSize: 16,
-          boxShadow: "0 8px 24px rgba(232,116,138,0.35)",
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        Iniciar análise <ChevronRight size={18} />
-      </motion.button>
-      {onExample && (
-        <button
-          onClick={onExample}
-          className="block mx-auto mt-3"
-          style={{ color: "#6B6B6B", fontSize: 13, background: "none", border: "none", cursor: "pointer" }}
-        >
-          Ver exemplo de análise
-        </button>
+
+      {noCredits ? (
+        /* ── Sem créditos: aviso + CTA de compra ── */
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          {/* Aviso */}
+          <div
+            className="flex items-start gap-3 p-4 rounded-2xl mb-3"
+            style={{
+              background: "rgba(232,116,138,0.08)",
+              border: "1px solid rgba(232,116,138,0.25)",
+            }}
+          >
+            <AlertCircle size={18} style={{ color: "#E8748A", flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#E8748A", marginBottom: 2 }}>
+                Sem créditos disponíveis
+              </div>
+              <div style={{ fontSize: 12, color: "#6B6B6B", lineHeight: 1.5 }}>
+                Você precisa de pelo menos 1 crédito para realizar uma análise.
+                {creditsRemaining === 0 && " Seus créditos foram utilizados."}
+              </div>
+            </div>
+          </div>
+          {/* CTA comprar */}
+          <button
+            onClick={onGetCredits}
+            className="w-full flex items-center justify-center gap-2 font-bold text-white"
+            style={{
+              height: 54,
+              borderRadius: 14,
+              background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)",
+              fontSize: 16,
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 8px 24px rgba(232,116,138,0.35)",
+            }}
+          >
+            <Sparkles size={18} /> Adquirir créditos
+          </button>
+        </motion.div>
+      ) : (
+        /* ── Com créditos: botão iniciar normal ── */
+        <>
+          <motion.button
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onStart}
+            className="w-full flex items-center justify-center gap-2 font-bold text-white"
+            style={{
+              height: 54,
+              borderRadius: 14,
+              background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)",
+              fontSize: 16,
+              boxShadow: "0 8px 24px rgba(232,116,138,0.35)",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Iniciar análise <ChevronRight size={18} />
+          </motion.button>
+          {onExample && (
+            <button
+              onClick={onExample}
+              className="block mx-auto mt-3"
+              style={{ color: "#6B6B6B", fontSize: 13, background: "none", border: "none", cursor: "pointer" }}
+            >
+              Ver exemplo de análise
+            </button>
+          )}
+        </>
       )}
     </div>
   </div>
