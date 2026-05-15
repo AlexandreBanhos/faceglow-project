@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+﻿import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
@@ -468,106 +468,157 @@ export function AdminProducts() {
                     </Button>
                   </div>
 
-                  {/* Resultado da IA */}
+
+                  {/* Resultado da IA — painel rico */}
                   {enrichResult && (
-                    <div className="p-3 rounded-xl bg-green-50 border border-green-200 space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 size={14} className="text-green-600" />
-                        <p className="text-xs font-semibold text-green-800">
-                          IA preencheu com {Math.round(enrichResult.confidence * 100)}% de confiança
-                        </p>
+                    <div className="p-3 rounded-xl bg-green-50 border border-green-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 size={14} className="text-green-600" />
+                          <p className="text-xs font-semibold text-green-800">
+                            IA preencheu com {Math.round(enrichResult.confidence * 100)}% de confiança
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => setEnrichResult(null)} className="text-[10px] text-green-600 hover:text-green-800">✕</button>
                       </div>
-                      {enrichResult.keyIngredients?.length > 0 && (
-                        <p className="text-[10px] text-green-700">
-                          Ingredientes: {enrichResult.keyIngredients.slice(0, 5).join(", ")}
-                        </p>
+                      <div className="flex flex-wrap gap-1 text-[10px]">
+                        {enrichResult.stepTypeKey && <span className="bg-white rounded px-1.5 py-0.5 text-slate-600">step: <b>{enrichResult.stepTypeKey}</b></span>}
+                        {enrichResult.priceRange && <span className="bg-white rounded px-1.5 py-0.5 text-slate-600">faixa: <b>{enrichResult.priceRange}</b></span>}
+                        {enrichResult.estimatedPriceBRL && <span className="bg-white rounded px-1.5 py-0.5 text-slate-600">preço: <b>R$ {enrichResult.estimatedPriceBRL.toFixed(0)}</b></span>}
+                        {enrichResult.strengthLevel && <span className="bg-white rounded px-1.5 py-0.5 text-slate-600">força: <b>{enrichResult.strengthLevel}</b></span>}
+                        {(enrichResult.suitablePeriods ?? []).length > 0 && <span className="bg-white rounded px-1.5 py-0.5 text-slate-600">período: <b>{enrichResult.suitablePeriods.join("+")}</b></span>}
+                      </div>
+                      {(enrichResult.compatibleSkinTypes ?? []).length > 0 && (
+                        <p className="text-[10px] text-green-700"><b>Tipos de pele:</b> {enrichResult.compatibleSkinTypes.join(", ")}</p>
                       )}
-                      <p className="text-[10px] text-green-600">Revise os campos e clique em Salvar.</p>
+                      {(enrichResult.targetsConcerns ?? []).length > 0 && (
+                        <p className="text-[10px] text-green-700"><b>Concerns:</b> {enrichResult.targetsConcerns.join(", ")}</p>
+                      )}
+                      {(enrichResult.keyIngredients ?? []).length > 0 && (
+                        <p className="text-[10px] text-green-700"><b>Ingredientes-chave:</b> {enrichResult.keyIngredients.join(", ")}</p>
+                      )}
+                      {enrichResult.inciList && (
+                        <details className="text-[10px] text-green-700">
+                          <summary className="cursor-pointer font-semibold">Ver INCI completo</summary>
+                          <p className="mt-1 leading-relaxed break-words">{enrichResult.inciList}</p>
+                        </details>
+                      )}
+                      <p className="text-[10px] text-green-600">Revise os campos abaixo e clique em Salvar.</p>
                     </div>
                   )}
 
+                  {/* Tagline + Descrição */}
                   <div>
                     <label className="block text-xs md:text-sm font-medium mb-2">Tagline</label>
-                    <Input
-                      value={formData.tagline ?? ""}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, tagline: e.target.value }))}
-                      placeholder="Ex: Hidratação profunda sem oleosidade"
-                      className="bg-white text-sm"
-                    />
+                    <Input value={formData.tagline ?? ""} onChange={(e) => setFormData((prev) => ({ ...prev, tagline: e.target.value }))} placeholder="Ex: Hidratação profunda sem oleosidade" className="bg-white text-sm" />
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-medium mb-2">
-                      Descrição
-                      <span className="ml-1 text-xs text-slate-400 font-normal">(ingredientes, modo de uso, benefícios)</span>
+                    <label className="block text-xs md:text-sm font-medium mb-1">
+                      Descrição <span className="text-xs text-slate-400 font-normal">(ingredientes, modo de uso, benefícios)</span>
                     </label>
-                    <textarea
-                      value={formData.description ?? ""}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                      placeholder="Ex: Fórmula com ácido hialurônico, ceramidas e niacinamida. Indicado para pele oleosa e acneica. Uso diário, manhã e noite..."
-                      rows={4}
-                      className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
-                    />
+                    <textarea value={formData.description ?? ""} onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))} placeholder="Ex: Fórmula com ácido hialurônico e niacinamida. Para pele oleosa e acneica. Uso diário manhã e noite..." rows={3} className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none" />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 md:gap-4">
+                  {/* Brand + Step Type */}
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs md:text-sm font-medium mb-2">Brand</label>
-                      <Input
-                        value={formData.brand}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))}
-                        placeholder="Ex: La Roche-Posay"
-                        className="bg-white text-sm"
-                      />
+                      <label className="block text-xs font-medium mb-1.5">Marca</label>
+                      <Input value={formData.brand} onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))} placeholder="Ex: La Roche-Posay" className="bg-white text-sm" />
                     </div>
                     <div>
-                      <label className="block text-xs md:text-sm font-medium mb-2">
-                        Step Type (categoria)
-                      </label>
-                      <Input
-                        value={formData.stepTypeKey}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, stepTypeKey: e.target.value }))}
-                        placeholder="Ex: hidratante, protetor_solar"
-                        className="bg-white text-sm"
-                      />
+                      <label className="block text-xs font-medium mb-1.5">Step Type</label>
+                      <select value={formData.stepTypeKey} onChange={(e) => setFormData((prev) => ({ ...prev, stepTypeKey: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <option value="">-- Selecione --</option>
+                        {["cleanser","toner","serum","moisturizer","sunscreen","eye_cream","retinoid","acid","spot_treatment","oil","mask","exfoliant"].map(k => (
+                          <option key={k} value={k}>{k}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 md:gap-4">
+                  {/* Tipos de Pele */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5">Tipos de Pele Compatíveis</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(["oleosa","seca","mista","sensivel","normal"] as const).map(t => {
+                        const active = (formData.compatibleSkinTypes ?? []).includes(t);
+                        return (
+                          <button key={t} type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, compatibleSkinTypes: active ? (prev.compatibleSkinTypes ?? []).filter(x => x !== t) : [...(prev.compatibleSkinTypes ?? []), t] }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${active ? "bg-pink-100 border-pink-400 text-pink-800" : "bg-white border-slate-300 text-slate-500 hover:border-slate-400"}`}
+                          >{t}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Concerns */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5">Preocupações Tratadas</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(["acne","cravos","manchas","rugas","olheiras","hidratacao","oleosidade","sensibilidade","poros","vermelhidao","firmeza"] as const).map(c => {
+                        const active = (formData.targetsConcerns ?? []).includes(c);
+                        return (
+                          <button key={c} type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, targetsConcerns: active ? (prev.targetsConcerns ?? []).filter(x => x !== c) : [...(prev.targetsConcerns ?? []), c] }))}
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors ${active ? "bg-blue-100 border-blue-400 text-blue-800" : "bg-white border-slate-300 text-slate-500 hover:border-slate-400"}`}
+                          >{c}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Período + Intensidade */}
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs md:text-sm font-medium mb-2">Preço Médio (R$)</label>
-                      <Input
-                        type="number"
-                        value={formData.priceAvg || ""}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            priceAvg: e.target.value ? parseFloat(e.target.value) : undefined,
-                          }))
-                        }
-                        placeholder="0.00"
-                        step="0.01"
-                        className="bg-white text-sm"
-                      />
+                      <label className="block text-xs font-medium mb-1.5">Período de Uso</label>
+                      <div className="flex gap-1.5">
+                        {([["morning","Manhã"],["night","Noite"]] as const).map(([val, label]) => {
+                          const active = (formData.suitablePeriods ?? []).includes(val);
+                          return (
+                            <button key={val} type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, suitablePeriods: active ? (prev.suitablePeriods ?? []).filter(x => x !== val) : [...(prev.suitablePeriods ?? []), val] }))}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${active ? "bg-amber-100 border-amber-400 text-amber-800" : "bg-white border-slate-300 text-slate-500"}`}
+                            >{label}</button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-xs md:text-sm font-medium mb-2">
-                        Score de curadoria (0-100)
-                      </label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={formData.curationScore}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            curationScore: parseInt(e.target.value) || 50,
-                          }))
-                        }
-                        className="bg-white text-sm"
-                      />
+                      <label className="block text-xs font-medium mb-1.5">Intensidade</label>
+                      <div className="flex gap-1.5">
+                        {([["mild","Leve"],["moderate","Média"],["strong","Forte"]] as const).map(([val, label]) => (
+                          <button key={val} type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, strengthLevel: val }))}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium border transition-colors ${formData.strengthLevel === val ? "bg-violet-100 border-violet-400 text-violet-800" : "bg-white border-slate-300 text-slate-500"}`}
+                          >{label}</button>
+                        ))}
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Preço + Faixa + Score */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5">Preço Médio (R$)</label>
+                      <Input type="number" value={formData.priceAvg || ""} onChange={(e) => setFormData((prev) => ({ ...prev, priceAvg: e.target.value ? parseFloat(e.target.value) : undefined }))} placeholder="0.00" step="0.01" className="bg-white text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5">Faixa de Preço</label>
+                      <select value={formData.priceRange ?? ""} onChange={(e) => setFormData((prev) => ({ ...prev, priceRange: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-white px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <option value="">--</option>
+                        <option value="low">low (até R$30)</option>
+                        <option value="medium">medium (R$30-80)</option>
+                        <option value="high">high (R$80-200)</option>
+                        <option value="premium">premium (+R$200)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5">Score curadoria</label>
+                      <Input type="number" min={0} max={100} value={formData.curationScore} onChange={(e) => setFormData((prev) => ({ ...prev, curationScore: parseInt(e.target.value) || 50 }))} className="bg-white text-sm" />
+                    </div>
+                  </div>
                   </div>
 
                   <div>

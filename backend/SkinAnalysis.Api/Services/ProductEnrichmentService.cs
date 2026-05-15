@@ -38,33 +38,43 @@ public class ProductEnrichmentService
     ];
 
     private const string EnrichmentPrompt = """
-Você é um especialista em skincare brasileiro. Dado o nome e a marca de um produto cosmético,
-retorne SOMENTE um JSON válido com os dados do produto conforme o schema abaixo.
+Você é um especialista em dermocosmética e skincare com foco no mercado brasileiro.
+Dado o nome e a marca de um produto cosmético, analise com base no seu conhecimento e retorne
+SOMENTE um JSON válido com os dados do produto conforme o schema abaixo.
 
 REGRAS OBRIGATÓRIAS:
-1. step_type_key DEVE ser um destes valores exatos: cleanser, toner, serum, moisturizer, sunscreen, eye_cream, retinoid, acid, spot_treatment, oil, mask, exfoliant
+1. step_type_key DEVE ser UM destes valores exatos:
+   cleanser | toner | serum | moisturizer | sunscreen | eye_cream | retinoid | acid | spot_treatment | oil | mask | exfoliant
 2. compatible_skin_types DEVE conter apenas: oleosa, seca, mista, sensivel, normal
 3. targets_concerns DEVE conter apenas: acne, cravos, manchas, rugas, olheiras, hidratacao, oleosidade, sensibilidade, poros, vermelhidao, firmeza
-4. strength_level DEVE ser: mild, moderate, strong
-5. suitable_periods DEVE ser: morning, night, ou ambos
-6. price_range DEVE ser: low (até R$30), medium (R$30-80), high (R$80-200), premium (acima R$200)
-7. Se não souber um dado, use null, nunca invente
-8. ingredients_inci: lista dos principais ingredientes INCI em ordem (máx 10 principais)
-9. confidence: seu nível de certeza sobre os dados (0.0 a 1.0)
+4. strength_level DEVE ser: mild (leve/suave), moderate (moderado), strong (ativo potente como retinol, ácidos em % alta)
+5. suitable_periods: ["morning"] se só manhã, ["night"] se só noite, ["morning","night"] se ambos
+6. price_range:
+   - low: até R$35
+   - medium: R$35-R$100
+   - high: R$100-R$250
+   - premium: acima de R$250
+7. estimated_price_brl: estimativa realista do preço médio no Brasil em reais (farmácias/beleza na web)
+8. key_ingredients: 5-8 principais ingredientes ativos em português (ex: Niacinamida, Ácido Hialurônico)
+9. inci_list: lista INCI completa se conhecida (ex: "Aqua, Niacinamide, Zinc PCA, ...")
+10. description: 3-4 frases em português: o que faz, ativos principais, para qual pele, como usar
+11. tagline: frase curta de marketing em português (máx 10 palavras)
+12. confidence: 0.0-1.0 indicando certeza. Use 0.9+ para produtos muito conhecidos, 0.6-0.8 para estimativas
+13. NUNCA invente dados — use null se não souber
 
-Retorne SOMENTE este JSON, sem texto adicional:
+Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
 {
-  "tagline": "frase curta de marketing do produto em português",
-  "description": "descrição completa em 2-4 frases: para que serve, ingredientes ativos, como usar, pra qual tipo de pele",
-  "step_type_key": "tipo_do_step",
-  "compatible_skin_types": ["tipo1", "tipo2"],
-  "targets_concerns": ["preocupacao1", "preocupacao2"],
+  "tagline": "...",
+  "description": "...",
+  "step_type_key": "...",
+  "compatible_skin_types": ["..."],
+  "targets_concerns": ["..."],
   "strength_level": "mild|moderate|strong",
   "suitable_periods": ["morning", "night"],
   "price_range": "low|medium|high|premium",
   "estimated_price_brl": 0.0,
-  "key_ingredients": ["ingrediente1", "ingrediente2"],
-  "inci_list": "Aqua, Niacinamide, ...",
+  "key_ingredients": ["..."],
+  "inci_list": "Aqua, ...",
   "confidence": 0.0
 }
 """;
