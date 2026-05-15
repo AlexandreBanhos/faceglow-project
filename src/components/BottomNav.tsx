@@ -8,45 +8,37 @@ import { normalizeAnalysis } from "@/lib/analysis";
 import { getCachedLatestAnalysis, fetchAnalysisWithRecommendations } from "@/lib/analysisClient";
 
 // ── Geometria ─────────────────────────────────────────────────────────────────
-const BUBBLE  = 52;          // diâmetro da bolha
-const NAV_H   = 64;          // altura da barra
-const DIP_D   = Math.round(NAV_H * 0.85);   // = 54px (85% da altura)
-const DIP_HW  = 26;          // meia-largura do vão (= raio da bolha → vão = 52px)
-const CR_TOP  = 12;          // raio do canto na abertura
-const CR_BOT  = 18;          // raio do canto na base
-const PILL_R  = 28;          // border-radius do path SVG (< NAV_H/2 para cantos reais)
-const WAVE_H  = Math.round(DIP_D * 0.38);   // altura da camada de onda
-const SPRING  = { type: "spring" as const, stiffness: 370, damping: 24, mass: 0.75 };
-const EASING  = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const BUBBLE = 52;
+const NAV_H  = 64;
+const DIP_D  = Math.round(NAV_H * 0.85);  // = 54px
+const DIP_HW = 28;                         // meia-largura do vão
+const WAVE_H = Math.round(DIP_D * 0.38);
+const SPRING = { type: "spring" as const, stiffness: 370, damping: 24, mass: 0.75 };
+const EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
-// cx mínimo/máximo para que o path seja válido (dip não ultrapassa cantos da pill)
-const minCx = (W: number) => PILL_R + DIP_HW - CR_TOP + 2;   // ≈ 44px
-const maxCx = (W: number) => W - PILL_R - DIP_HW + CR_TOP - 2;
+// Sem pill-radius → clamp mínimo é só o DIP_HW
+const minCx = (W: number) => DIP_HW + 2;
+const maxCx = (W: number) => W - DIP_HW - 2;
 
 interface Tab { path: string; icon: LucideIcon; label: string }
 
-// ── Path SVG: pill com calha-U profunda, cantos arredondados ─────────────────
-// 18 comandos fixos → CSS transition interpola corretamente entre posições.
+// ── Path SVG: borda reta + dip suave (8 comandos fixos) ──────────────────────
+// Cantos superiores em ângulo reto (L direto) — sem Q, sem border-radius.
+// A curvatura S do dip usa dois cubic bezier (C) com os mesmos parâmetros do
+// referencial fornecido: sm = DW*0.48 (spread), bm = DW*0.22 (inner tangent).
 function buildNavPath(W: number, H: number, cx: number): string {
-  const d = DIP_D, hw = DIP_HW, crt = CR_TOP, crb = CR_BOT, r = PILL_R;
+  const hw = DIP_HW;
+  const sm = hw * 0.48;   // spread do ponto de controle externo
+  const bm = hw * 0.22;   // spread do ponto de controle interno
+  const d  = DIP_D;
   return [
-    `M ${r} 0`,
-    `L ${cx - hw + crt} 0`,
-    `Q ${cx - hw} 0 ${cx - hw} ${crt}`,
-    `L ${cx - hw} ${d - crb}`,
-    `Q ${cx - hw} ${d} ${cx - hw + crb} ${d}`,
-    `L ${cx + hw - crb} ${d}`,
-    `Q ${cx + hw} ${d} ${cx + hw} ${d - crb}`,
-    `L ${cx + hw} ${crt}`,
-    `Q ${cx + hw} 0 ${cx + hw - crt} 0`,
-    `L ${W - r} 0`,
-    `Q ${W} 0 ${W} ${r}`,
-    `L ${W} ${H - r}`,
-    `Q ${W} ${H} ${W - r} ${H}`,
-    `L ${r} ${H}`,
-    `Q 0 ${H} 0 ${H - r}`,
-    `L 0 ${r}`,
-    `Q 0 0 ${r} 0`,
+    `M 0 0`,
+    `L ${cx - hw} 0`,
+    `C ${cx - hw + sm} 0 ${cx - bm} ${d} ${cx} ${d}`,  // descida suave
+    `C ${cx + bm} ${d} ${cx + hw - sm} 0 ${cx + hw} 0`, // subida suave
+    `L ${W} 0`,   // canto sup-dir — ângulo reto
+    `L ${W} ${H}`,
+    `L 0 ${H}`,
     `Z`,
   ].join(" ");
 }
@@ -192,10 +184,10 @@ const BottomNav = () => {
   const cameraShift  = NAV_H / 2 - DIP_D / 2;
 
   return (
-    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 bottom-nav-safe px-4">
+    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 bottom-nav-safe">
       <div
         ref={containerRef}
-        style={{ position: "relative", height: NAV_H, maxWidth: 448, margin: "0 auto", overflow: "visible", pointerEvents: "auto" }}
+        style={{ position: "relative", height: NAV_H, width: "100%", overflow: "visible", pointerEvents: "auto" }}
       >
         {/* ── z:1 Glass com clip-path do dip ─────────────────────────────── */}
         {ready && (
