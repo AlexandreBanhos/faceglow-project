@@ -2074,28 +2074,56 @@ const Routine = () => {
         {!stepsLoading && (
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="lg-surface-strong rounded-[1.75rem] p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-[var(--fg-ink)]">
-                    {selectedPeriod === "morning" ? "Rotina da manhã" : "Rotina da noite"}
-                  </h2>
-                  {isRoutineComplete && (
-                    <motion.span
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3 }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 border border-primary/30"
-                    >
-                      <CheckCircle2 size={12} className="text-primary" />
-                      <span className="text-xs font-semibold text-primary">Concluida</span>
-                    </motion.span>
-                  )}
-                </div>
-                <p className="text-xs truncate" style={{ color: "#9CA3AF" }}>{activeChecklistItems.length} itens ativos no dia selecionado</p>
+            {/* Título + contador */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-[var(--fg-ink)]">
+                  {selectedPeriod === "morning" ? "Rotina da manhã" : "Rotina da noite"}
+                </h2>
+                {isRoutineComplete && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 border border-primary/30"
+                  >
+                    <CheckCircle2 size={12} className="text-primary" />
+                    <span className="text-xs font-semibold text-primary">Concluída</span>
+                  </motion.span>
+                )}
               </div>
+              {/* Contador abaixo do título */}
+              <p className="text-xs font-semibold mt-0.5" style={{ color: "#9CA3AF" }}>
+                {completedInVisible}/{activeChecklistItems.length} feitos
+              </p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+
+            {/* Direita: Fiz tudo + toggle período */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* "Fiz tudo" — mesmo h-8 do toggle, opaco por padrão */}
+              <motion.button
+                whileTap={!isFutureDay && !isEditing ? { scale: 0.92 } : undefined}
+                onClick={() => { if (!isFutureDay && !isEditing) markAllComplete(); }}
+                className="h-8 px-3 rounded-full flex items-center gap-1.5 transition-all"
+                style={{
+                  background: isRoutineComplete
+                    ? "linear-gradient(135deg,rgba(34,197,94,.18),rgba(22,163,74,.12))"
+                    : "rgba(255,255,255,0.55)",
+                  border: isRoutineComplete
+                    ? "1px solid rgba(34,197,94,.35)"
+                    : "1px solid rgba(0,0,0,0.07)",
+                  opacity: isFutureDay || isEditing ? 0.45 : 1,
+                  cursor: isFutureDay || isEditing ? "default" : "pointer",
+                }}
+                title="Marcar tudo como feito"
+              >
+                <ListChecks size={13} style={{ color: isRoutineComplete ? "#16a34a" : "#9CA3AF" }} />
+                <span className="text-[10px] font-bold" style={{ color: isRoutineComplete ? "#16a34a" : "#9CA3AF" }}>
+                  Fiz tudo
+                </span>
+              </motion.button>
+
+              {/* Toggle manhã ↔ noite */}
               <button
                 onClick={() => setSelectedPeriod(selectedPeriod === "morning" ? "night" : "morning")}
                 className="relative w-14 h-8 rounded-full transition-colors"
@@ -2114,25 +2142,6 @@ const Routine = () => {
                   )}
                 </motion.div>
               </button>
-              <div className="flex flex-col items-end gap-1">
-                <p className="text-[11px] font-semibold" style={{ color: "#9CA3AF" }}>
-                  {completedInVisible}/{activeChecklistItems.length} feitos
-                </p>
-                {/* Marcar tudo — aparece quando há itens pendentes e não é dia futuro */}
-                {!isEditing && !isFutureDay && completedInVisible < activeChecklistItems.length && activeChecklistItems.length > 0 && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileTap={{ scale: 0.93 }}
-                    onClick={markAllComplete}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors"
-                    style={{ background: "rgba(255,255,255,0.75)", color: "var(--fg-ink, #2D2D2D)", border: "1px solid rgba(0,0,0,0.08)" }}
-                  >
-                    <ListChecks size={11} />
-                    Marcar tudo
-                  </motion.button>
-                )}
-              </div>
             </div>
           </div>
 
