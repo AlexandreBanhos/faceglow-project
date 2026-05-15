@@ -57,7 +57,7 @@ const BottomNav = () => {
         {isActive && (
           <motion.div
             layoutId="nav-pill"
-            className="absolute inset-0 rounded-2xl bg-white/75 shadow-soft"
+            className="absolute inset-0 rounded-full bg-white/80 shadow-sm"
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
           />
         )}
@@ -71,7 +71,7 @@ const BottomNav = () => {
 
   return (
     <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 bottom-nav-safe px-4">
-      <div className="fg-tabbar pointer-events-auto mx-auto flex h-[72px] max-w-md items-center justify-between px-3">
+      <div className="fg-tabbar pointer-events-auto mx-auto flex h-[68px] max-w-md items-center justify-between px-4">
         <div className="flex flex-1 items-center justify-around">{leftTabs.map(renderTab)}</div>
         <div className="flex w-[74px] items-center justify-center">
           <button
