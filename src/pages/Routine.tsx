@@ -809,6 +809,9 @@ const Routine = () => {
   const [newStepCatalogProductId, setNewStepCatalogProductId] = useState<string | null>(null);
   const [newStepRecurrence, setNewStepRecurrence] = useState<"daily" | "2-3x_week" | "custom">("daily");
   const [newStepScheduleDays, setNewStepScheduleDays] = useState<WeekDayKey[]>([]);
+  const [newStepCatalogOpen, setNewStepCatalogOpen] = useState(false);
+  const [newStepCatalogQuery, setNewStepCatalogQuery] = useState("");
+  const catalogSearchRef = useRef<HTMLInputElement>(null);
 
   const isNightOnlyCategory = (cat: string): boolean => {
     const n = cat.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "");
@@ -937,6 +940,8 @@ const Routine = () => {
     setNewStepScheduleDays([]);
     setNewStepPeriod("both");
     setCatalogProductsByCategory([]);
+    setNewStepCatalogOpen(false);
+    setNewStepCatalogQuery("");
     setAddStepOpen(false);
     toast.success("Passo adicionado!", { id: toastId, duration: 2500 });
   };
@@ -3065,9 +3070,9 @@ const Routine = () => {
 
           <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-2">
 
-            {/* Categoria + Produto lado a lado com imagem */}
+            {/* ── Produto selecionado / nome livre ─────────────────── */}
             <div className="flex gap-3">
-              {/* Image preview / upload */}
+              {/* Imagem */}
               <div className="flex-shrink-0">
                 <div className="w-20 h-20 rounded-2xl bg-muted/40 border border-border/40 overflow-hidden flex items-center justify-center relative">
                   {newStepImage ? (
@@ -3077,7 +3082,7 @@ const Routine = () => {
                       {!newStepProductFromCatalog && (
                         <button type="button" onClick={() => setNewStepImage("")}
                           className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center">
-                          <X size={10} className="text-white" />
+                          <X size={9} className="text-white" />
                         </button>
                       )}
                     </>
@@ -3087,15 +3092,14 @@ const Routine = () => {
                       className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground/60 hover:text-muted-foreground disabled:cursor-default transition-colors">
                       {newStepUploadingImage
                         ? <Loader2 size={20} className="animate-spin" />
-                        : <><Upload size={18} /><span className="text-[9px] font-medium">Foto</span></>
-                      }
+                        : <><Upload size={18} /><span className="text-[9px] font-medium">Foto</span></>}
                     </button>
                   )}
                 </div>
                 <input ref={newStepFileInputRef} type="file" accept="image/*" onChange={handleNewStepFileChange} className="hidden" />
               </div>
 
-              {/* Categoria + Produto */}
+              {/* Categoria + nome */}
               <div className="flex-1 space-y-2">
                 {/* Categoria */}
                 <div className="relative">
@@ -3104,7 +3108,7 @@ const Routine = () => {
                     onChange={(e) => { setNewStepLabel(e.target.value); setNewStepLabelOpen(true); }}
                     onFocus={() => setNewStepLabelOpen(true)}
                     onBlur={() => setTimeout(() => setNewStepLabelOpen(false), 150)}
-                    placeholder="Categoria *  (Limpeza, Sérum...)"
+                    placeholder="Categoria *"
                     className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   {newStepLabelOpen && (() => {
@@ -3125,7 +3129,7 @@ const Routine = () => {
                         ))}
                         {showAddNew && (
                           <button type="button" onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => { setNewStepLabelOpen(false); }}
+                            onClick={() => setNewStepLabelOpen(false)}
                             className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted transition-colors border-t border-border/40">
                             <Plus size={12} className="text-primary" />
                             <p className="text-sm font-semibold text-primary">Usar &quot;{newStepLabel.trim()}&quot;</p>
@@ -3136,102 +3140,145 @@ const Routine = () => {
                   })()}
                 </div>
 
-                {/* Nome do produto */}
+                {/* Nome do produto — digitação livre */}
                 <div className="relative">
-                  <div className="relative">
-                    <input
-                      value={newStepProductSearch}
-                      onChange={(e) => {
-                        if (newStepProductFromCatalog) {
-                          // Permite limpar e redigitar
-                          setNewStepProductFromCatalog(false);
-                          setNewStepCatalogProductId(null);
-                          setNewStepImage("");
-                        }
-                        setNewStepProductSearch(e.target.value);
-                        setNewStepProduct(e.target.value);
-                        setNewStepProductOpen(true);
-                      }}
-                      onFocus={() => setNewStepProductOpen(true)}
-                      onBlur={() => setTimeout(() => setNewStepProductOpen(false), 150)}
-                      placeholder="Produto *  (buscar ou digitar)"
-                      className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground pr-8 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                    {newStepProductSearch && (
-                      <button type="button"
-                        onClick={() => { setNewStepProduct(""); setNewStepProductSearch(""); setNewStepProductFromCatalog(false); setNewStepImage(""); setNewStepCatalogProductId(null); }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        <X size={13} />
-                      </button>
-                    )}
-                  </div>
-                  {newStepProductOpen && (() => {
-                    const allRecs = analysis?.recommendations ?? [];
-                    const q = newStepProductSearch.toLowerCase().trim();
-                    const filteredRecs = allRecs.filter((r) => r.product && r.product.toLowerCase().includes(q)).slice(0, 4);
-                    const filteredCatalog = catalogProductsByCategory
-                      .filter((p) => !q || p.name.toLowerCase().includes(q))
-                      .filter((p) => !filteredRecs.some((r) => r.product.toLowerCase() === p.name.toLowerCase()))
-                      .slice(0, 4);
-                    const combined = [
-                      ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, type: r.type, catalogId: null as string | null })),
-                      ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl ?? undefined, type: p.stepTypeKey, catalogId: p.id })),
-                    ];
-                    const exactMatch = combined.some((r) => r.name.toLowerCase() === q);
-                    const showAddNew = q.length > 0 && !exactMatch;
-                    if (combined.length === 0 && !showAddNew) return null;
-                    return (
-                      <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-44">
-                        {combined.map((r) => (
-                          <button key={r.name} type="button" onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setNewStepProduct(r.name);
-                              setNewStepProductSearch(r.name);
-                              if (r.imageUrl) setNewStepImage(r.imageUrl);
-                              setNewStepProductFromCatalog(true);
-                              setNewStepProductOpen(false);
-                              setNewStepCatalogProductId(r.catalogId);
-                            }}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors">
-                            {r.imageUrl && <img src={r.imageUrl} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-contain bg-white border border-border/30 shrink-0" />}
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
-                              {r.type && <p className="text-xs text-muted-foreground truncate">{r.type}</p>}
-                            </div>
-                          </button>
-                        ))}
-                        {showAddNew && (
-                          <button type="button" onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => { setNewStepProduct(newStepProductSearch.trim()); setNewStepProductFromCatalog(false); setNewStepProductOpen(false); setNewStepCatalogProductId(null); }}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors border-t border-border/40">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                              <Plus size={14} className="text-primary" />
-                            </div>
-                            <p className="text-sm font-semibold text-primary">Usar &quot;{newStepProductSearch.trim()}&quot;</p>
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  <input
+                    value={newStepProductSearch}
+                    onChange={(e) => {
+                      if (newStepProductFromCatalog) {
+                        setNewStepProductFromCatalog(false);
+                        setNewStepCatalogProductId(null);
+                        setNewStepImage("");
+                      }
+                      setNewStepProductSearch(e.target.value);
+                      setNewStepProduct(e.target.value);
+                    }}
+                    placeholder="Nome do produto *"
+                    className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground pr-8 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  {newStepProductSearch && (
+                    <button type="button"
+                      onClick={() => { setNewStepProduct(""); setNewStepProductSearch(""); setNewStepProductFromCatalog(false); setNewStepImage(""); setNewStepCatalogProductId(null); }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Link para Meus Produtos */}
-            <button
-              type="button"
-              onClick={() => { setAddStepOpen(false); navigate("/meus-produtos"); }}
-              className="w-full flex items-center gap-3 p-3 rounded-2xl border border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all text-left"
-            >
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Package size={16} className="text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">Buscar em Meus Produtos</p>
-                <p className="text-xs text-muted-foreground">Ver catálogo e produtos indicados</p>
-              </div>
-              <ChevronRight size={15} className="text-muted-foreground flex-shrink-0" />
-            </button>
+            {/* ── Encontrar produto: Catálogo | Meus Produtos ─────── */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* Buscar catálogo */}
+              <button
+                type="button"
+                onClick={() => {
+                  setNewStepCatalogOpen((v) => !v);
+                  setNewStepCatalogQuery("");
+                  setTimeout(() => catalogSearchRef.current?.focus(), 80);
+                }}
+                className={`relative overflow-hidden flex flex-col items-center justify-center gap-1.5 h-16 rounded-2xl border-2 transition-all ${
+                  newStepCatalogOpen
+                    ? "border-blue-400/60 shadow-md"
+                    : "border-border/50 bg-muted/20 hover:border-blue-300 hover:bg-blue-50/50"
+                }`}
+                style={newStepCatalogOpen
+                  ? { background: "linear-gradient(135deg,#3b82f6 0%,#6366f1 100%)", borderColor: "transparent" }
+                  : undefined}
+              >
+                <Search size={20} className={newStepCatalogOpen ? "text-white" : "text-blue-500"} />
+                <span className={`text-[11px] font-bold ${newStepCatalogOpen ? "text-white" : "text-blue-700"}`}>
+                  Buscar catálogo
+                </span>
+              </button>
+
+              {/* Meus Produtos */}
+              <button
+                type="button"
+                onClick={() => { setAddStepOpen(false); navigate("/meus-produtos"); }}
+                className="relative overflow-hidden flex flex-col items-center justify-center gap-1.5 h-16 rounded-2xl border-2 border-border/50 bg-muted/20 hover:border-amber-300 hover:bg-amber-50/50 transition-all"
+              >
+                <Package size={20} className="text-amber-500" />
+                <span className="text-[11px] font-bold text-amber-700">Meus Produtos</span>
+              </button>
+            </div>
+
+            {/* ── Painel de busca no catálogo ──────────────────────── */}
+            <AnimatePresence>
+              {newStepCatalogOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-2 pt-1">
+                    {/* Search input */}
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      <input
+                        ref={catalogSearchRef}
+                        type="text"
+                        value={newStepCatalogQuery}
+                        onChange={(e) => setNewStepCatalogQuery(e.target.value)}
+                        placeholder="Buscar produto no catálogo…"
+                        className="w-full h-10 rounded-xl border border-border/60 bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30"
+                      />
+                    </div>
+
+                    {/* Results */}
+                    {(() => {
+                      const allRecs = analysis?.recommendations ?? [];
+                      const q = newStepCatalogQuery.toLowerCase().trim();
+                      const filteredRecs = allRecs
+                        .filter((r) => r.product && (!q || r.product.toLowerCase().includes(q)))
+                        .slice(0, 3);
+                      const filteredCatalog = catalogProductsByCategory
+                        .filter((p) => !q || p.name.toLowerCase().includes(q))
+                        .filter((p) => !filteredRecs.some((r) => r.product.toLowerCase() === p.name.toLowerCase()))
+                        .slice(0, 5);
+                      const combined = [
+                        ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, label: "Indicado", catalogId: null as string | null })),
+                        ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl ?? undefined, label: p.brand ?? "", catalogId: p.id })),
+                      ];
+                      if (combined.length === 0) return (
+                        <p className="text-xs text-muted-foreground text-center py-3">
+                          {q ? "Nenhum resultado" : "Digite para buscar"}
+                        </p>
+                      );
+                      return (
+                        <div className="rounded-xl border border-border/60 overflow-hidden bg-background">
+                          {combined.map((r, i) => (
+                            <button key={r.name} type="button"
+                              onClick={() => {
+                                setNewStepProduct(r.name);
+                                setNewStepProductSearch(r.name);
+                                if (r.imageUrl) setNewStepImage(r.imageUrl);
+                                setNewStepProductFromCatalog(true);
+                                setNewStepCatalogProductId(r.catalogId);
+                                setNewStepCatalogOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/60 transition-colors ${i > 0 ? "border-t border-border/30" : ""}`}>
+                              <div className="w-9 h-9 rounded-lg bg-muted/60 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                                {r.imageUrl
+                                  ? <img src={r.imageUrl} loading="lazy" className="w-full h-full object-contain" />
+                                  : <Package size={14} className="text-muted-foreground/50" />
+                                }
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
+                                {r.label && <p className="text-[10px] text-muted-foreground">{r.label}</p>}
+                              </div>
+                              <ChevronRight size={13} className="text-muted-foreground flex-shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Período */}
             <div>
