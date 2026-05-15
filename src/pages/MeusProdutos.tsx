@@ -36,17 +36,22 @@ const getImg = (url?: string, cat?: string) => url || (cat ? CATEGORY_FALLBACK[c
 const periodLabel = (p: "morning" | "night" | "both") =>
   p === "morning" ? "manhã" : p === "night" ? "noite" : "manhã e noite";
 
-const PeriodBadge = ({ period }: { period: "morning" | "night" | "both" }) => (
-  <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold w-fit mx-auto mt-0.5 ${
-    period === "morning" ? "bg-amber-100 text-amber-700" :
-    period === "night"   ? "bg-indigo-100 text-indigo-700" :
-                           "bg-primary/10 text-primary"
-  }`}>
-    {(period === "morning" || period === "both") && <Sun size={7} />}
-    {(period === "night"   || period === "both") && <Moon size={7} />}
-    <span>{period === "morning" ? "Manhã" : period === "night" ? "Noite" : "Ambas"}</span>
-  </div>
-);
+const PeriodBadge = ({ period }: { period: "morning" | "night" | "both" }) => {
+  if (period === "both") return (
+    <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold w-fit mx-auto mt-0.5 text-white"
+      style={{ background: "linear-gradient(90deg, #f59e0b 0%, #6366f1 100%)" }}>
+      <span>☀️</span><span>🌙</span><span>Ambas</span>
+    </div>
+  );
+  return (
+    <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold w-fit mx-auto mt-0.5 ${
+      period === "morning" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+    }`}>
+      <span>{period === "morning" ? "☀️" : "🌙"}</span>
+      <span>{period === "morning" ? "Manhã" : "Noite"}</span>
+    </div>
+  );
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 type RoutineUsage = Map<string, "morning" | "night" | "both">;
