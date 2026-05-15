@@ -8,34 +8,41 @@ import { normalizeAnalysis } from "@/lib/analysis";
 import { getCachedLatestAnalysis, fetchAnalysisWithRecommendations } from "@/lib/analysisClient";
 
 // ── Constantes ────────────────────────────────────────────────────────────────
-const BUBBLE  = 52;              // diâmetro da bolha
-const NAV_H   = 64;              // altura da barra
-const DIP_R   = BUBBLE / 2 + 4; // raio do dip = raio da bolha + 4px de folga (= 30)
+const BUBBLE  = 52;                          // diâmetro da bolha
+const NAV_H   = 64;                          // altura da barra
+const DIP_D   = Math.round(NAV_H * 0.85);   // profundidade = 85% da altura (≈54px)
+const DIP_HW  = BUBBLE / 2 + 10;            // meia-largura da calha (36px → 72px total)
+const CR_TOP  = 14;                          // raio do canto na abertura superior
+const CR_BOT  = 22;                          // raio do canto na base da calha
 const EASING  = "cubic-bezier(0.34, 1.56, 0.64, 1)";
-// Constante de Bézier para aproximar arco circular (κ ≈ 4(√2−1)/3 ≈ 0.5523)
-const K = 0.5523;
 
 interface Tab { path: string; icon: LucideIcon; label: string }
 
-// ── Path SVG: pill com arco semicircular envolvendo a base do círculo ─────────
-// Estrutura FIXA de 13 comandos → CSS transition interpola suavemente.
-// O dip é um semicírculo de raio DIP_R centrado em cx.
-// A bolha (raio BUBBLE/2=26) encaixa no dip (raio 30) como um botão numa cuba.
+// ── Path SVG: pill com calha U profunda e cantos arredondados ─────────────────
+// Estrutura FIXA de 18 comandos → CSS transition interpola corretamente.
+// A calha tem paredes verticais + raios nos 4 cantos do U.
+// A bolha (BUBBLE=52) fica centralizada no vão (altura DIP_D, largura DIP_HW*2).
 function buildNavPath(W: number, H: number, cx: number): string {
-  const r = 32;  // pill border-radius
-  // Clamp: dip não cruza os cantos arredondados
-  const safeCx = Math.min(Math.max(cx, r + DIP_R + 2), W - r - DIP_R - 2);
-  const lx = safeCx - DIP_R;  // borda esquerda do dip
-  const rx = safeCx + DIP_R;  // borda direita do dip
+  const r   = 32;    // pill border-radius
+  const d   = DIP_D;
+  const hw  = DIP_HW;
+  const crt = CR_TOP;
+  const crb = CR_BOT;
+
+  // Clamp: calha não cruza os cantos da pill
+  const scx = Math.min(Math.max(cx, r + hw + 2), W - r - hw - 2);
 
   return [
     `M ${r} 0`,
-    `L ${lx} 0`,
-    // Metade esquerda do arco semicircular (bezier de 90°)
-    `C ${lx} ${DIP_R * K} ${safeCx - DIP_R * K} ${DIP_R} ${safeCx} ${DIP_R}`,
-    // Metade direita do arco semicircular (bezier de 90° espelhado)
-    `C ${safeCx + DIP_R * K} ${DIP_R} ${rx} ${DIP_R * K} ${rx} 0`,
-    `L ${W - r} 0`,
+    `L ${scx - hw + crt} 0`,                               // topo até canto esq-abertura
+    `Q ${scx - hw} 0 ${scx - hw} ${crt}`,                  // canto sup-esq (entrada da calha)
+    `L ${scx - hw} ${d - crb}`,                             // parede esquerda
+    `Q ${scx - hw} ${d} ${scx - hw + crb} ${d}`,           // canto inf-esq (base da calha)
+    `L ${scx + hw - crb} ${d}`,                             // fundo da calha
+    `Q ${scx + hw} ${d} ${scx + hw} ${d - crb}`,           // canto inf-dir
+    `L ${scx + hw} ${crt}`,                                 // parede direita
+    `Q ${scx + hw} 0 ${scx + hw - crt} 0`,                 // canto sup-dir (saída da calha)
+    `L ${W - r} 0`,                                         // topo até canto pill dir
     `Q ${W} 0 ${W} ${r}`,
     `L ${W} ${H - r}`,
     `Q ${W} ${H} ${W - r} ${H}`,
@@ -232,8 +239,8 @@ const BottomNav = () => {
             transition={{ type: "spring", stiffness: 370, damping: 24, mass: 0.75 }}
             style={{
               position: "absolute",
-              // Centro da bolha no topo da navbar → dip semicircular abraça sua base
-              bottom: NAV_H - BUBBLE / 2,
+              // Centro da bolha no meio do vão: DIP_D/2 do topo → bottom = NAV_H - DIP_D/2 - BUBBLE/2
+              bottom: NAV_H - DIP_D / 2 - BUBBLE / 2,
               left: 0,
               width: BUBBLE,
               height: BUBBLE,
@@ -298,8 +305,8 @@ const BottomNav = () => {
                 borderRadius: "50%",
                 background: "var(--grad-coral)",
                 border: "none",
-                // Centro da câmera no topo da navbar, igual à bolha
-                transform: `translateY(-${BUBBLE / 2}px)`,
+                // Câmera alinhada com o centro do vão: shift de (NAV_H/2 - DIP_D/2) para cima
+                transform: `translateY(-${Math.round(NAV_H / 2 - DIP_D / 2)}px)`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
