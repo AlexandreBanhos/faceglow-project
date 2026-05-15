@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen } from "lucide-react";
+import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen, Loader2, Package, ChevronRight } from "lucide-react";
 import { GradientSpinner } from "@/components/LoadingSpinner";
 import { normalizeAnalysis, type AnalysisRecommendation, type AnalysisResponse } from "@/lib/analysis";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -3044,12 +3044,15 @@ const Routine = () => {
       <Sheet open={addStepOpen} onOpenChange={(o) => { if (!o) setAddStepOpen(false); }}>
         <SheetContent
           side="bottom"
-          className="rounded-t-3xl px-0 pb-8 pt-0 max-h-[88vh] overflow-hidden flex flex-col"
+          className="rounded-t-3xl px-0 pb-8 pt-0 max-h-[90vh] overflow-hidden flex flex-col"
           style={{ background: "var(--bg-card, white)" }}
         >
+          {/* Handle */}
           <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
             <div className="w-10 h-1 rounded-full bg-border/60" />
           </div>
+
+          {/* Header */}
           <SheetHeader className="px-6 pb-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <SheetTitle className="text-lg font-bold leading-tight">Adicionar Passo</SheetTitle>
@@ -3060,150 +3063,174 @@ const Routine = () => {
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-2">
-            {/* Category */}
-            <div className="relative">
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Categoria *</label>
-              <input
-                value={newStepLabel}
-                onChange={(e) => { setNewStepLabel(e.target.value); setNewStepLabelOpen(true); }}
-                onFocus={() => setNewStepLabelOpen(true)}
-                placeholder="Limpeza, Sérum, Hidratante..."
-                className="w-full h-11 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              {newStepLabelOpen && (() => {
-                const suggestions = ["Limpeza","Hidratante","Sérum","Protetor Solar","Tônico","Esfoliante","Máscara","Contorno dos Olhos","Retinol","Ácido"];
-                const q = newStepLabel.toLowerCase().trim();
-                const filtered = suggestions.filter((s) => s.toLowerCase().includes(q));
-                const exactMatch = filtered.some((s) => s.toLowerCase() === q);
-                const showAddNew = q.length > 0 && !exactMatch;
-                if (filtered.length === 0 && !showAddNew) return null;
-                return (
-                  <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-52">
-                    {filtered.map((s) => (
-                      <button key={s} type="button" onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { void handleCategorySelect(s); }}
-                        className="w-full px-3 py-2.5 text-left text-sm font-semibold text-foreground hover:bg-muted transition-colors">
-                        {s}
-                      </button>
-                    ))}
-                    {showAddNew && (
-                      <button type="button" onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => { setNewStepLabelOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-muted transition-colors border-t border-border/40">
-                        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Plus size={12} className="text-primary" />
-                        </div>
-                        <p className="text-sm font-semibold text-primary">Adicionar &quot;{newStepLabel.trim()}&quot;</p>
+
+            {/* Categoria + Produto lado a lado com imagem */}
+            <div className="flex gap-3">
+              {/* Image preview / upload */}
+              <div className="flex-shrink-0">
+                <div className="w-20 h-20 rounded-2xl bg-muted/40 border border-border/40 overflow-hidden flex items-center justify-center relative">
+                  {newStepImage ? (
+                    <>
+                      <img src={newStepImage} alt="Preview" className="w-full h-full object-contain p-1"
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                      {!newStepProductFromCatalog && (
+                        <button type="button" onClick={() => setNewStepImage("")}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center">
+                          <X size={10} className="text-white" />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => newStepFileInputRef.current?.click()}
+                      disabled={newStepUploadingImage || newStepProductFromCatalog}
+                      className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground/60 hover:text-muted-foreground disabled:cursor-default transition-colors">
+                      {newStepUploadingImage
+                        ? <Loader2 size={20} className="animate-spin" />
+                        : <><Upload size={18} /><span className="text-[9px] font-medium">Foto</span></>
+                      }
+                    </button>
+                  )}
+                </div>
+                <input ref={newStepFileInputRef} type="file" accept="image/*" onChange={handleNewStepFileChange} className="hidden" />
+              </div>
+
+              {/* Categoria + Produto */}
+              <div className="flex-1 space-y-2">
+                {/* Categoria */}
+                <div className="relative">
+                  <input
+                    value={newStepLabel}
+                    onChange={(e) => { setNewStepLabel(e.target.value); setNewStepLabelOpen(true); }}
+                    onFocus={() => setNewStepLabelOpen(true)}
+                    onBlur={() => setTimeout(() => setNewStepLabelOpen(false), 150)}
+                    placeholder="Categoria *  (Limpeza, Sérum...)"
+                    className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  {newStepLabelOpen && (() => {
+                    const suggestions = ["Limpeza","Hidratante","Sérum","Protetor Solar","Tônico","Esfoliante","Máscara","Contorno dos Olhos","Retinol","Ácido"];
+                    const q = newStepLabel.toLowerCase().trim();
+                    const filtered = suggestions.filter((s) => s.toLowerCase().includes(q));
+                    const exactMatch = filtered.some((s) => s.toLowerCase() === q);
+                    const showAddNew = q.length > 0 && !exactMatch;
+                    if (filtered.length === 0 && !showAddNew) return null;
+                    return (
+                      <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-44">
+                        {filtered.map((s) => (
+                          <button key={s} type="button" onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => { void handleCategorySelect(s); setNewStepLabelOpen(false); }}
+                            className="w-full px-3 py-2.5 text-left text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+                            {s}
+                          </button>
+                        ))}
+                        {showAddNew && (
+                          <button type="button" onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => { setNewStepLabelOpen(false); }}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted transition-colors border-t border-border/40">
+                            <Plus size={12} className="text-primary" />
+                            <p className="text-sm font-semibold text-primary">Usar &quot;{newStepLabel.trim()}&quot;</p>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Nome do produto */}
+                <div className="relative">
+                  <div className="relative">
+                    <input
+                      value={newStepProductSearch}
+                      onChange={(e) => {
+                        if (newStepProductFromCatalog) {
+                          // Permite limpar e redigitar
+                          setNewStepProductFromCatalog(false);
+                          setNewStepCatalogProductId(null);
+                          setNewStepImage("");
+                        }
+                        setNewStepProductSearch(e.target.value);
+                        setNewStepProduct(e.target.value);
+                        setNewStepProductOpen(true);
+                      }}
+                      onFocus={() => setNewStepProductOpen(true)}
+                      onBlur={() => setTimeout(() => setNewStepProductOpen(false), 150)}
+                      placeholder="Produto *  (buscar ou digitar)"
+                      className="w-full h-10 rounded-xl border border-border/60 bg-background px-3 text-sm text-foreground pr-8 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    {newStepProductSearch && (
+                      <button type="button"
+                        onClick={() => { setNewStepProduct(""); setNewStepProductSearch(""); setNewStepProductFromCatalog(false); setNewStepImage(""); setNewStepCatalogProductId(null); }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <X size={13} />
                       </button>
                     )}
                   </div>
-                );
-              })()}
-            </div>
-
-            {/* Product name */}
-            <div className="relative">
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Nome do produto *</label>
-              <div className="relative">
-                <input
-                  value={newStepProductSearch}
-                  onChange={(e) => { if (newStepProductFromCatalog) return; setNewStepProductSearch(e.target.value); setNewStepProduct(e.target.value); setNewStepProductOpen(true); }}
-                  onFocus={() => { if (!newStepProductFromCatalog) setNewStepProductOpen(true); }}
-                  readOnly={newStepProductFromCatalog}
-                  placeholder="Buscar produto da análise..."
-                  className={`w-full h-11 rounded-xl border border-border/60 px-3 text-sm text-foreground pr-9 focus:outline-none focus:ring-2 focus:ring-primary/30 ${newStepProductFromCatalog ? "bg-muted cursor-default" : "bg-background"}`}
-                />
-                {newStepProductFromCatalog && (
-                  <button type="button"
-                    onClick={() => { setNewStepProduct(""); setNewStepProductSearch(""); setNewStepProductFromCatalog(false); setNewStepImage(""); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                    <X size={14} />
-                  </button>
-                )}
-                {newStepProductOpen && (() => {
-                  const allRecs = analysis?.recommendations ?? [];
-                  const q = newStepProductSearch.toLowerCase().trim();
-                  const filteredRecs = allRecs.filter((r) => r.product && r.product.toLowerCase().includes(q)).slice(0, 5);
-                  const filteredCatalog = catalogProductsByCategory
-                    .filter((p) => !q || p.name.toLowerCase().includes(q))
-                    .filter((p) => !filteredRecs.some((r) => r.product.toLowerCase() === p.name.toLowerCase()))
-                    .slice(0, 5);
-                  const combined = [
-                    ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, type: r.type, catalogId: null as string | null })),
-                    ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl ?? undefined, type: p.stepTypeKey, catalogId: p.id })),
-                  ];
-                  const exactMatch = combined.some((r) => r.name.toLowerCase() === q);
-                  const showAddNew = q.length > 0 && !exactMatch;
-                  if (combined.length === 0 && !showAddNew) return null;
-                  return (
-                    <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-52">
-                      {combined.map((r) => (
-                        <button key={r.name} type="button" onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setNewStepProduct(r.name);
-                            setNewStepProductSearch(r.name);
-                            if (r.imageUrl) setNewStepImage(r.imageUrl);
-                            setNewStepProductFromCatalog(true);
-                            setNewStepProductOpen(false);
-                            setNewStepCatalogProductId(r.catalogId); // null for recs, uuid for catalog
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted transition-colors">
-                          {r.imageUrl && <img src={r.imageUrl} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-contain bg-white border border-border/30 shrink-0" />}
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
-                            {r.type && <p className="text-xs text-muted-foreground truncate">{r.type}</p>}
-                          </div>
-                        </button>
-                      ))}
-                      {showAddNew && (
-                        <button type="button" onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => { setNewStepProduct(newStepProductSearch.trim()); setNewStepProductFromCatalog(false); setNewStepProductOpen(false); setNewStepCatalogProductId(null); }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted transition-colors border-t border-border/40">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <Plus size={14} className="text-primary" />
-                          </div>
-                          <p className="text-sm font-semibold text-primary">Adicionar &quot;{newStepProductSearch.trim()}&quot;</p>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
+                  {newStepProductOpen && (() => {
+                    const allRecs = analysis?.recommendations ?? [];
+                    const q = newStepProductSearch.toLowerCase().trim();
+                    const filteredRecs = allRecs.filter((r) => r.product && r.product.toLowerCase().includes(q)).slice(0, 4);
+                    const filteredCatalog = catalogProductsByCategory
+                      .filter((p) => !q || p.name.toLowerCase().includes(q))
+                      .filter((p) => !filteredRecs.some((r) => r.product.toLowerCase() === p.name.toLowerCase()))
+                      .slice(0, 4);
+                    const combined = [
+                      ...filteredRecs.map((r) => ({ name: r.product, imageUrl: r.imageUrl, type: r.type, catalogId: null as string | null })),
+                      ...filteredCatalog.map((p) => ({ name: p.name, imageUrl: p.imageUrl ?? undefined, type: p.stepTypeKey, catalogId: p.id })),
+                    ];
+                    const exactMatch = combined.some((r) => r.name.toLowerCase() === q);
+                    const showAddNew = q.length > 0 && !exactMatch;
+                    if (combined.length === 0 && !showAddNew) return null;
+                    return (
+                      <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-background border border-border/70 rounded-xl shadow-xl overflow-y-auto max-h-44">
+                        {combined.map((r) => (
+                          <button key={r.name} type="button" onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setNewStepProduct(r.name);
+                              setNewStepProductSearch(r.name);
+                              if (r.imageUrl) setNewStepImage(r.imageUrl);
+                              setNewStepProductFromCatalog(true);
+                              setNewStepProductOpen(false);
+                              setNewStepCatalogProductId(r.catalogId);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors">
+                            {r.imageUrl && <img src={r.imageUrl} loading="lazy" decoding="async" className="w-8 h-8 rounded-lg object-contain bg-white border border-border/30 shrink-0" />}
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
+                              {r.type && <p className="text-xs text-muted-foreground truncate">{r.type}</p>}
+                            </div>
+                          </button>
+                        ))}
+                        {showAddNew && (
+                          <button type="button" onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => { setNewStepProduct(newStepProductSearch.trim()); setNewStepProductFromCatalog(false); setNewStepProductOpen(false); setNewStepCatalogProductId(null); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors border-t border-border/40">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                              <Plus size={14} className="text-primary" />
+                            </div>
+                            <p className="text-sm font-semibold text-primary">Usar &quot;{newStepProductSearch.trim()}&quot;</p>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
 
-            {/* Image URL */}
-            <div>
-              <label className={`text-xs font-semibold block mb-1.5 flex items-center gap-1 ${newStepProductFromCatalog ? "text-muted-foreground/50" : "text-muted-foreground"}`}>
-                <Image size={12} /> Imagem (URL, opcional)
-                {newStepProductFromCatalog && <span className="text-[10px] italic ml-1">definida pelo catálogo</span>}
-              </label>
-              <input
-                value={newStepImage}
-                onChange={(e) => { if (!newStepProductFromCatalog) setNewStepImage(e.target.value); }}
-                readOnly={newStepProductFromCatalog}
-                placeholder="https://..."
-                className={`w-full h-11 rounded-xl border border-border/60 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 ${newStepProductFromCatalog ? "bg-muted cursor-default" : "bg-background"}`}
-              />
-            </div>
-
-            {/* File upload */}
-            {!newStepProductFromCatalog && (
-              <div>
-                <button type="button" onClick={() => newStepFileInputRef.current?.click()} disabled={newStepUploadingImage}
-                  className="w-full h-11 rounded-xl border border-border/60 bg-background text-foreground text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                  <Upload size={14} />
-                  {newStepUploadingImage ? "Enviando..." : "Ou enviar imagem"}
-                </button>
-                <input ref={newStepFileInputRef} type="file" accept="image/*" onChange={handleNewStepFileChange} className="hidden" />
+            {/* Link para Meus Produtos */}
+            <button
+              type="button"
+              onClick={() => { setAddStepOpen(false); navigate("/meus-produtos"); }}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl border border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Package size={16} className="text-primary" />
               </div>
-            )}
-
-            {newStepImage && (
-              <div className="h-24 w-full rounded-2xl bg-white border border-border/30 overflow-hidden">
-                <img src={newStepImage} alt="Preview" className="w-full h-full object-contain p-2"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">Buscar em Meus Produtos</p>
+                <p className="text-xs text-muted-foreground">Ver catálogo e produtos indicados</p>
               </div>
-            )}
+              <ChevronRight size={15} className="text-muted-foreground flex-shrink-0" />
+            </button>
 
             {/* Período */}
             <div>
@@ -3215,22 +3242,31 @@ const Routine = () => {
                   <span className="text-xs text-indigo-400 ml-auto">Retinol e ácidos são de uso noturno</span>
                 </div>
               ) : (
-                <div className="flex gap-2">
+                <div className="relative flex rounded-full bg-muted/50 p-1">
+                  <div
+                    className={`absolute top-1 bottom-1 rounded-full shadow-sm transition-all duration-300 ease-out ${
+                      newStepPeriod === "morning" ? "bg-amber-400" :
+                      newStepPeriod === "night"   ? "bg-indigo-500" : "bg-primary"
+                    }`}
+                    style={{
+                      width: "calc((100% - 8px) / 3)",
+                      left: "4px",
+                      transform: `translateX(calc(${
+                        newStepPeriod === "morning" ? 0 : newStepPeriod === "both" ? 1 : 2
+                      } * 100%))`,
+                    }}
+                  />
                   {([
                     { value: "morning" as const, icon: <Sun size={13} />, label: "Manhã" },
-                    { value: "both"    as const, icon: <span className="flex gap-0.5"><Sun size={11} /><Moon size={11} /></span>, label: "Ambos" },
+                    { value: "both"    as const, icon: <span className="flex items-center gap-0.5"><Sun size={11} /><Moon size={11} /></span>, label: "Ambos" },
                     { value: "night"   as const, icon: <Moon size={13} />, label: "Noite" },
                   ] as const).map(({ value, icon, label }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => setNewStepPeriod(value)}
-                      className={`flex-1 h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-all ${
-                        newStepPeriod === value
-                          ? value === "morning" ? "bg-amber-400 text-white shadow-sm"
-                            : value === "night" ? "bg-indigo-500 text-white shadow-sm"
-                            : "bg-primary text-white shadow-sm"
-                          : "border border-border/60 text-muted-foreground bg-background"
+                      className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 h-10 text-[10px] font-semibold z-10 transition-colors ${
+                        newStepPeriod === value ? "text-white" : "text-muted-foreground"
                       }`}
                     >
                       <span className="flex items-center gap-0.5">{icon}</span>
@@ -3246,19 +3282,18 @@ const Routine = () => {
               <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Frequência</label>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { value: "daily"    as const, label: "Diário" },
+                  { value: "daily"     as const, label: "Diário" },
                   { value: "2-3x_week" as const, label: "2-3x/semana" },
-                  { value: "custom"   as const, label: "Personalizar" },
+                  { value: "custom"    as const, label: "Personalizar" },
                 ] as const).map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
                     onClick={() => {
-                    setNewStepRecurrence(opt.value);
-                    if (opt.value === "2-3x_week") setNewStepScheduleDays(["tue", "thu", "sun"]);
-                    else if (opt.value === "daily") setNewStepScheduleDays([]);
-                    // "custom" keeps existing days or starts empty
-                  }}
+                      setNewStepRecurrence(opt.value);
+                      if (opt.value === "2-3x_week") setNewStepScheduleDays(["tue", "thu", "sun"]);
+                      else if (opt.value === "daily") setNewStepScheduleDays([]);
+                    }}
                     className={`h-10 rounded-xl text-xs font-semibold transition-all ${
                       newStepRecurrence === opt.value
                         ? "text-white"
@@ -3270,8 +3305,6 @@ const Routine = () => {
                   </button>
                 ))}
               </div>
-
-              {/* Seleção de dias específicos — mostrado para 2-3x/semana (pré-selecionado) e Personalizar */}
               {(newStepRecurrence === "2-3x_week" || newStepRecurrence === "custom") && (
                 <div className="mt-2.5">
                   <p className="text-[11px] text-muted-foreground mb-1.5">
@@ -3281,14 +3314,8 @@ const Routine = () => {
                     {weekDays.map((d) => {
                       const active = newStepScheduleDays.includes(d.key);
                       return (
-                        <button
-                          key={d.key}
-                          type="button"
-                          onClick={() =>
-                            setNewStepScheduleDays((prev) =>
-                              active ? prev.filter((x) => x !== d.key) : [...prev, d.key]
-                            )
-                          }
+                        <button key={d.key} type="button"
+                          onClick={() => setNewStepScheduleDays((prev) => active ? prev.filter((x) => x !== d.key) : [...prev, d.key])}
                           className={`w-10 h-10 rounded-xl text-xs font-bold transition-all ${
                             active ? "text-white" : "border border-border/60 text-muted-foreground bg-background"
                           }`}
@@ -3303,7 +3330,7 @@ const Routine = () => {
               )}
             </div>
 
-            {/* Note */}
+            {/* Observação */}
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Observação (opcional)</label>
               <input
@@ -3320,7 +3347,8 @@ const Routine = () => {
               className="flex-1 h-12 rounded-2xl border border-border/60 bg-background text-foreground font-semibold text-sm">
               Cancelar
             </button>
-            <button onClick={() => { void addCustomStep(); }} disabled={!newStepProduct.trim() || (newStepRecurrence !== "daily" && newStepScheduleDays.length === 0)}
+            <button onClick={() => { void addCustomStep(); }}
+              disabled={!newStepProduct.trim() || (newStepRecurrence !== "daily" && newStepScheduleDays.length === 0)}
               className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm disabled:opacity-40 transition-opacity">
               Salvar passo
             </button>

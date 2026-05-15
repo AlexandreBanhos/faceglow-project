@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen, Pencil, Lightbulb, Check, Sun, Moon, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Image, Upload, X, PackageOpen, Pencil, Lightbulb, Check, Sun, Moon, ChevronRight, Loader2, Package } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
@@ -69,13 +69,16 @@ export default function MeusProdutos() {
   const [addingToRoutine, setAddingToRoutine] = useState<Record<string, boolean>>({});
   const [addedToRoutine, setAddedToRoutine] = useState<Record<string, string>>({});
 
-  const handleAddToRoutine = async (
-    productName: string,
-    imageUrl: string | undefined,
-    category: string,
-    period: "morning" | "night" | "both",
-    id: string,
-  ) => {
+  type PendingAdd = { productName: string; imageUrl?: string; category: string; period: "morning" | "night" | "both"; id: string };
+  const [pendingAdd, setPendingAdd] = useState<PendingAdd | null>(null);
+
+  const periodLabel = (p: "morning" | "night" | "both") =>
+    p === "morning" ? "manhã" : p === "night" ? "noite" : "manhã e noite";
+
+  const confirmAdd = async () => {
+    if (!pendingAdd) return;
+    const { productName, imageUrl, category, period, id } = pendingAdd;
+    setPendingAdd(null);
     const latestAnalysis = getCachedLatestAnalysis();
     if (!latestAnalysis?.id) return;
     setAddingToRoutine((prev) => ({ ...prev, [id]: true }));
@@ -94,6 +97,16 @@ export default function MeusProdutos() {
     } finally {
       setAddingToRoutine((prev) => ({ ...prev, [id]: false }));
     }
+  };
+
+  const handleAddToRoutine = (
+    productName: string,
+    imageUrl: string | undefined,
+    category: string,
+    period: "morning" | "night" | "both",
+    id: string,
+  ) => {
+    setPendingAdd({ productName, imageUrl, category, period, id });
   };
   const fileRef = useRef<HTMLInputElement>(null);
   
@@ -641,6 +654,64 @@ export default function MeusProdutos() {
           </>
         )}
       </div>
+
+      {/* Confirmation dialog */}
+      <AnimatePresence>
+        {pendingAdd && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm px-4 pb-8"
+            onClick={() => setPendingAdd(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-card rounded-3xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-start gap-3">
+                {pendingAdd.imageUrl ? (
+                  <img src={pendingAdd.imageUrl} alt={pendingAdd.productName}
+                    className="w-14 h-14 rounded-2xl object-contain bg-muted/40 border border-border/30 flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Package size={22} className="text-primary" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-foreground leading-snug">{pendingAdd.productName}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Adicionar à rotina da <span className="font-semibold text-foreground">{periodLabel(pendingAdd.period)}</span>?
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPendingAdd(null)}
+                  className="flex-1 h-12 rounded-2xl border border-border/60 bg-background text-foreground font-semibold text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { void confirmAdd(); }}
+                  disabled={addingToRoutine[pendingAdd.id]}
+                  className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {addingToRoutine[pendingAdd.id]
+                    ? <><Loader2 size={16} className="animate-spin" /> Adicionando…</>
+                    : "Adicionar"
+                  }
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <BottomNav />
     </div>
