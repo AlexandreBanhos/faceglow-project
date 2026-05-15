@@ -635,7 +635,6 @@ export function AdminProducts() {
                       <Input type="number" min={0} max={100} value={formData.curationScore} onChange={(e) => setFormData((prev) => ({ ...prev, curationScore: parseInt(e.target.value) || 50 }))} className="bg-white text-sm" />
                     </div>
                   </div>
-                  </div>
 
                   <div>
                     <label className="block text-xs md:text-sm font-medium mb-2">
