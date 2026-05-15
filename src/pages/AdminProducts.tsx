@@ -200,6 +200,10 @@ export function AdminProducts() {
       priceRange: result.priceRange || prev.priceRange,
       priceAvg: result.estimatedPriceBRL || prev.priceAvg,
     }));
+    // Se IA sugeriu imagem e o produto ainda não tem, pré-visualiza automaticamente
+    if (result.imageUrlSuggestion && !imagePreview) {
+      setImagePreview(result.imageUrlSuggestion);
+    }
     setEnrichResult(result);
   };
 
@@ -502,6 +506,18 @@ export function AdminProducts() {
                           <summary className="cursor-pointer font-semibold">Ver INCI completo</summary>
                           <p className="mt-1 leading-relaxed break-words">{enrichResult.inciList}</p>
                         </details>
+                      )}
+                      {enrichResult.imageUrlSuggestion && (
+                        <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-green-300">
+                          <img src={enrichResult.imageUrlSuggestion} alt="Sugestão IA" className="w-10 h-10 object-contain rounded border border-slate-200 bg-white" onError={(e) => { e.currentTarget.parentElement!.style.display = "none"; }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-semibold text-green-800">IA encontrou uma imagem</p>
+                            <p className="text-[9px] text-green-600 truncate">{enrichResult.imageUrlSuggestion}</p>
+                          </div>
+                          <button type="button" onClick={() => { handleImageUrlChange(enrichResult.imageUrlSuggestion!); }} className="text-[10px] px-2 py-1 bg-green-600 text-white rounded font-semibold hover:bg-green-700 transition-colors flex-shrink-0">
+                            Usar
+                          </button>
+                        </div>
                       )}
                       <p className="text-[10px] text-green-600">Revise os campos abaixo e clique em Salvar.</p>
                     </div>

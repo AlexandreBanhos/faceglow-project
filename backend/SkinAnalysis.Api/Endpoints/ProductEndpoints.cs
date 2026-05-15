@@ -177,6 +177,30 @@ public static class ProductEndpoints
             product.Description = request.Description ?? product.Description;
             product.UpdatedAt = DateTime.UtcNow;
 
+            // Atualiza imagem se fornecida no request
+            if (!string.IsNullOrWhiteSpace(request.ImageUrl))
+            {
+                var existingImage = await dbContext.ProductImages
+                    .Where(img => img.ProductId == product.Id && img.Position == 0)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (existingImage is not null)
+                {
+                    existingImage.PublicUrl = request.ImageUrl;
+                    existingImage.Source = "uploaded";
+                }
+                else
+                {
+                    dbContext.ProductImages.Add(new ProductImage
+                    {
+                        ProductId = product.Id,
+                        PublicUrl = request.ImageUrl,
+                        Position = 0,
+                        Source = "uploaded"
+                    });
+                }
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var dto = new AdminProductDto(

@@ -17,6 +17,7 @@ public record ProductEnrichmentResult(
     decimal? EstimatedPriceBRL,
     string[] KeyIngredients,
     string? InciList,
+    string? ImageUrlSuggestion,
     double Confidence
 );
 
@@ -30,52 +31,87 @@ public class ProductEnrichmentService
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    // Step type keys válidos no sistema
-    private static readonly string[] ValidStepTypes = [
+    // Valores válidos do banco — todas as comparações são feitas após lowercase + trim
+    private static readonly HashSet<string> ValidStepTypes = [
         "cleanser", "toner", "serum", "moisturizer", "sunscreen",
         "eye_cream", "retinoid", "acid", "spot_treatment", "oil",
         "mask", "exfoliant"
     ];
+    private static readonly HashSet<string> ValidSkinTypes = [
+        "oleosa", "seca", "mista", "sensivel", "normal"
+    ];
+    private static readonly HashSet<string> ValidConcerns = [
+        "acne", "cravos", "manchas", "rugas", "olheiras",
+        "hidratacao", "oleosidade", "sensibilidade", "poros",
+        "vermelhidao", "firmeza"
+    ];
+    private static readonly HashSet<string> ValidStrengthLevels = ["mild", "moderate", "strong"];
+    private static readonly HashSet<string> ValidPriceRanges   = ["low", "medium", "high", "premium"];
+    private static readonly HashSet<string> ValidPeriods        = ["morning", "night"];
 
     private const string EnrichmentPrompt = """
 Você é um especialista em dermocosmética e skincare com foco no mercado brasileiro.
 Dado o nome e a marca de um produto cosmético, analise com base no seu conhecimento e retorne
 SOMENTE um JSON válido com os dados do produto conforme o schema abaixo.
 
-REGRAS OBRIGATÓRIAS:
-1. step_type_key DEVE ser UM destes valores exatos:
+REGRAS CRÍTICAS — OS VALORES DEVEM SER EXATAMENTE ASSIM (sem tradução, sem maiúsculas):
+
+1. step_type_key — exatamente um destes (lowercase, sem espaço):
    cleanser | toner | serum | moisturizer | sunscreen | eye_cream | retinoid | acid | spot_treatment | oil | mask | exfoliant
-2. compatible_skin_types DEVE conter apenas: oleosa, seca, mista, sensivel, normal
-3. targets_concerns DEVE conter apenas: acne, cravos, manchas, rugas, olheiras, hidratacao, oleosidade, sensibilidade, poros, vermelhidao, firmeza
-4. strength_level DEVE ser: mild (leve/suave), moderate (moderado), strong (ativo potente como retinol, ácidos em % alta)
-5. suitable_periods: ["morning"] se só manhã, ["night"] se só noite, ["morning","night"] se ambos
-6. price_range:
-   - low: até R$35
-   - medium: R$35-R$100
-   - high: R$100-R$250
-   - premium: acima de R$250
-7. estimated_price_brl: estimativa realista do preço médio no Brasil em reais (farmácias/beleza na web)
-8. key_ingredients: 5-8 principais ingredientes ativos em português (ex: Niacinamida, Ácido Hialurônico)
-9. inci_list: lista INCI completa se conhecida (ex: "Aqua, Niacinamide, Zinc PCA, ...")
-10. description: 3-4 frases em português: o que faz, ativos principais, para qual pele, como usar
-11. tagline: frase curta de marketing em português (máx 10 palavras)
-12. confidence: 0.0-1.0 indicando certeza. Use 0.9+ para produtos muito conhecidos, 0.6-0.8 para estimativas
-13. NUNCA invente dados — use null se não souber
+
+2. compatible_skin_types — array com apenas estes valores (lowercase):
+   "oleosa" | "seca" | "mista" | "sensivel" | "normal"
+   PROIBIDO: "Oleosa", "oily", "dry", "combination" — somente os valores acima
+
+3. targets_concerns — array com apenas estes valores (lowercase, sem acentos):
+   "acne" | "cravos" | "manchas" | "rugas" | "olheiras" | "hidratacao" | "oleosidade" | "sensibilidade" | "poros" | "vermelhidao" | "firmeza"
+   PROIBIDO: qualquer outro valor, qualquer maiúscula, qualquer acento
+
+4. strength_level — exatamente: "mild" ou "moderate" ou "strong" (lowercase)
+   mild = leve/suave, moderate = moderado, strong = potente (retinol, ácidos >5%)
+
+5. suitable_periods — array: ["morning"] | ["night"] | ["morning","night"]
+   PROIBIDO: "manhã", "noite", "both", "day"
+
+6. price_range — exatamente: "low" | "medium" | "high" | "premium" (lowercase)
+   low=até R$35, medium=R$35-100, high=R$100-250, premium=acima R$250
+
+7. estimated_price_brl — número decimal (preço real em farmácias/lojas BR)
+
+8. key_ingredients — 5-8 ingredientes ativos em PORTUGUÊS (Niacinamida, Ácido Hialurônico, etc)
+
+9. inci_list — lista INCI completa em inglês técnico se conhecida ("Aqua, Niacinamide, ...")
+
+10. image_url_suggestion — URL direta da imagem do produto no site oficial da marca SE você conhece
+    com certeza. Exemplos de padrões confiáveis:
+    - La Roche-Posay: https://www.laroche-posay.com.br/...
+    - CeraVe: https://www.cerave.com.br/...
+    - Neutrogena: https://www.neutrogena.com.br/...
+    Use null se não tiver certeza absoluta — melhor null do que URL errada
+
+11. description — 3-4 frases em PORTUGUÊS: função principal, ativos, tipo de pele alvo, como usar
+
+12. tagline — frase marketing em PORTUGUÊS (máx 10 palavras)
+
+13. confidence — 0.0 a 1.0 (0.9+ para produtos muito conhecidos como La Roche-Posay Effaclar)
+
+NUNCA invente — use null para campos desconhecidos.
 
 Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
 {
   "tagline": "...",
   "description": "...",
-  "step_type_key": "...",
-  "compatible_skin_types": ["..."],
-  "targets_concerns": ["..."],
-  "strength_level": "mild|moderate|strong",
+  "step_type_key": "moisturizer",
+  "compatible_skin_types": ["oleosa", "mista"],
+  "targets_concerns": ["acne", "oleosidade"],
+  "strength_level": "mild",
   "suitable_periods": ["morning", "night"],
-  "price_range": "low|medium|high|premium",
-  "estimated_price_brl": 0.0,
-  "key_ingredients": ["..."],
-  "inci_list": "Aqua, ...",
-  "confidence": 0.0
+  "price_range": "medium",
+  "estimated_price_brl": 79.90,
+  "key_ingredients": ["Niacinamida", "Zinco PCA"],
+  "inci_list": "Aqua, Niacinamide, Zinc PCA, ...",
+  "image_url_suggestion": null,
+  "confidence": 0.9
 }
 """;
 
@@ -149,23 +185,32 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
             // Parse Gemini JSON response
             var data = JsonSerializer.Deserialize<JsonElement>(text, JsonOptions);
 
-            var stepTypeKey = GetString(data, "step_type_key");
-            // Valida step_type_key
-            if (!ValidStepTypes.Contains(stepTypeKey ?? ""))
-                stepTypeKey = null;
+            // Normaliza e valida todos os valores contra os conjuntos aceitos pelo banco
+            var stepTypeKey  = Normalize(GetString(data, "step_type_key"), ValidStepTypes);
+            var strengthLevel = Normalize(GetString(data, "strength_level"), ValidStrengthLevels);
+            var priceRange   = Normalize(GetString(data, "price_range"), ValidPriceRanges);
+
+            var skinTypes = NormalizeArray(data, "compatible_skin_types", ValidSkinTypes);
+            var concerns  = NormalizeArray(data, "targets_concerns", ValidConcerns);
+            var periods   = NormalizeArray(data, "suitable_periods", ValidPeriods);
+
+            // image_url_suggestion: só aceita se for URL válida
+            var imageUrl = GetString(data, "image_url_suggestion");
+            if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out _)) imageUrl = null;
 
             return new ProductEnrichmentResult(
                 Tagline: GetString(data, "tagline"),
                 Description: GetString(data, "description"),
                 StepTypeKey: stepTypeKey,
-                CompatibleSkinTypes: GetStringArray(data, "compatible_skin_types"),
-                TargetsConcerns: GetStringArray(data, "targets_concerns"),
-                StrengthLevel: GetString(data, "strength_level"),
-                SuitablePeriods: GetStringArray(data, "suitable_periods") is { Length: > 0 } p ? p : ["morning", "night"],
-                PriceRange: GetString(data, "price_range"),
+                CompatibleSkinTypes: skinTypes,
+                TargetsConcerns: concerns,
+                StrengthLevel: strengthLevel,
+                SuitablePeriods: periods.Length > 0 ? periods : ["morning", "night"],
+                PriceRange: priceRange,
                 EstimatedPriceBRL: GetDecimal(data, "estimated_price_brl"),
                 KeyIngredients: GetStringArray(data, "key_ingredients"),
                 InciList: GetString(data, "inci_list"),
+                ImageUrlSuggestion: imageUrl,
                 Confidence: GetDouble(data, "confidence")
             );
         }
@@ -201,4 +246,33 @@ Retorne SOMENTE o JSON abaixo, sem markdown, sem texto adicional:
 
     private static double GetDouble(JsonElement el, string key) =>
         el.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0.0;
+
+    /// <summary>
+    /// Normaliza um valor escalar: lowercase + trim, depois valida contra o conjunto de valores permitidos.
+    /// Retorna null se inválido ou não reconhecido.
+    /// </summary>
+    private static string? Normalize(string? raw, HashSet<string> allowed)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var normalized = raw.Trim().ToLowerInvariant()
+            // remove acentos comuns que Gemini pode introduzir
+            .Replace("ç", "c").Replace("ã", "a").Replace("ão", "ao")
+            .Replace("é", "e").Replace("ê", "e").Replace("á", "a")
+            .Replace("í", "i").Replace("ó", "o").Replace("ú", "u");
+        return allowed.Contains(normalized) ? normalized : null;
+    }
+
+    /// <summary>
+    /// Normaliza e filtra um array de strings contra os valores permitidos.
+    /// Elimina duplicatas e valores não reconhecidos.
+    /// </summary>
+    private static string[] NormalizeArray(JsonElement el, string key, HashSet<string> allowed)
+    {
+        var raw = GetStringArray(el, key);
+        return raw
+            .Select(s => Normalize(s, allowed))
+            .Where(s => s is not null)
+            .Distinct()
+            .ToArray()!;
+    }
 }

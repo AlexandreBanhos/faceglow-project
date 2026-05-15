@@ -189,6 +189,7 @@ export interface EnrichmentResult {
   estimatedPriceBRL?: number;
   keyIngredients: string[];
   inciList?: string;
+  imageUrlSuggestion?: string;
   confidence: number;
 }
 
