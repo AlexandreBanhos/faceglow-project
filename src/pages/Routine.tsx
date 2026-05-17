@@ -1,4 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import SkinQuiz from "@/components/quiz/SkinQuiz";
+import { FULL_QUESTIONS, quizToLifestyle } from "@/components/quiz/quizQuestions";
+import { updateLifestyle } from "@/lib/lifestyle";
 import { motion } from "framer-motion";
 import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen, Loader2, Package, ChevronRight } from "lucide-react";
 import { GradientSpinner } from "@/components/LoadingSpinner";
@@ -371,6 +374,9 @@ const Routine = () => {
   const [imageUploadErrorByItem, setImageUploadErrorByItem] = useState<Record<string, string>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showRefineQuiz, setShowRefineQuiz] = useState(false);
+  const [refineLoading, setRefineLoading] = useState(false);
+  const [refineSuccess, setRefineSuccess] = useState(false);
   const [shakingDay, setShakingDay] = useState<string | null>(null);
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
@@ -3399,6 +3405,77 @@ const Routine = () => {
       </Sheet>
 
       <RoutineSuggestionsPanel onApplied={() => reloadApiSteps(true)} />
+
+      {/* ── Card "Refinar minha rotina" ── */}
+      <div className="mx-auto max-w-md px-5 pb-6">
+        {refineSuccess ? (
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+            <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">Rotina refinada com sucesso!</p>
+              <p className="text-xs text-emerald-600">Seus dados foram atualizados e a rotina foi regenerada.</p>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowRefineQuiz(true)}
+            className="w-full text-left rounded-2xl overflow-hidden"
+            style={{ background: "linear-gradient(135deg, #f4f2ff 0%, #ede8ff 60%, #fff0f8 100%)", border: "1px solid #e0ddf4" }}
+          >
+            <div className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #f472b6, #a78bfa)" }}>
+                <Sparkles size={20} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-800">Refinar minha rotina</p>
+                <p className="text-xs text-slate-500 mt-0.5">Responda algumas perguntas para personalizar ainda mais</p>
+              </div>
+              <ChevronRight size={16} className="text-slate-400 flex-shrink-0" />
+            </div>
+          </button>
+        )}
+      </div>
+
+      {/* ── Overlay do quiz de refinamento — z-[200] garante estar acima do BottomNav ── */}
+      {showRefineQuiz && (
+        <div className="fixed inset-0 z-[200]" style={{ background: "linear-gradient(160deg,#f4f2ff 0%,#ede8ff 30%,#f8f4ff 60%,#fff0f8 100%)" }}>
+          <SkinQuiz
+            questions={FULL_QUESTIONS}
+            onComplete={async (raw) => {
+              const answers = quizToLifestyle(raw);
+              setRefineLoading(true);
+              try {
+                await updateLifestyle({
+                  usesMakeup: answers.makeupUsage === "daily" || answers.makeupUsage === "sometimes",
+                  budgetRange: answers.budgetRange || null,
+                  pregnancySafe: answers.hormonalConditions.some((c) => c === "pregnancy" || c === "breastfeed"),
+                  lifestyleData: answers,
+                });
+                setRefineSuccess(true);
+                setShowRefineQuiz(false);
+                setTimeout(() => reloadApiSteps(true), 800);
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : "Erro ao salvar preferências";
+                toast.error(msg);
+                setShowRefineQuiz(false);
+              } finally {
+                setRefineLoading(false);
+              }
+            }}
+            onBack={() => setShowRefineQuiz(false)}
+          />
+          {refineLoading && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-3">
+                <GradientSpinner size={40} />
+                <p className="text-sm font-semibold text-slate-700">Atualizando sua rotina…</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <BottomNav />
     </div>

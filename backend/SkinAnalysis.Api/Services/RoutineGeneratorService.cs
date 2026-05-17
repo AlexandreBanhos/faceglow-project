@@ -16,9 +16,10 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
 
     public async Task GenerateForProfileAsync(SkinProfile profile, CancellationToken ct = default)
     {
-        // Deactivate only routines tied to THIS profile — do not touch other profiles' routines
+        // Desativa TODAS as rotinas ativas do usuário — a constraint idx_routines_active
+        // é UNIQUE(user_id, period) WHERE is_active=true, então precisamos limpar por UserId.
         await db.Routines
-            .Where(r => r.SkinProfileId == profile.Id && r.IsActive)
+            .Where(r => r.UserId == profile.UserId && r.IsActive)
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.IsActive, false), ct);
 
         foreach (var period in new[] { "morning", "night" })
@@ -44,6 +45,11 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
             await db.SaveChangesAsync(ct);
 
             var stepTypeKeys = template.StepTypeKeys ?? [];
+
+            // Usuárias de maquiagem recebem limpeza dedicada como 1º passo da rotina noturna
+            if (period == "night" && profile.UsesMakeup && !stepTypeKeys.Contains("makeup_remover"))
+                stepTypeKeys = ["makeup_remover", .. stepTypeKeys];
+
             for (int order = 0; order < stepTypeKeys.Length; order++)
             {
                 var stepKey = stepTypeKeys[order];
@@ -89,6 +95,7 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
                 "has_active_acne"    => profile.HasActiveAcne,
                 "has_dark_circles"   => profile.HasDarkCircles,
                 "has_enlarged_pores" => profile.HasEnlargedPores,
+                "uses_makeup"        => profile.UsesMakeup,
                 _                    => true,
             })));
     }
@@ -168,6 +175,21 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
         // Strength filter for very sensitive skin
         if (profile.SensitivityScore >= 7)
             query = query.Where(p => p.StrengthLevel != "strong");
+
+        // Budget filter — include only products within or below the user's range
+        if (!string.IsNullOrEmpty(profile.BudgetRange))
+        {
+            var allowed = profile.BudgetRange switch
+            {
+                "low"     => new[] { "low" },
+                "medium"  => new[] { "low", "medium" },
+                "high"    => new[] { "low", "medium", "high" },
+                "premium" => new[] { "low", "medium", "high", "premium" },
+                _         => Array.Empty<string>(),
+            };
+            if (allowed.Length > 0)
+                query = query.Where(p => p.PriceRange == null || allowed.Contains(p.PriceRange));
+        }
 
         return await query
             .OrderByDescending(p => p.CurationScore)

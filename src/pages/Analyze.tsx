@@ -15,6 +15,10 @@ import LoadingAnalysisView from "@/components/analyze/LoadingAnalysisView";
 import { AnalysisInfoPage } from "@/components/analyze/AnalysisInfoPage";
 import { ScanInstructionsPage } from "@/components/analyze/ScanInstructionsPage";
 import { AnalysisTermsModal } from "@/components/analyze/AnalysisTermsModal";
+import { type LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
+import SkinQuiz from "@/components/quiz/SkinQuiz";
+import { PRE_ANALYSIS_QUESTIONS, ROUTINE_QUESTIONS, quizToLifestyle } from "@/components/quiz/quizQuestions";
+import { updateLifestyle } from "@/lib/lifestyle";
 
 const MAX_IMAGE_BYTES = 1600 * 1024;
 const MAX_IMAGE_DIMENSION = 1280;
@@ -24,6 +28,25 @@ const PENDING_ANALYZE_IMAGE_KEY = "faceglow-pending-analyze-image";
 const PENDING_ANALYZE_FACE_KEY = "faceglow-pending-analyze-face-validation";
 const PENDING_ANALYZE_AT_KEY = "faceglow-pending-analyze-at";
 const PENDING_ANALYZE_TTL_MS = 30 * 60 * 1000;
+
+const QUIZ_COMPLETED_KEY = "faceglow-quiz-completed";
+const QUIZ_ANSWERS_KEY   = "faceglow-quiz-answers";
+
+function advanceToLifestyleOrInstructions(
+  setPhase: (p: AnalyzePhase) => void,
+  setLifestyleAnswers: (a: LifestyleAnswers) => void,
+) {
+  const done = localStorage.getItem(QUIZ_COMPLETED_KEY);
+  if (done) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(QUIZ_ANSWERS_KEY) ?? "null") as LifestyleAnswers | null;
+      if (saved) setLifestyleAnswers(saved);
+    } catch { /* usa perfil salvo no backend */ }
+    setPhase("instructions"); // retornando: pula quiz direto para câmera
+  } else {
+    setPhase("lifestyle_pre"); // primeira vez: começa pelo quiz pré-análise
+  }
+}
 
 const estimateDataUrlBytes = (dataUrl: string) => {
   const base64 = dataUrl.split(",")[1] ?? "";
@@ -95,7 +118,7 @@ const optimizeImageForUpload = async (file: File): Promise<string> => {
   return optimizeImageDataUrl(originalDataUrl);
 };
 
-type AnalyzePhase = "info" | "instructions" | "scanner" | "preview" | "loading";
+type AnalyzePhase = "info" | "lifestyle_pre" | "instructions" | "scanner" | "preview" | "loading";
 const TERMS_ACCEPTED_KEY = "faceglow-analysis-terms-accepted";
 type FaceValidationState = "unknown" | "checking" | "valid" | "invalid" | "unsupported";
 
@@ -120,6 +143,14 @@ const Analyze = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   useUserStatus(isAuthenticated);
   const [phase, setPhase] = useState<AnalyzePhase>("info");
+  const [preAnswers, setPreAnswers] = useState<LifestyleAnswers | null>(null);
+  const [routineAnswers, setRoutineAnswers] = useState<LifestyleAnswers | null>(null);
+  // Se já fez o quiz completo antes, não mostra o quiz de rotina durante o loading
+  const [routineQuizDone, setRoutineQuizDone] = useState(
+    () => !!localStorage.getItem(QUIZ_COMPLETED_KEY)
+  );
+  // Mantido para compatibilidade com startAnalysis
+  const [lifestyleAnswers, setLifestyleAnswers] = useState<LifestyleAnswers | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null);
   const [loadingFinished, setLoadingFinished] = useState(false);
@@ -168,10 +199,19 @@ const Analyze = () => {
   }, [image]);
 
   useEffect(() => {
-    if (phase === "loading" && loadingFinished && analysisResult) {
+    if (phase === "loading" && loadingFinished && analysisResult && routineQuizDone) {
+      // Salva respostas de rotina em background (não bloqueia navegação)
+      if (routineAnswers) {
+        updateLifestyle({
+          usesMakeup: routineAnswers.makeupUsage === "daily" || routineAnswers.makeupUsage === "sometimes",
+          budgetRange: routineAnswers.budgetRange || null,
+          pregnancySafe: false,
+          lifestyleData: { ...preAnswers, ...routineAnswers } as LifestyleAnswers,
+        }).catch(() => {});
+      }
       navigate("/results", { state: { analysis: analysisResult } });
     }
-  }, [analysisResult, loadingFinished, navigate, phase]);
+  }, [analysisResult, loadingFinished, navigate, phase, routineQuizDone, routineAnswers, preAnswers]);
 
 
 
@@ -287,6 +327,11 @@ const Analyze = () => {
           body: JSON.stringify({
             imageUrl: uploadedImage.imageUrl,
             analyzerImageUrl: uploadedImage.analyzerImageUrl,
+            // Apenas dados pré-análise (ajudam a IA a interpretar a foto)
+            usesMakeup: false,
+            budgetRange: null,
+            pregnancySafe: false,
+            lifestyleData: preAnswers ?? null,
           }),
           signal: controller.signal,
         });
@@ -349,7 +394,7 @@ const Analyze = () => {
         return;
       }
       if (!termsAccepted()) { setShowTerms(true); return; }
-      setPhase("instructions");
+      advanceToLifestyleOrInstructions(setPhase, setLifestyleAnswers);
     };
 
     return (
@@ -366,7 +411,7 @@ const Analyze = () => {
           onAccept={() => {
             localStorage.setItem(TERMS_ACCEPTED_KEY, "1");
             setShowTerms(false);
-            setPhase("instructions");
+            advanceToLifestyleOrInstructions(setPhase, setLifestyleAnswers);
           }}
           onDecline={() => setShowTerms(false)}
         />
@@ -374,7 +419,23 @@ const Analyze = () => {
     );
   }
 
-  // ── 2. Instruções de câmera ────────────────────────────────────────────────
+  // ── 2. Quiz pré-análise — contexto para a IA (faixa etária + preocupações) ──
+  if (phase === "lifestyle_pre") {
+    return (
+      <SkinQuiz
+        questions={PRE_ANALYSIS_QUESTIONS}
+        onComplete={(raw) => {
+          const answers = quizToLifestyle(raw);
+          setPreAnswers(answers);
+          setLifestyleAnswers(answers); // compatibilidade
+          setPhase("instructions");
+        }}
+        onBack={() => setPhase("info")}
+      />
+    );
+  }
+
+  // ── 3. Instruções de câmera ────────────────────────────────────────────────
   if (phase === "instructions") {
     return (
       <ScanInstructionsPage
@@ -398,14 +459,39 @@ const Analyze = () => {
   // ── 4. Loading / polling ──────────────────────────────────────────────────
   if (phase === "loading" && image) {
     return (
-      <LoadingAnalysisView
-        imageUrl={image}
-        analysisId={pendingAnalysisId ?? ""}
-        isDone={Boolean(analysisResult)}
-        onComplete={() => setLoadingFinished(true)}
-        onResult={handleAnalysisResult}
-        onError={handleAnalysisError}
-      />
+      <div style={{ position: "relative", minHeight: "100svh" }}>
+        {/* Polling sempre ativo em background */}
+        <LoadingAnalysisView
+          imageUrl={image}
+          analysisId={pendingAnalysisId ?? ""}
+          isDone={Boolean(analysisResult)}
+          onComplete={() => setLoadingFinished(true)}
+          onResult={handleAnalysisResult}
+          onError={handleAnalysisError}
+        />
+
+        {/* Quiz de rotina — aparece sobre o loading apenas na primeira análise */}
+        {!routineQuizDone && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 40 }}>
+            <SkinQuiz
+              questions={ROUTINE_QUESTIONS}
+              analysisInProgress={!analysisResult}
+              onComplete={(raw) => {
+                const answers = quizToLifestyle(raw);
+                setRoutineAnswers(answers);
+                setRoutineQuizDone(true);
+                // Persiste no localStorage para futuras análises não precisarem repetir
+                try {
+                  const merged = { ...(preAnswers ?? {}), ...answers } as LifestyleAnswers;
+                  localStorage.setItem(QUIZ_ANSWERS_KEY, JSON.stringify(merged));
+                  localStorage.setItem(QUIZ_COMPLETED_KEY, "1");
+                } catch { /* quota */ }
+              }}
+              onBack={() => {/* não permite voltar durante o loading */}}
+            />
+          </div>
+        )}
+      </div>
     );
   }
 

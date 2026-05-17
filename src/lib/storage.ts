@@ -1,5 +1,44 @@
 import { assertSupabaseConfigured } from "@/lib/supabase";
 
+/**
+ * Redimensiona e converte para WebP antes do upload.
+ * maxPx: maior dimensão permitida (px). quality: 0–1.
+ */
+async function compressImage(file: File, maxPx = 1200, quality = 0.85): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const scale = Math.min(1, maxPx / Math.max(w, h));
+      const canvas = document.createElement("canvas");
+      canvas.width  = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(file); return; }
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          const name = file.name.replace(/\.[^.]+$/, ".webp");
+          resolve(new File([blob], name, { type: "image/webp" }));
+        },
+        "image/webp",
+        quality,
+      );
+    };
+
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Imagem inválida")); };
+    img.src = objectUrl;
+  });
+}
+
 const analysisBucket = (import.meta.env.VITE_SUPABASE_BUCKET_ANALYSIS as string | undefined)?.trim() || "analysis-images";
 const profileBucket = (import.meta.env.VITE_SUPABASE_BUCKET_PROFILE as string | undefined)?.trim() || "profile-images";
 
@@ -72,11 +111,10 @@ export const uploadAnalysisImage = async (dataUrl: string, userId: string) => {
 };
 
 export const uploadProfileImage = async (file: File, userId: string) => {
-  const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() : "jpg";
-  const safeExtension = extension || "jpg";
+  const compressed = await compressImage(file, 400, 0.82);
   const timestamp = Date.now();
-  const path = `${userId}/avatar-${timestamp}.${safeExtension}`;
-  await uploadFileToBucket(profileBucket, path, file);
+  const path = `${userId}/avatar-${timestamp}.webp`;
+  await uploadFileToBucket(profileBucket, path, compressed);
   return resolveUploadUrl(profileBucket, path);
 };
 
@@ -99,11 +137,10 @@ export const uploadProductImage = async (file: File, userId?: string): Promise<s
     throw new Error("Usuário não autenticado. Faça login para enviar imagens.");
   }
 
-  const extension = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() : "jpg";
-  const safeExtension = ["jpg", "jpeg", "png", "webp"].includes(extension ?? "") ? extension : "jpg";
+  const compressed = await compressImage(file, 1200, 0.85);
   const timestamp = Date.now();
-  const path = `${resolvedUserId}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.${safeExtension}`;
-  await uploadFileToBucket(productsBucket, path, file);
+  const path = `${resolvedUserId}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.webp`;
+  await uploadFileToBucket(productsBucket, path, compressed);
   const { data } = client.storage.from(productsBucket).getPublicUrl(path);
   return data.publicUrl;
 };

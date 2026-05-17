@@ -23,6 +23,11 @@ public sealed class SkinAnalysisRecord
     public bool HasBlackheads { get; set; }
     public bool HasFineLines { get; set; }
 
+    public bool UsesMakeup { get; set; } = false;
+    public string? BudgetRange { get; set; }
+    public bool PregnancySafe { get; set; } = false;
+    public string? LifestyleData { get; set; }
+
     public string Summary { get; set; } = string.Empty;
     public string AdditionalNotes { get; set; } = string.Empty;
     public string Status { get; set; } = "completed";

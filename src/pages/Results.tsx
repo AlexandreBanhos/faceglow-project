@@ -9,6 +9,10 @@ import { FloatingAnalysisCard } from "@/components/FloatingAnalysisCard";
 import { PremiumUnlockModal } from "@/components/PremiumUnlockModal";
 import SkinTypeInfoSection from "@/components/SkinTypeInfoSection";
 import { normalizeAnalysis, type AnalysisResponse } from "@/lib/analysis";
+import { ImprovementBar } from "@/components/results/ImprovementBar";
+import { RegionCard } from "@/components/results/RegionCard";
+import { StrengthCard } from "@/components/results/StrengthCard";
+import { getSkinTypeInsights, type SkinInsight } from "@/data/skinTypeInsights";
 import { fetchAnalysisStatus, getCachedLatestAnalysis, setCachedLatestAnalysis } from "@/lib/analysisClient";
 import { fetchBillingStatus } from "@/lib/billing";
 import { getAccessToken } from "@/lib/auth";
@@ -362,6 +366,71 @@ const Results = () => {
 
   const insight = generateInsight();
 
+  // ── S2: barras de melhoria — fonte de verdade única ─────────────────────
+  // "É problema" = score > 0 OU condição booleana detectada pela IA.
+  // Usamos a união dos dois para evitar divergências entre score e conditions.
+  const isAProblem = (score: number | undefined, cond: boolean | undefined) =>
+    (score ?? 0) > 0 || Boolean(cond);
+
+  const improvementMetrics = [
+    { label: "Acne",           value: Math.round((analysis.scores.acne         ?? 0) * 10), icon: "😤", cond: analysis.conditions?.acne },
+    { label: "Oleosidade",     value: Math.round((analysis.scores.oiliness     ?? 0) * 10), icon: "✨", cond: false },
+    { label: "Manchas",        value: Math.round((analysis.scores.darkSpots    ?? 0) * 10), icon: "🔶", cond: analysis.conditions?.manchas },
+    { label: "Sensibilidade",  value: Math.round((analysis.scores.sensitivity  ?? 0) * 10), icon: "🌡️", cond: false },
+    { label: "Poros",          value: Math.round((analysis.scores.poros        ?? 0) * 10), icon: "🔍", cond: analysis.conditions?.poros },
+    { label: "Olheiras",       value: Math.round((analysis.scores.olheiras     ?? 0) * 10), icon: "👁️", cond: analysis.conditions?.olheiras },
+    { label: "Linhas finas",   value: Math.round((analysis.scores.linhasFinas  ?? 0) * 10), icon: "⏳", cond: analysis.conditions?.linhasFinas },
+    { label: "Vermelhidão",    value: Math.round((analysis.scores.vermelhidao  ?? 0) * 10), icon: "🔴", cond: analysis.conditions?.vermelhidao },
+    { label: "Espinhas ativas",value: Math.round((analysis.scores.espinhasAtivas ?? 0) * 10), icon: "🔴", cond: analysis.conditions?.espinhasAtivas },
+    { label: "Cravos",         value: Math.round((analysis.scores.cravos       ?? 0) * 10), icon: "⚫", cond: analysis.conditions?.cravos },
+  ].filter((m) => isAProblem(m.value / 10, m.cond)).sort((a, b) => b.value - a.value);
+
+  // Labels dos problemas confirmados — usados para garantir exclusão em S5
+  const problemLabelSet = new Set(improvementMetrics.map((m) => m.label.toLowerCase()));
+
+  // ── S3: pontos faciais únicos por fator, só com severidade real ──────────
+  const uniqueRegionPoints = analysis.facialPoints
+    ? Object.values(
+        analysis.facialPoints.detectedPoints
+          .filter((pt) => pt.severity > 0)
+          .reduce<Record<string, (typeof analysis.facialPoints.detectedPoints)[0]>>(
+            (acc, pt) => {
+              const k = pt.factor.toLowerCase().trim();
+              if (!acc[k] || pt.severity > acc[k].severity) acc[k] = pt;
+              return acc;
+            }, {}
+          )
+      ).sort((a, b) => b.severity - a.severity).slice(0, 5)
+    : [];
+
+  // ── S4: pontos fortes ────────────────────────────────────────────────────
+  const baseInsights = getSkinTypeInsights(analysis.skinType);
+  const extraStrengths: SkinInsight[] = [];
+  if ((analysis.scores.hydration ?? 0) < 3)
+    extraStrengths.push({ icon: "💧", title: "Boa hidratação natural", description: "Sua pele mantém bons níveis de umidade sem precisar de muitos produtos." });
+  if (!isAProblem(analysis.scores.acne, analysis.conditions?.acne))
+    extraStrengths.push({ icon: "🌸", title: "Livre de acne", description: "Nenhum foco de acne ativa foi identificado na análise." });
+  const skinStrengths = [...extraStrengths, ...baseInsights].slice(0, 4);
+
+  // ── S5: não identificados — garante exclusão de tudo que é "problema" ────
+  // Um item só aparece aqui se NÃO é problema (nem por score, nem por condition).
+  const ALL_CHECKS = [
+    { label: "Acne",           score: analysis.scores.acne,       cond: analysis.conditions?.acne },
+    { label: "Manchas",        score: analysis.scores.darkSpots,  cond: analysis.conditions?.manchas },
+    { label: "Poros dilatados",score: analysis.scores.poros,      cond: analysis.conditions?.poros },
+    { label: "Olheiras",       score: analysis.scores.olheiras,   cond: analysis.conditions?.olheiras },
+    { label: "Linhas finas",   score: analysis.scores.linhasFinas,cond: analysis.conditions?.linhasFinas },
+    { label: "Vermelhidão",    score: analysis.scores.vermelhidao,cond: analysis.conditions?.vermelhidao },
+    { label: "Cravos",         score: analysis.scores.cravos,     cond: analysis.conditions?.cravos },
+    { label: "Ressecamento",   score: undefined,                  cond: analysis.conditions?.ressecamento },
+  ];
+  const okConditions = ALL_CHECKS
+    .filter((c) => !isAProblem(c.score, c.cond) && !problemLabelSet.has(c.label.toLowerCase()))
+    .map((c) => c.label);
+
+  // ── S6: comentário da IA ─────────────────────────────────────────────────
+  const aiCommentary = analysis.summary?.trim() || analysis.additionalRecommendations?.trim() || null;
+
   return (
     <div className="relative w-full min-h-screen px-6 pt-4 pb-8 overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
@@ -701,96 +770,158 @@ const Results = () => {
           {/* (hidden — modal rendered below) */}
         </div>
       ) : (
-        /* Content não bloqueado */
-        <div className="mb-8 space-y-6">
-          {/* RESULTADO - Moved to top and renamed */}
+        /* ── CONTEÚDO PREMIUM — 7 seções ── */
+        <div className="mb-8 space-y-5">
+
+          {/* ── S1: Hero — data, resumo, chips de condição ─────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="glass-card p-5"
+            transition={{ delay: 0.35 }}
+            style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}
           >
-            <h3 className="text-sm font-bold text-foreground mb-3">Resultado</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-              {insight}
+            {/* Badge de data */}
+            <div style={{ marginBottom: "12px" }}>
+              <span style={{
+                fontSize: "12px", fontWeight: 600,
+                background: "#f8f7ff", border: "1px solid #e0ddf4",
+                padding: "4px 12px", borderRadius: "999px", color: "#6366f1",
+              }}>
+                📅 {new Date(analysis.createdAtUtc).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                {" às "}
+                {new Date(analysis.createdAtUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+
+            {/* Resumo 1 linha */}
+            <p style={{ fontSize: "15px", fontWeight: 700, color: "#1f2937", margin: "0 0 3px" }}>
+              {skinTypeLabel} · {skinAge} anos aparentes
             </p>
-            {impactfulConditions.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-coral-light text-primary">
-                  Parece ter {skinAge} anos
-                </span>
-                {impactfulConditions.map((item) => (
-                  <span
-                    key={item.key}
-                    className="px-3 py-1.5 rounded-full text-xs font-bold bg-coral-light text-primary"
-                  >
-                    {item.label}
+            <p style={{ fontSize: "13px", color: "#6b7280", margin: `0 0 ${activeConditions.length > 0 ? "14px" : "0"}` }}>
+              {analysis.scores.sensitivity >= 7 ? "Alta Sensibilidade · " : analysis.scores.sensitivity >= 4 ? "Sensibilidade Moderada · " : ""}
+              Score geral: {analysis.overallScore}/100
+            </p>
+
+            {/* Chips de condições ativas */}
+            {activeConditions.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {activeConditions.map((c) => (
+                  <span key={c.key} style={{
+                    fontSize: "11px", fontWeight: 700,
+                    padding: "5px 12px", borderRadius: "999px",
+                    background: "linear-gradient(135deg, #fff1f2, #ffe4e6)",
+                    color: "#e11d48", border: "1px solid #fecdd3",
+                  }}>
+                    {c.label}
                   </span>
                 ))}
               </div>
             )}
           </motion.div>
 
-          {/* PONTOS DE MELHORIA - Métricas com scores > 0 */}
-          {metrics.filter((m) => m.value > 0).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="glass-card p-5"
-            >
-              <h3 className="text-sm font-bold text-foreground mb-4">Pontos de Melhoria</h3>
-              <div className="space-y-2.5">
-                {metrics
-                  .filter((m) => m.value > 0)
-                  .map((metric, i) => (
-                    <MetricBar
-                      key={metric.label}
-                      label={metric.label}
-                      value={metric.value}
-                      icon={metric.icon}
-                      delay={0.55 + i * 0.1}
-                    />
-                  ))}
+          {/* ── S2: Pontos de Melhoria ─────────────────────────────────── */}
+          {improvementMetrics.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
+              <div style={{ marginBottom: "12px", paddingLeft: "2px" }}>
+                <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#1f2937", margin: "0 0 3px" }}>Pontos de Melhoria</h3>
+                <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>Baseado na análise da sua pele</p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {improvementMetrics.map((m, i) => (
+                  <ImprovementBar key={m.label} label={m.label} value={m.value} icon={m.icon} delay={0.48 + i * 0.07} />
+                ))}
               </div>
             </motion.div>
           )}
 
-          {/* PONTOS POSITIVOS - Métricas com scores = 0 */}
-          {metrics.filter((m) => m.value === 0).length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.65 }}
-              className="glass-card p-5"
-            >
-              <h3 className="text-sm font-bold text-foreground mb-4">Pontos não identificados</h3>
-              <div className="flex flex-wrap gap-2">
-                {metrics
-                  .filter((m) => m.value === 0)
-                  .map((metric) => (
-                    <div
-                      key={metric.label}
-                      className="flex items-center gap-2 px-3 py-2 rounded-full bg-green-50 border border-green-200/60"
-                    >
-                      <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
-                      <span className="text-xs font-semibold text-green-800">{metric.label}</span>
-                    </div>
-                  ))}
+          {/* ── S3: Análise por Região ──────────────────────────────────── */}
+          {uniqueRegionPoints.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.56 }}>
+              <div style={{ marginBottom: "12px", paddingLeft: "2px" }}>
+                <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#1f2937", margin: "0 0 3px" }}>Análise por Região</h3>
+                <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>Regiões com condições identificadas</p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {uniqueRegionPoints.map((pt, i) => (
+                  <RegionCard key={`${pt.factor}-${i}`} point={pt} />
+                ))}
               </div>
             </motion.div>
           )}
 
-          {/* Rotina + Produtos */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            transition={{ delay: 0.75 }}
-          >
+          {/* ── S4: Pontos Fortes — carrossel horizontal ────────────────── */}
+          {skinStrengths.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.63 }}>
+              <div style={{ marginBottom: "12px", paddingLeft: "2px" }}>
+                <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#1f2937", margin: "0 0 3px" }}>✨ Pontos Fortes da Pele</h3>
+                <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>Aspectos positivos identificados</p>
+              </div>
+              {/* scroll-snap carousel sem dependência extra */}
+              <div style={{
+                display: "flex",
+                gap: "10px",
+                overflowX: "auto",
+                scrollSnapType: "x mandatory",
+                scrollbarWidth: "none",
+                WebkitOverflowScrolling: "touch",
+                paddingBottom: "4px",
+                marginLeft: "-2px",
+                paddingLeft: "2px",
+              }}>
+                {skinStrengths.map((s, i) => (
+                  <div key={i} style={{
+                    scrollSnapAlign: "start",
+                    flexShrink: 0,
+                    width: "calc(50% - 5px)",
+                  }}>
+                    <StrengthCard insight={s} />
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── S5: Não Identificados ────────────────────────────────────── */}
+          {okConditions.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.70 }}
+              style={{ background: "white", borderRadius: "20px", padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}
+            >
+              <h3 style={{ fontSize: "15px", fontWeight: 800, color: "#1f2937", marginBottom: "12px" }}>✅ Não Identificados</h3>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {okConditions.map((label) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "999px", background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                    <CheckCircle2 size={13} style={{ color: "#16a34a", flexShrink: 0 }} />
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#166534" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── S6: Assistente IA comenta ────────────────────────────────── */}
+          {aiCommentary && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.76 }}
+              style={{ background: "linear-gradient(135deg, #f8f7ff 0%, #fdf4ff 100%)", borderRadius: "20px", padding: "20px", border: "1px solid #e9d5ff", boxShadow: "0 2px 12px rgba(167,139,250,0.08)" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                <span style={{ fontSize: "20px" }}>✨</span>
+                <span style={{ fontSize: "14px", fontWeight: 800, color: "#6d28d9" }}>Assistente IA</span>
+              </div>
+              <p style={{ fontSize: "13px", color: "#374151", lineHeight: "1.75", margin: 0 }}>
+                {aiCommentary}
+              </p>
+            </motion.div>
+          )}
+
+          {/* ── S7: Produtos recomendados + CTAs ─────────────────────────── */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82 }}>
+
             {routineState === "done" && primaryRecommendations.length > 0 && (
               <div className="glass-card p-5 mb-4">
                 <h3 className="text-sm font-bold text-foreground mb-3">Produtos Recomendados</h3>
-                <Carousel opts={{ align: "start", loop: primaryRecommendations.length > 1 }} className="w-full">
+                <Carousel opts={{ align: "start", loop: primaryRecommendations.length > 1 }} setApi={setCarouselApi} className="w-full">
                   <CarouselContent className="-ml-2">
                     {primaryRecommendations.map((item) => (
                       <CarouselItem key={`${item.type}-${item.product}`} className="basis-1/3 sm:basis-1/4 pl-2">
@@ -808,6 +939,15 @@ const Results = () => {
                     ))}
                   </CarouselContent>
                 </Carousel>
+                {carouselCount > 1 && (
+                  <div className="flex justify-center gap-1.5 mt-2.5">
+                    {Array.from({ length: carouselCount }).map((_, i) => (
+                      <button key={i} onClick={() => carouselApi?.scrollTo(i)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${i === carouselCurrent ? "w-4 bg-primary" : "w-1.5 bg-primary/25"}`}
+                        aria-label={`Ir para página ${i + 1}`} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -855,33 +995,26 @@ const Results = () => {
               <div className="lg-surface p-5 mb-4 rounded-2xl space-y-3 animate-pulse">
                 <div className="h-4 w-40 rounded-full bg-muted-foreground/20" />
                 <div className="h-32 rounded-xl bg-muted-foreground/10" />
-                <div className="h-3 w-3/4 rounded-full bg-muted-foreground/15" />
-                <div className="h-3 w-1/2 rounded-full bg-muted-foreground/10" />
               </div>
             )}
 
+            {/* CTAs */}
             {routineState === "idle" && !isPremiumBlocked && (() => {
               const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
               return isLatest ? (
-                <button onClick={handleLoadRoutine}
-                  className="coral-button w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 mb-4">
-                  <Sparkles size={18} /> Ver rotina completa
+                <button
+                  onClick={handleLoadRoutine}
+                  style={{ width: "100%", padding: "18px", borderRadius: "999px", border: "none", fontSize: "16px", fontWeight: 800, color: "white", cursor: "pointer", background: "linear-gradient(135deg, #f97316 0%, #f472b6 100%)", boxShadow: "0 6px 22px rgba(249,115,22,0.38)", marginBottom: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+                >
+                  <Sparkles size={18} /> ✦ Ver Rotina Completa
                 </button>
               ) : (
-                <div className="space-y-2 mb-4">
-                  <button
-                    disabled
-                    className="w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 bg-muted/60 text-muted-foreground cursor-not-allowed opacity-60"
-                  >
-                    <Sparkles size={18} /> Ver rotina completa
+                <div style={{ marginBottom: "12px" }}>
+                  <button disabled style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", fontSize: "15px", fontWeight: 700, background: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed", marginBottom: "8px" }}>
+                    ✦ Ver Rotina Completa
                   </button>
-                  <p className="text-center text-xs text-muted-foreground">
-                    Análise anterior — a rotina reflete sempre a análise mais recente
-                  </p>
-                  <button
-                    onClick={() => navigate("/routine")}
-                    className="liquiglass-button w-full py-3 rounded-2xl text-foreground font-semibold text-sm flex items-center justify-center gap-2"
-                  >
+                  <p className="text-center text-xs text-muted-foreground mb-2">Análise anterior — a rotina reflete sempre a mais recente</p>
+                  <button onClick={() => navigate("/routine")} className="liquiglass-button w-full py-3 rounded-2xl text-foreground font-semibold text-sm flex items-center justify-center gap-2">
                     <BookOpen size={16} /> Ver rotina atual
                   </button>
                 </div>
@@ -891,14 +1024,16 @@ const Results = () => {
         </div>
       )}
 
-      {/* Footer buttons - Always visible */}
+      {/* Footer — sempre visível */}
       <div className="space-y-3 mt-8">
         {routineState === "done" && !isPremiumBlocked && (() => {
           const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
           return isLatest ? (
-            <button onClick={handleLoadRoutine}
-              className="coral-button w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2">
-              <BookOpen size={18} /> Ver Rotina Recomendada
+            <button
+              onClick={handleLoadRoutine}
+              style={{ width: "100%", padding: "18px", borderRadius: "999px", border: "none", fontSize: "16px", fontWeight: 800, color: "white", cursor: "pointer", background: "linear-gradient(135deg, #f97316 0%, #f472b6 100%)", boxShadow: "0 6px 22px rgba(249,115,22,0.38)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
+            >
+              <BookOpen size={18} /> ✦ Ver Rotina Completa
             </button>
           ) : (
             <button onClick={() => navigate("/routine")}
@@ -907,7 +1042,6 @@ const Results = () => {
             </button>
           );
         })()}
-        {/* Voltar ao Início só aparece no footer quando não é premium-bloqueado */}
         {!isPremiumBlocked && (
           <button onClick={() => navigate("/dashboard")}
             className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base">

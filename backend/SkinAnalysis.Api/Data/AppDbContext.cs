@@ -62,6 +62,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Status).HasColumnName("status");
             e.Property(x => x.ProcessedAt).HasColumnName("processed_at");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.UsesMakeup).HasColumnName("uses_makeup");
+            e.Property(x => x.BudgetRange).HasColumnName("budget_range");
+            e.Property(x => x.PregnancySafe).HasColumnName("pregnancy_safe");
+            e.Property(x => x.LifestyleData).HasColumnName("lifestyle_data").HasColumnType("jsonb");
             e.Ignore(x => x.OverallScore); // calculated property
             e.HasOne(x => x.User).WithMany(x => x.SkinAnalyses).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.UserId, x.CreatedAt });
@@ -89,6 +93,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.HasDarkCircles).HasColumnName("has_dark_circles");
             e.Property(x => x.HasEnlargedPores).HasColumnName("has_enlarged_pores");
             e.Property(x => x.HasFineLines).HasColumnName("has_fine_lines");
+            e.Property(x => x.UsesMakeup).HasColumnName("uses_makeup");
+            e.Property(x => x.BudgetRange).HasColumnName("budget_range");
+            e.Property(x => x.PregnancySafe).HasColumnName("pregnancy_safe");
             e.Property(x => x.PrimaryConcerns).HasColumnName("primary_concerns").HasColumnType("text[]");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");

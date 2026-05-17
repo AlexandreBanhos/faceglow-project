@@ -22,6 +22,9 @@ public sealed class SkinProfile
     public bool HasDarkCircles { get; set; }
     public bool HasEnlargedPores { get; set; }
     public bool HasFineLines { get; set; }
+    public bool UsesMakeup { get; set; } = false;
+    public string? BudgetRange { get; set; }
+    public bool PregnancySafe { get; set; } = false;
 
     public string[] PrimaryConcerns { get; set; } = [];
 

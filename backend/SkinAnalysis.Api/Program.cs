@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using Dapper;
 using SkinAnalysis.Api.Data;
+using SkinAnalysis.Api.DTOs;
 using SkinAnalysis.Api.Endpoints;
 using SkinAnalysis.Api.Helpers;
 using SkinAnalysis.Api.Options;
@@ -326,6 +327,36 @@ app.MapRoutineStepEndpoints();
 app.MapRoutineCompletionEndpoints();
 app.MapUserProductEndpoints();
 app.MapSuggestionEndpoints();
+
+// ── Lifestyle refinement ─────────────────────────────────────────────────────
+app.MapPut("/profile/lifestyle", async (
+    LifestyleUpdateRequest dto,
+    HttpContext ctx,
+    AppDbContext db,
+    RoutineGeneratorService routineEngine,
+    CancellationToken ct) =>
+{
+    var userId = EndpointHelpers.GetAuthenticatedUserId(ctx.User);
+    if (userId is null)
+        return Results.Unauthorized();
+
+    var profile = await db.SkinProfiles
+        .FirstOrDefaultAsync(p => p.UserId == userId.Value && p.IsCurrent, ct);
+
+    if (profile is null)
+        return Results.NotFound(new { detail = "Perfil não encontrado. Realize uma análise primeiro." });
+
+    profile.UsesMakeup    = dto.UsesMakeup;
+    profile.BudgetRange   = dto.BudgetRange;
+    profile.PregnancySafe = dto.PregnancySafe;
+    profile.UpdatedAt     = DateTime.UtcNow;
+
+    await db.SaveChangesAsync(ct);
+    await routineEngine.GenerateForProfileAsync(profile, ct);
+
+    return Results.Ok(new { success = true });
+});
+
 app.Run();
 
 static bool ShouldSkipRequestTiming(string path)

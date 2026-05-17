@@ -63,6 +63,10 @@ public class AnalysisService(
             HasEnlargedPores = conditions.Poros,
             HasBlackheads    = scores.Cravos >= 3,
             HasFineLines     = scores.LinhasFinas >= 3,
+            UsesMakeup    = request.UsesMakeup,
+            BudgetRange   = request.BudgetRange,
+            PregnancySafe = request.PregnancySafe,
+            LifestyleData = request.LifestyleData.HasValue ? request.LifestyleData.Value.GetRawText() : null,
             Status      = "completed",
             ProcessedAt = DateTime.UtcNow,
             CreatedAt   = DateTime.UtcNow,
@@ -184,6 +188,9 @@ public class AnalysisService(
             HasDarkCircles = r.HasDarkCircles,
             HasEnlargedPores = r.HasEnlargedPores,
             HasFineLines = r.AgingScore >= 3,
+            UsesMakeup    = r.UsesMakeup,
+            BudgetRange   = r.BudgetRange,
+            PregnancySafe = r.PregnancySafe,
             PrimaryConcerns = [.. concerns],
         };
     }
