@@ -59,7 +59,16 @@
       "Bash(grep -v \":0$\")",
       "WebSearch",
       "WebFetch(domain:advertising.amazon.com)",
-      "WebFetch(domain:dados.gov.br)"
+      "WebFetch(domain:dados.gov.br)",
+      "Bash(python *)",
+      "Bash(not exist *)",
+      "Bash(tee /tmp/enrich_run.txt)",
+      "mcp__claude_ai_Vercel__get_project",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\" -Recurse -Include \"*.tsx\", \"*.ts\", \"*.cs\")",
+      "Bash(npm install *)",
+      "mcp__claude_ai_Supabase__get_project",
+      "mcp__claude_ai_Supabase__get_logs",
+      "Bash(claude mcp *)"
     ]
   }
 }
