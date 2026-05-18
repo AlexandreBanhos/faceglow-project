@@ -31,7 +31,6 @@ export const FloatingComparatorCard = ({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const position = ((e.clientX - rect.left) / rect.width) * 100;
     setSliderPosition(Math.max(0, Math.min(100, position)));
@@ -39,7 +38,8 @@ export const FloatingComparatorCard = ({
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    e.preventDefault();
+    // Não chama preventDefault() — touchmove é passive no React/Chrome
+    // O modal fixed já impede scroll da página
     const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
     const position = ((touch.clientX - rect.left) / rect.width) * 100;
@@ -104,19 +104,17 @@ export const FloatingComparatorCard = ({
               className="absolute inset-0 w-full h-full object-cover"
             />
 
-            {/* Imagem Antes (sobreposta, com máscara) */}
+            {/* Imagem Antes — clip-path garante que a imagem não redimensiona */}
             <div
-              className="absolute inset-0 w-full h-full overflow-hidden"
-              style={{ width: `${sliderPosition}%` }}
+              className="absolute inset-0"
+              style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
             >
               <img
                 src={beforeImage || fallbackImage}
                 alt={beforeLabel}
                 loading="eager"
                 onError={(e) => {
-                  if (fallbackImage) {
-                    e.currentTarget.src = fallbackImage;
-                  }
+                  if (fallbackImage) e.currentTarget.src = fallbackImage;
                 }}
                 className="absolute inset-0 w-full h-full object-cover"
               />
@@ -169,7 +167,7 @@ export const FloatingComparatorCard = ({
         {/* Info Bar */}
         <div className="bg-slate-50 border-t border-slate-200 px-6 py-3">
           <p className="text-xs text-slate-600 text-center">
-            Arraste o slider para comparar antes e depois
+            Arrasteeee o slider para comparar antes e depois
           </p>
         </div>
       </motion.div>

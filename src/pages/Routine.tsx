@@ -28,6 +28,7 @@ import { createMyProduct } from "@/lib/userProducts";
 import { apiBaseUrl } from "@/lib/api";
 import { AuroraBackdrop } from "@/components/shared";
 import { ProductSwitchSheet } from "@/components/routine/ProductSwitchSheet";
+import { ProductWizard, type WizardResult, type WizardProductOption } from "@/components/routine/ProductWizard";
 import { RoutineSuggestionsPanel } from "@/components/routine/RoutineSuggestionsPanel";
 import { PeriodSelector } from "@/components/routine/PeriodSelector";
 import { SortableRoutineList, SortableRoutineItem, RoutineDragHandle } from "@/components/routine/SortableRoutineList";
@@ -374,6 +375,7 @@ const Routine = () => {
   const [imageUploadErrorByItem, setImageUploadErrorByItem] = useState<Record<string, string>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
   const [showRefineQuiz, setShowRefineQuiz] = useState(false);
   const [refineLoading, setRefineLoading] = useState(false);
   const [refineSuccess, setRefineSuccess] = useState(false);
@@ -801,6 +803,10 @@ const Routine = () => {
   };
 
   const [addStepOpen, setAddStepOpen] = useState(false);
+  // ProductWizard state
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardMode, setWizardMode] = useState<"swap" | "add">("add");
+  const [wizardItem, setWizardItem] = useState<RoutineItem | null>(null);
   const [newStepPeriod, setNewStepPeriod] = useState<"morning" | "night" | "both">("both");
   const [newStepLabel, setNewStepLabel] = useState("");
   const [newStepLabelOpen, setNewStepLabelOpen] = useState(false);
@@ -1187,6 +1193,44 @@ const Routine = () => {
       };
     });
   }, []);
+
+  // Dias para o modal do calendário — navega entre meses anteriores
+  const calendarModalDays = useMemo(() => {
+    const { year, month } = calendarMonth;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const weekKeys: WeekDayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const d = new Date(year, month, i + 1);
+      return {
+        dateStr: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
+        dayNum: i + 1,
+        weekKey: weekKeys[d.getDay()],
+      };
+    });
+  }, [calendarMonth]);
+
+  const calendarModalMonthLabel = useMemo(() => {
+    const d = new Date(calendarMonth.year, calendarMonth.month, 1);
+    return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/^\w/, (c) => c.toUpperCase());
+  }, [calendarMonth]);
+
+  const isCalendarMonthCurrent = useMemo(() => {
+    const now = new Date();
+    return calendarMonth.year === now.getFullYear() && calendarMonth.month === now.getMonth();
+  }, [calendarMonth]);
+
+  const navigateCalendarMonth = (dir: -1 | 1) => {
+    setCalendarMonth(prev => {
+      let m = prev.month + dir;
+      let y = prev.year;
+      if (m < 0)  { m = 11; y--; }
+      if (m > 11) { m = 0;  y++; }
+      // Não permite navegar para meses futuros
+      const now = new Date();
+      if (y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())) return prev;
+      return { year: y, month: m };
+    });
+  };
 
   const selectedWeekDay = useMemo<WeekDayKey>(() => {
     const found = calendarDays.find((d) => d.dateStr === selectedDay);
@@ -1966,11 +2010,25 @@ const Routine = () => {
             className="lg-surface-strong w-full max-w-sm rounded-[1.75rem] p-5"
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-[var(--fg-ink)]">
-                {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).replace(/^\w/, (c) => c.toUpperCase())}
+              {/* Prev month */}
+              <button
+                onClick={() => navigateCalendarMonth(-1)}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-muted/40"
+                aria-label="Mês anterior"
+              >
+                <ChevronDown size={16} style={{ color: "#6B7280", transform: "rotate(90deg)" }} />
+              </button>
+              <h2 className="text-base font-bold text-[var(--fg-ink)] capitalize">
+                {calendarModalMonthLabel}
               </h2>
-              <button onClick={() => setShowCalendar(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "#F5F5F5" }}>
-                <X size={14} style={{ color: "#6B7280" }} />
+              {/* Next month — desabilitado no mês atual */}
+              <button
+                onClick={() => navigateCalendarMonth(1)}
+                disabled={isCalendarMonthCurrent}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-muted/40 disabled:opacity-30"
+                aria-label="Próximo mês"
+              >
+                <ChevronDown size={16} style={{ color: "#6B7280", transform: "rotate(-90deg)" }} />
               </button>
             </div>
             {/* Weekday header */}
@@ -1982,10 +2040,10 @@ const Routine = () => {
             {/* Day grid */}
             <div className="grid grid-cols-7 gap-y-1">
               {/* Leading empty cells for first weekday offset */}
-              {Array.from({ length: calendarDays[0]?.dateStr ? new Date(calendarDays[0].dateStr + "T00:00:00").getDay() : 0 }).map((_, i) => (
+              {Array.from({ length: calendarModalDays[0]?.dateStr ? new Date(calendarModalDays[0].dateStr + "T00:00:00").getDay() : 0 }).map((_, i) => (
                 <div key={`empty-${i}`} />
               ))}
-              {calendarDays.map((day) => {
+              {calendarModalDays.map((day) => {
                 const active = selectedDay === day.dateStr;
                 const isToday = day.dateStr === todayStr;
                 const calDayStatus = completedDaysStatus.get(day.dateStr);
@@ -2354,10 +2412,10 @@ const Routine = () => {
                     <div className="flex flex-col w-full">
 
                       {/* Main card row: image + details + check */}
-                      <div className="flex items-center gap-3 p-3">
-                        {/* Product image - mesmo comportamento de Results */}
+                      <div className={`flex items-center gap-3 p-3 ${isEditing ? "wiggle-editing" : ""}`}>
+                        {/* Imagem com ícone de busca sobreposto no canto inferior direito */}
                         <div
-                          className="w-[120px] h-[120px] rounded-xl bg-white border border-border/40 flex-shrink-0 overflow-hidden flex items-center justify-center"
+                          className="relative w-[120px] h-[120px] rounded-xl bg-white border border-border/40 flex-shrink-0 overflow-hidden flex items-center justify-center"
                           key={`img-container-${item.key}`}
                         >
                           <img
@@ -2370,81 +2428,74 @@ const Routine = () => {
                             onError={(e) => { e.currentTarget.src = fallbackCardImage; }}
                             className="w-full h-full object-contain bg-white p-1.5"
                           />
+                          {/* Ícone de pesquisa — sempre visível, sobreposto à imagem */}
+                          <button
+                            onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(getDisplayProductName(item))}`, "_blank", "noopener,noreferrer")}
+                            className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-90"
+                            style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
+                            aria-label="Pesquisar produto"
+                          >
+                            <Search size={13} className="text-white" />
+                          </button>
                         </div>
 
                         {/* Details */}
                         <div className="flex-1 min-w-0 space-y-1">
+                          {/* Passo + badge de recorrência (recorrência só em edição) */}
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
                               {item.stepNumber} · {capitalizeWords(item.stepLabel)}
                             </p>
-                            <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold items-center gap-1" style={{ backgroundColor: "rgba(255,255,255,0.7)", color: "#9CA3AF" }}>
-                              <Repeat2 size={11} />
-                              {humanizeRecurrence(item.recurrence)}
-                            </span>
+                            {isEditing && (
+                              <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold items-center gap-1" style={{ backgroundColor: "rgba(255,255,255,0.7)", color: "#9CA3AF" }}>
+                                <Repeat2 size={11} />
+                                {humanizeRecurrence(item.recurrence)}
+                              </span>
+                            )}
                           </div>
                           <p className={`text-sm font-bold leading-tight ${isChecked && !isEditing ? "line-through" : ""}`} style={{ color: isChecked && !isEditing ? "#9CA3AF" : "#2D2D2D" }}>
                             {capitalizeWords(getDisplayProductName(item))}
                           </p>
-                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <button
-                              onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(getDisplayProductName(item))}`, "_blank", "noopener,noreferrer")}
-                              className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center transition-colors"
-                              aria-label="Pesquisar produto"
-                            >
-                              <Search size={12} className="text-muted-foreground" />
-                            </button>
-                            {canEditDays && (
-                              <button
-                                onClick={() => setEditingDaysItem(editingDaysItem === item.key ? null : item.key)}
-                                className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center transition-colors"
-                                aria-label="Editar dias"
-                              >
-                                <Edit size={12} className="text-muted-foreground" />
-                              </button>
-                            )}
-                            {hasRoutineFromAnalysis && (
-                              <button
-                                onClick={() => {
-                                  if (selectingProductItem === item.key) {
-                                    setSelectingProductItem(null);
-                                  } else {
-                                    // Pre-fill pending with currently selected so Save is enabled on scope-only changes
-                                    const curSelected = selectedOptionByItem[item.key] ?? null;
-                                    if (curSelected) setPendingOptionByItem(prev => ({ ...prev, [item.key]: curSelected }));
-                                    setSelectingProductItem(item.key);
-                                  }
-                                }}
-                                className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center transition-colors"
-                                aria-label="Trocar produto"
-                                title="Trocar produto"
-                              >
-                                <RefreshCw size={12} className="text-muted-foreground" />
-                              </button>
-                            )}
-                            {isAdmin && !item.isCustom && (
-                              <button
-                                onClick={() => adminEditingItem === item.key ? setAdminEditingItem(null) : openAdminEdit(item)}
-                                className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                                  adminEditingItem === item.key ? "bg-amber-500/20" : "hover:bg-amber-500/10"
-                                }`}
-                                aria-label="Editar produto (admin)"
-                                title="Admin: editar produto no banco"
-                              >
-                                <Crown size={12} className="text-amber-500" />
-                              </button>
-                            )}
-                            {item.isCustom && !isEditing && (
-                              <button
-                                onClick={() => setStepPendingDelete({ id: item.key, name: getDisplayProductName(item) })}
-                                className="w-6 h-6 rounded-full hover:bg-destructive/10 flex items-center justify-center transition-colors"
-                                aria-label="Deletar passo"
-                              >
-                                <Trash2 size={12} className="text-destructive" />
-                              </button>
-                            )}
-                            {/* Em edição, a exclusão fica no stack lateral direito */}
-                          </div>
+                          {/* Botões de ação — só disponíveis em modo de edição */}
+                          {isEditing && (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                              {canEditDays && (
+                                <button
+                                  onClick={() => setEditingDaysItem(editingDaysItem === item.key ? null : item.key)}
+                                  className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center transition-colors"
+                                  aria-label="Editar dias"
+                                >
+                                  <Edit size={12} className="text-muted-foreground" />
+                                </button>
+                              )}
+                              {hasRoutineFromAnalysis && (
+                                <button
+                                  onClick={() => {
+                                    setWizardItem(item);
+                                    setWizardMode("swap");
+                                    setWizardOpen(true);
+                                  }}
+                                  className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center transition-colors"
+                                  aria-label="Trocar produto"
+                                  title="Trocar produto"
+                                >
+                                  <RefreshCw size={12} className="text-muted-foreground" />
+                                </button>
+                              )}
+                              {isAdmin && !item.isCustom && (
+                                <button
+                                  onClick={() => adminEditingItem === item.key ? setAdminEditingItem(null) : openAdminEdit(item)}
+                                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                                    adminEditingItem === item.key ? "bg-amber-500/20" : "hover:bg-amber-500/10"
+                                  }`}
+                                  aria-label="Editar produto (admin)"
+                                  title="Admin: editar produto no banco"
+                                >
+                                  <Crown size={12} className="text-amber-500" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Direita: stack de edição OU checkbox */}
@@ -2467,21 +2518,14 @@ const Routine = () => {
                             >
                               <ChevronDown size={15} className="text-foreground" />
                             </button>
-                            {item.isCustom && (
-                              <button
-                                onClick={() => {
-                                  const siblingId = item.key.replace(/^custom::(morning|night)::/, (_, pp) =>
-                                    `custom::${pp === "morning" ? "night" : "morning"}`
-                                  );
-                                  removeCustomStep(item.key);
-                                  removeCustomStep(siblingId);
-                                }}
-                                className="w-8 h-8 rounded-xl border border-destructive/40 bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors mt-0.5"
-                                aria-label="Remover passo"
-                              >
-                                <Trash2 size={13} className="text-destructive" />
-                              </button>
-                            )}
+                            {/* Excluir/desativar — disponível para TODOS os passos em modo edição */}
+                            <button
+                              onClick={() => setStepPendingDelete({ id: item.key, name: getDisplayProductName(item) })}
+                              className="w-8 h-8 rounded-xl border border-destructive/40 bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors mt-0.5"
+                              aria-label="Remover passo"
+                            >
+                              <Trash2 size={13} className="text-destructive" />
+                            </button>
                           </div>
                         ) : (
                           /* Check button — 44px touch target, spring animation */
@@ -2990,17 +3034,16 @@ const Routine = () => {
                 </motion.div>
               )}
 
-              {/* Add Step button (edit mode) — opens bottom sheet */}
+              {/* Add Step button (edit mode) — abre o ProductWizard */}
               {isEditing && (
                 <div className="space-y-3">
                   <button
-                    onClick={() => { setAddStepOpen(true); setNewStepPeriod("both"); }}
+                    onClick={() => { setWizardItem(null); setWizardMode("add"); setWizardOpen(true); }}
                     className="w-full h-11 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 text-sm font-bold text-primary flex items-center justify-center gap-2 transition-colors hover:bg-primary/10"
                   >
                     <Plus size={16} />
                     Adicionar passo
                   </button>
-
                 </div>
               )}
             </div>
@@ -3036,6 +3079,79 @@ const Routine = () => {
           )}
         </motion.div>
       </div>
+
+      {/* ProductWizard — fluxo interativo de troca/adição de produto */}
+      <AnimatePresence>
+      {wizardOpen && (
+        <ProductWizard
+          open={wizardOpen}
+          onClose={() => { setWizardOpen(false); setWizardItem(null); }}
+          mode={wizardMode}
+          initialCategory={wizardItem?.type}
+          initialStepLabel={wizardItem?.stepLabel}
+          initialPeriod={wizardItem?.period}
+          currentProductName={wizardItem ? getDisplayProductName(wizardItem) : undefined}
+          currentProductImage={wizardItem ? getDisplayImage(wizardItem) : undefined}
+          recommendations={wizardItem
+            ? (productOptionsByItem.get(wizardItem.key) ?? []).map((o): WizardProductOption => ({
+                key:         o.key,
+                label:       o.label,
+                productName: o.productName,
+                reason:      o.reason,
+                imageUrl:    o.imageUrl,
+              }))
+            : []
+          }
+          onConfirm={async (result: WizardResult) => {
+            if (wizardMode === "add") {
+              // ── Adicionar novo passo — igual ao addCustomStep existente ──
+              if (!analysis?.id) {
+                toast.error("Nenhuma análise encontrada.");
+                return;
+              }
+              const periods: Array<"morning" | "night"> =
+                result.period === "both" ? ["morning", "night"] : [result.period];
+
+              const toastId = toast.loading("Adicionando passo…");
+              try {
+                for (const p of periods) {
+                  const created = await addRoutineStep(analysis.id, {
+                    period: p,
+                    productName: result.productName,
+                    category: result.categoryLabel,
+                    imageUrl: result.imageUrl,
+                    recurrence: result.recurrence,
+                  });
+                  // Persiste dias específicos se houver
+                  if (created?.id && result.scheduledDays && result.scheduledDays.length > 0) {
+                    await updateRoutineStep(analysis.id, created.id, {
+                      scheduleDays: JSON.stringify(result.scheduledDays),
+                    }).catch(() => {});
+                  }
+                }
+                await reloadApiSteps(true);
+                invalidateAnalysisCache();
+                toast.dismiss(toastId);
+                toast.success(`"${result.productName}" adicionado à rotina`, { duration: 2500 });
+              } catch {
+                toast.dismiss(toastId);
+                toast.error("Erro ao adicionar passo. Tente novamente.");
+              }
+
+            } else if (wizardItem) {
+              // ── Trocar produto em passo existente ──
+              await addCatalogProductToStep(
+                wizardItem.key,
+                { productName: result.productName, imageUrl: result.imageUrl }
+              ).catch(() => {});
+            }
+
+            setWizardOpen(false);
+            setWizardItem(null);
+          }}
+        />
+      )}
+      </AnimatePresence>
 
       {/* Product Switch Sheet — v2 bottom sheet, shows when step has slots[] */}
       {(() => {

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChevronRight, TrendingUp, TrendingDown, Maximize2 } from "lucide-react";
+import { ChevronRight, TrendingUp, TrendingDown, Maximize2, Camera } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FloatingComparatorCard } from "@/components/FloatingComparatorCard";
+import { ScoreChart } from "@/components/history/ScoreChart";
 import { type AnalysisResponse } from "@/lib/analysis";
 import { fetchUserAnalyses } from "@/lib/analysisClient";
 import { AuroraBackdrop } from "@/components/shared";
@@ -18,15 +19,16 @@ const formatDate = (value: string) =>
 
 const formatSkinType = (skinType: string) => {
   const normalized = (skinType ?? "").trim();
-  if (!normalized) {
-    return "Sem analise";
-  }
-
+  if (!normalized) return "—";
   return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1).toLowerCase()}`;
 };
 
-const fallbackImage = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80";
-const HISTORY_PAGE_SIZE = 4;
+const fallbackImage =
+  "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80";
+
+// Carrega generosamente para o gráfico ter dados completos
+const INITIAL_LOAD = 50;
+const MORE_PAGE_SIZE = 10;
 
 const History = () => {
   const navigate = useNavigate();
@@ -34,49 +36,42 @@ const History = () => {
   const [analyses, setAnalyses] = useState<AnalysisResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
   const [isComparatorOpen, setIsComparatorOpen] = useState(false);
-  const [selectedForComparison, setSelectedForComparison] = useState<{ before: AnalysisResponse; after: AnalysisResponse } | null>(null);
+  const [selectedForComparison, setSelectedForComparison] = useState<{
+    before: AnalysisResponse;
+    after: AnalysisResponse;
+  } | null>(null);
 
   useEffect(() => {
     let mounted = true;
+    setIsLoading(true);
 
-    const loadHistory = async () => {
-      try {
-        const loaded = await fetchUserAnalyses(HISTORY_PAGE_SIZE, 0, { forceRefresh: false });
+    fetchUserAnalyses(INITIAL_LOAD, 0, { forceRefresh: false })
+      .then((loaded) => {
         if (!mounted) return;
         setAnalyses(loaded);
-        setHasMore(loaded.length === HISTORY_PAGE_SIZE);
-      } catch (error) {
-        console.error("Erro ao carregar historia:", error);
+        setHasMore(loaded.length === INITIAL_LOAD);
+      })
+      .catch(() => {
         if (!mounted) return;
         setAnalyses([]);
         setHasMore(false);
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
 
-    setIsLoading(true);
-    loadHistory();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [location.pathname]);
 
-  const loadMoreHistory = async () => {
-    if (isLoadingMore || !hasMore) {
-      return;
-    }
-
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
     setIsLoadingMore(true);
     try {
-      const loaded = await fetchUserAnalyses(HISTORY_PAGE_SIZE, analyses.length);
-      setAnalyses((previous) => [...previous, ...loaded]);
-      setHasMore(loaded.length === HISTORY_PAGE_SIZE);
+      const loaded = await fetchUserAnalyses(MORE_PAGE_SIZE, analyses.length);
+      setAnalyses((prev) => [...prev, ...loaded]);
+      setHasMore(loaded.length === MORE_PAGE_SIZE);
     } catch {
       setHasMore(false);
     } finally {
@@ -84,35 +79,49 @@ const History = () => {
     }
   };
 
-  const totalEvolution = useMemo(() => {
-    if (analyses.length < 2) {
-      return 0;
-    }
-
-    return analyses[0].overallScore - analyses[analyses.length - 1].overallScore;
-  }, [analyses]);
-
-  const latestAnalysis = analyses[0] ?? null;
-  const baselineAnalysis = analyses.length > 1 ? analyses[analyses.length - 1] : null;
-
-  const handleCompare = (beforeAnalysis: AnalysisResponse, afterAnalysis: AnalysisResponse) => {
-    setSelectedForComparison({ before: beforeAnalysis, after: afterAnalysis });
+  const handleCompare = (before: AnalysisResponse, after: AnalysisResponse) => {
+    setSelectedForComparison({ before, after });
     setIsComparatorOpen(true);
   };
 
-  if (isLoading && analyses.length === 0) {
+  // Estatísticas do header
+  const headerStats = useMemo(() => {
+    if (analyses.length < 2) return null;
+    const chronological = [...analyses].sort(
+      (a, b) =>
+        new Date(a.createdAtUtc).getTime() - new Date(b.createdAtUtc).getTime()
+    );
+    const first = chronological[0];
+    const last = chronological.at(-1)!;
+    const delta = last.overallScore - first.overallScore;
+    const spanDays = Math.round(
+      (new Date(last.createdAtUtc).getTime() -
+        new Date(first.createdAtUtc).getTime()) /
+        86_400_000
+    );
+    const weeks = Math.round(spanDays / 7);
+    return { delta, spanDays, weeks };
+  }, [analyses]);
+
+  const latestAnalysis = analyses[0] ?? null;
+
+  // ── Skeleton loading ──────────────────────────────────────────────────────
+  if (isLoading) {
     return (
-      <div className="min-h-screen pb-28" style={{
-        background: "linear-gradient(135deg, rgba(252, 231, 243, 0.6) 0%, rgba(254, 243, 199, 0.5) 50%, rgba(219, 234, 254, 0.5) 100%)",
-        backgroundAttachment: "fixed"
-      }}>
+      <div
+        className="min-h-screen pb-28"
+        style={{ background: "var(--grad-aurora)" }}
+      >
+        <AuroraBackdrop tone="warm" className="-z-10" />
         <div className="px-6 pt-14 pb-2">
-          <Skeleton className="h-8 w-36 mb-2" />
-          <Skeleton className="h-4 w-52" />
+          <Skeleton className="h-7 w-48 mb-2" />
+          <Skeleton className="h-4 w-36" />
         </div>
         <div className="mx-6 mt-4 space-y-3">
+          <Skeleton className="h-44 w-full rounded-2xl" />
+          <Skeleton className="h-12 w-full rounded-2xl" />
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
           ))}
         </div>
         <BottomNav />
@@ -121,226 +130,227 @@ const History = () => {
   }
 
   return (
-    <div className="relative w-full min-h-screen pb-28 overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
+    <div
+      className="relative w-full min-h-screen pb-28 overflow-hidden"
+      style={{ background: "var(--grad-aurora)" }}
+    >
       <AuroraBackdrop tone="warm" className="-z-10" />
       <div className="relative z-10 mx-auto w-full max-w-md">
-      <AnimatePresence>
-        {isComparatorOpen && selectedForComparison && (
-          <FloatingComparatorCard
-            isOpen={isComparatorOpen}
-            onClose={() => setIsComparatorOpen(false)}
-            beforeImage={selectedForComparison.before.imageUrl || fallbackImage}
-            afterImage={selectedForComparison.after.imageUrl || fallbackImage}
-            beforeLabel={`Antes - ${formatDate(selectedForComparison.before.createdAtUtc)}`}
-            afterLabel={`Depois - ${formatDate(selectedForComparison.after.createdAtUtc)}`}
-            beforeScore={selectedForComparison.before.overallScore}
-            afterScore={selectedForComparison.after.overallScore}
-            fallbackImage={fallbackImage}
-          />
-        )}
-      </AnimatePresence>
 
-      <div className="px-6 pt-14 pb-2">
-        <h1 className="text-2xl font-extrabold text-foreground">Histórico</h1>
-        <p className="text-sm text-muted-foreground mt-1 font-medium">
-          Acompanhe a evolução da sua pele
-        </p>
-      </div>
+        {/* Comparador before/after */}
+        <AnimatePresence>
+          {isComparatorOpen && selectedForComparison && (
+            <FloatingComparatorCard
+              isOpen={isComparatorOpen}
+              onClose={() => setIsComparatorOpen(false)}
+              beforeImage={selectedForComparison.before.imageUrl || fallbackImage}
+              afterImage={selectedForComparison.after.imageUrl || fallbackImage}
+              beforeLabel={`Antes · ${formatDate(selectedForComparison.before.createdAtUtc)}`}
+              afterLabel={`Depois · ${formatDate(selectedForComparison.after.createdAtUtc)}`}
+              beforeScore={selectedForComparison.before.overallScore}
+              afterScore={selectedForComparison.after.overallScore}
+              fallbackImage={fallbackImage}
+            />
+          )}
+        </AnimatePresence>
 
-      {/* Progress Summary */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mx-6 mt-4 p-5 lg-surface mb-6 rounded-2xl"
-      >
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Evolução Total
-            </p>
-            <p className="text-4xl font-extrabold text-foreground mt-1">
-              {totalEvolution > 0 ? "+" : ""}
-              {totalEvolution}
-            </p>
-            <p className="text-xs font-bold text-primary mt-1">
-              pontos de melhora ✨
-            </p>
-          </div>
-          <div className="flex items-end gap-1.5 h-16">
-            {[...analyses.slice(0, 6)].reverse().map((item, i) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ height: 0 }}
-                  animate={{ height: `${(item.overallScore / 100) * 64}px` }}
-                  transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
-                  className="w-7 rounded-t-lg gradient-primary opacity-70"
-                  style={{ opacity: 0.4 + (i / Math.max(analyses.length, 1)) * 0.6 }}
-                />
-              ))}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Botão Nova Análise — abaixo do gráfico */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="px-6 mb-6"
-      >
-        <button
-          onClick={() => navigate("/analyze")}
-          className="w-full flex items-center justify-center gap-3 font-bold text-white"
-          style={{
-            height: 52,
-            background: "linear-gradient(135deg, #E8A882 0%, #D4856A 100%)",
-            borderRadius: 16,
-            border: "none",
-            boxShadow: "0 6px 20px -4px rgba(212,133,106,0.45)",
-            fontSize: 15,
-          }}
-        >
-          📷 Nova Análise
-        </button>
-      </motion.div>
-
-      {latestAnalysis && analyses.length > 1 && (
-        <>
-          {/* Análise Principal */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="mx-6 my-6"
-          >
-            <h2 className="text-sm font-bold text-foreground mb-3">Análise Mais Recente</h2>
-            <div className="flex items-center gap-3 p-3 lg-surface rounded-2xl">
-              <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 bg-muted flex-shrink-0">
-                <img
-                  src={latestAnalysis.imageUrl || fallbackImage}
-                  alt="Análise principal"
-                  loading="eager"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = fallbackImage;
-                  }}
-                />
-                {/* Score Badge Sobreposto */}
-                <div className="absolute bottom-0.5 right-0.5 w-5 h-5 rounded-full gradient-primary flex items-center justify-center shadow-lg">
-                  <span className="text-[9px] font-extrabold text-primary-foreground">{latestAnalysis.overallScore}</span>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground font-medium">Data</p>
-                <p className="text-sm font-bold text-foreground">{formatDate(latestAnalysis.createdAtUtc)}</p>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-
-      {/* Analysis List */}
-      <div className="px-6 space-y-2.5">
-        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
-          Análises Anteriores
-        </h2>
-        {analyses.length === 0 && (
-          <div className="lg-surface p-4 rounded-2xl text-sm text-muted-foreground">
-            Nenhuma analise encontrada para este usuario.
-          </div>
-        )}
-        {analyses.map((item, i) => {
-          const next = analyses[i + 1];
-          const change = next ? item.overallScore - next.overallScore : 0;
-
-          return (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.06 }}
-              className="rounded-2xl lg-surface overflow-hidden"
-            >
-              <div
-                className="flex items-center gap-4 p-4 text-left"
-              >
-                <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-border/50 bg-muted flex-shrink-0">
-                  <img
-                    src={item.imageUrl || fallbackImage}
-                    alt={formatDate(item.createdAtUtc)}
-                    loading="eager"
-                    onError={(event) => {
-                      event.currentTarget.src = fallbackImage;
+        {/* ── Header ── */}
+        <div className="px-6 pt-14 pb-3">
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+            <h1 className="text-2xl font-extrabold text-foreground leading-tight">
+              Sua pele, em movimento
+            </h1>
+            {headerStats ? (
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-sm text-muted-foreground font-medium">
+                  {analyses.length} análise{analyses.length !== 1 ? "s" : ""}
+                </span>
+                {headerStats.weeks > 0 && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {headerStats.weeks} sem.
+                    </span>
+                  </>
+                )}
+                {headerStats.delta !== 0 && (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-xs font-bold"
+                    style={{
+                      background:
+                        headerStats.delta > 0
+                          ? "rgba(22,163,74,0.1)"
+                          : "rgba(220,38,38,0.1)",
+                      color: headerStats.delta > 0 ? "#16A34A" : "#DC2626",
                     }}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Score Badge Sobreposto */}
-                  <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full gradient-primary flex items-center justify-center shadow-lg">
-                    <span className="text-[10px] font-extrabold text-primary-foreground">
-                      {item.overallScore}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground">{formatDate(item.createdAtUtc)}</p>
-                  <div className="mt-0.5 flex items-baseline gap-1.5">
-                    <span className="text-[11px] font-semibold text-muted-foreground">Sua pele esta</span>
-                    <span className="text-sm font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-                      {formatSkinType(item.skinType)}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {change !== 0 && (
-                    <div
-                      className={`text-xs font-bold flex items-center gap-0.5 ${
-                        change > 0 ? "text-green-500" : "text-orange-500"
-                      }`}
-                    >
-                      {change > 0 ? (
-                        <TrendingUp size={12} />
-                      ) : (
-                        <TrendingDown size={12} />
-                      )}
-                      {change > 0 ? "+" : ""}{change}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {latestAnalysis && item.id !== latestAnalysis.id && (
-                    <button
-                      onClick={() => handleCompare(item, latestAnalysis)}
-                      className="w-8 h-8 rounded-lg glass flex items-center justify-center hover:bg-primary/20 transition-colors"
-                      title="Comparar com análise mais recente"
-                    >
-                      <Maximize2 size={16} className="text-foreground" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => navigate("/results", { state: { analysis: item } })}
-                    className="w-8 h-8 rounded-lg glass flex items-center justify-center hover:bg-primary/20 transition-colors"
                   >
-                    <ChevronRight size={16} className="text-muted-foreground" />
-                  </button>
-                </div>
+                    {headerStats.delta > 0 ? "+" : ""}
+                    {headerStats.delta} pts
+                  </span>
+                )}
               </div>
-            </motion.div>
-          );
-        })}
+            ) : (
+              <p className="text-sm text-muted-foreground mt-1">
+                Acompanhe a evolução da sua pele
+              </p>
+            )}
+          </motion.div>
+        </div>
 
-        {!isLoading && analyses.length > 0 && hasMore && (
-          <button
-            type="button"
-            onClick={loadMoreHistory}
-            disabled={isLoadingMore}
-            className="w-full rounded-2xl border border-border/60 bg-card/80 py-3 text-sm font-semibold text-foreground disabled:opacity-60 disabled:cursor-not-allowed"
+        {/* ── Gráfico de evolução adaptativo ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mx-6 mt-2 mb-4 p-4 lg-surface rounded-2xl"
+        >
+          <p
+            className="fg-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3"
           >
-            {isLoadingMore ? "Carregando..." : "Carregar mais"}
-          </button>
-        )}
-      </div>
+            Evolução do score
+          </p>
+          <ScoreChart analyses={analyses} />
+        </motion.div>
 
-      <BottomNav />
+        {/* ── Botão Nova Análise ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="px-6 mb-5"
+        >
+          <button
+            onClick={() => navigate("/analyze")}
+            className="coral-button w-full py-3.5 rounded-2xl font-bold text-base flex items-center justify-center gap-2.5"
+          >
+            <Camera size={18} />
+            Nova Análise
+          </button>
+        </motion.div>
+
+        {/* ── Lista de análises ── */}
+        <div className="px-6 space-y-2.5">
+          {analyses.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="lg-surface p-6 rounded-2xl text-center"
+            >
+              <p className="text-sm font-semibold text-foreground mb-1">
+                Nenhuma análise ainda
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Faça sua primeira análise para começar a acompanhar sua pele.
+              </p>
+            </motion.div>
+          ) : (
+            <>
+              <p className="fg-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Análises
+              </p>
+              {analyses.map((item, i) => {
+                const next = analyses[i + 1];
+                const change = next ? item.overallScore - next.overallScore : null;
+
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 + i * 0.05 }}
+                    className="rounded-2xl lg-surface overflow-hidden"
+                  >
+                    <div className="flex items-center gap-3.5 p-3.5">
+                      {/* Foto com badge de score */}
+                      <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-border/40 bg-muted flex-shrink-0">
+                        <img
+                          src={item.imageUrl || fallbackImage}
+                          alt={formatDate(item.createdAtUtc)}
+                          loading="lazy"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = fallbackImage;
+                          }}
+                        />
+                        <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full gradient-primary flex items-center justify-center shadow-md">
+                          <span className="text-[10px] font-extrabold text-primary-foreground">
+                            {item.overallScore}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground leading-tight">
+                          {formatDate(item.createdAtUtc)}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[11px] text-muted-foreground">Pele</span>
+                          <span
+                            className="text-[11px] font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent"
+                          >
+                            {formatSkinType(item.skinType)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Delta */}
+                      {change !== null && change !== 0 && (
+                        <div
+                          className={`flex items-center gap-0.5 text-xs font-bold flex-shrink-0 ${
+                            change > 0 ? "text-green-500" : "text-orange-500"
+                          }`}
+                        >
+                          {change > 0 ? (
+                            <TrendingUp size={12} />
+                          ) : (
+                            <TrendingDown size={12} />
+                          )}
+                          {change > 0 ? "+" : ""}
+                          {change}
+                        </div>
+                      )}
+
+                      {/* Ações */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {latestAnalysis && item.id !== latestAnalysis.id && (
+                          <button
+                            onClick={() => handleCompare(item, latestAnalysis)}
+                            className="liquiglass-button w-8 h-8 rounded-xl flex items-center justify-center"
+                            title="Comparar com análise mais recente"
+                          >
+                            <Maximize2 size={14} className="text-foreground" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            navigate("/results", { state: { analysis: item } })
+                          }
+                          className="liquiglass-button w-8 h-8 rounded-xl flex items-center justify-center"
+                        >
+                          <ChevronRight size={14} className="text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+
+              {/* Carregar mais */}
+              {hasMore && (
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="liquiglass-button w-full py-3 rounded-2xl text-sm font-semibold text-foreground disabled:opacity-50"
+                >
+                  {isLoadingMore ? "Carregando..." : "Carregar mais"}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        <BottomNav />
       </div>
     </div>
   );

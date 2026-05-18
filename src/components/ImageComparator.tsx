@@ -82,19 +82,17 @@ export function ImageComparator({
             className="absolute inset-0 w-full h-full object-cover"
           />
 
-          {/* Imagem Antes (sobreposta, com máscara) */}
+          {/* Imagem Antes — clip-path garante que a imagem não redimensiona */}
           <div
-            className="absolute inset-0 w-full h-full overflow-hidden"
-            style={{ width: `${sliderPosition}%` }}
+            className="absolute inset-0"
+            style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
           >
             <img
               src={beforeImage || fallbackImage}
               alt={beforeLabel}
               loading="eager"
               onError={(e) => {
-                if (fallbackImage) {
-                  e.currentTarget.src = fallbackImage;
-                }
+                if (fallbackImage) e.currentTarget.src = fallbackImage;
               }}
               className="absolute inset-0 w-full h-full object-cover"
             />

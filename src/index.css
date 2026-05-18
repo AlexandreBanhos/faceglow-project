@@ -407,6 +407,16 @@
     will-change: transform;
   }
 
+  @keyframes card-wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25%       { transform: rotate(-0.9deg); }
+    75%       { transform: rotate(0.9deg); }
+  }
+  .wiggle-editing {
+    animation: card-wiggle 0.22s ease-in-out infinite;
+    transform-origin: center;
+  }
+
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
     20% { transform: translateX(-6px); }
