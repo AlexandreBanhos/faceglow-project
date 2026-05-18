@@ -1,23 +1,23 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Ellipsis, BookOpen, Droplets, Zap, Sun, Eye, AlertTriangle, Gift, Lock, Sparkles, CheckCircle2 } from "lucide-react";
-import MetricBar from "@/components/MetricBar";
-import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ArrowLeft, Ellipsis, BookOpen, AlertTriangle, Lock, Sparkles, CheckCircle2 } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSun, faDroplet, faSprayCan, faMicroscope, faMapLocation, faStar, faShieldHalved, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import { FloatingAnalysisCard } from "@/components/FloatingAnalysisCard";
 import { PremiumUnlockModal } from "@/components/PremiumUnlockModal";
 import SkinTypeInfoSection from "@/components/SkinTypeInfoSection";
-import { normalizeAnalysis, type AnalysisResponse } from "@/lib/analysis";
+import { normalizeAnalysis } from "@/lib/analysis";
 import { ImprovementBar } from "@/components/results/ImprovementBar";
 import { RegionCard } from "@/components/results/RegionCard";
 import { StrengthCard } from "@/components/results/StrengthCard";
 import { getSkinTypeInsights, type SkinInsight } from "@/data/skinTypeInsights";
-import { fetchAnalysisStatus, getCachedLatestAnalysis, setCachedLatestAnalysis } from "@/lib/analysisClient";
+import { getSkinTypeTips, getConditionTips } from "@/data/skinRoutineTips";
+import { getCachedLatestAnalysis, setCachedLatestAnalysis } from "@/lib/analysisClient";
 import { fetchBillingStatus } from "@/lib/billing";
 import { getAccessToken } from "@/lib/auth";
 import { apiRoutes, apiBaseUrl } from "@/lib/api";
-import { AuroraBackdrop, FGScoreOrb, FGMetricBar } from "@/components/shared";
+import { AuroraBackdrop, FGScoreOrb } from "@/components/shared";
 
 type LandmarkPoint = { x: number; y: number };
 
@@ -60,9 +60,7 @@ const Results = () => {
   const [routineState, setRoutineState] = useState<"idle" | "loading" | "done">("idle");
   const [showFloatingCard, setShowFloatingCard] = useState(true);
   const [isPremiumBlocked, setIsPremiumBlocked] = useState(true);
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const [carouselCurrent, setCarouselCurrent] = useState(0);
-  const [carouselCount, setCarouselCount] = useState(0);
+  const [showRoutineModal, setShowRoutineModal] = useState(false);
 
   useEffect(() => {
     fetchBillingStatus({ forceRefresh: true })
@@ -237,20 +235,6 @@ const Results = () => {
     );
   }
 
-  // Carousel embla API tracking
-  const onCarouselSelect = useCallback(() => {
-    if (!carouselApi) return;
-    setCarouselCurrent(carouselApi.selectedScrollSnap());
-    setCarouselCount(carouselApi.scrollSnapList().length);
-  }, [carouselApi]);
-
-  useEffect(() => {
-    if (!carouselApi) return;
-    onCarouselSelect();
-    carouselApi.on("select", onCarouselSelect);
-    return () => { carouselApi.off("select", onCarouselSelect); };
-  }, [carouselApi, onCarouselSelect]);
-
   const confidence = Math.min(98, Math.max(70, Math.round(70 + analysis.overallScore * 0.28)));
   const skinAge = Math.max(18, Math.round(36 - analysis.overallScore / 5));
   const allMetricOptions: Array<{ label: string; value: number }> = [
@@ -280,17 +264,6 @@ const Results = () => {
     .filter((m) => m.value !== undefined && m.value !== null && m.value !== 0)
     .map((m) => ({ label: m.label, value: Math.min(100, Math.round((m.value ?? 0) * 10)) }));
 
-  const metrics = [
-    { label: "Acne", value: (analysis.scores.acne ?? 0) * 10, icon: <Zap size={16} /> },
-    { label: "Oleosidade", value: (analysis.scores.oiliness ?? 0) * 10, icon: <Droplets size={16} /> },
-    { label: "Manchas", value: (analysis.scores.darkSpots ?? 0) * 10, icon: <Eye size={16} /> },
-    { label: "Sensibilidade", value: (analysis.scores.sensitivity ?? 0) * 10, icon: <Sun size={16} /> },
-    ...(analysis.scores.poros !== undefined ? [{ label: "Poros", value: analysis.scores.poros * 10, icon: <AlertTriangle size={16} /> }] : []),
-    ...(analysis.scores.olheiras !== undefined ? [{ label: "Olheiras", value: analysis.scores.olheiras * 10, icon: <Eye size={16} /> }] : []),
-    ...(analysis.scores.linhasFinas !== undefined ? [{ label: "Linhas finas", value: analysis.scores.linhasFinas * 10, icon: <Sparkles size={16} /> }] : []),
-    ...(analysis.scores.vermelhidao !== undefined ? [{ label: "Vermelhidão", value: analysis.scores.vermelhidao * 10, icon: <AlertTriangle size={16} /> }] : []),
-  ];
-
   const detectedConditions = [
     { key: "acne", label: "Acne", active: analysis.conditions?.acne },
     { key: "olheiras", label: "Olheiras", active: analysis.conditions?.olheiras },
@@ -305,40 +278,11 @@ const Results = () => {
   ];
 
   const activeConditions = detectedConditions.filter((item) => Boolean(item.active));
-  const extraRecommendations = analysis.recommendations.filter((item) => /extra|adicional/i.test(item.type));
-  const primaryRecommendations = analysis.recommendations.filter((item) => !/extra|adicional/i.test(item.type));
-  
-  // Mapeamento de keys de condições para keys de scores
-  const conditionToScoreMap: Record<string, keyof typeof analysis.scores> = {
-    acne: "acne",
-    olheiras: "olheiras",
-    poros: "poros",
-    manchas: "darkSpots",
-    linhas_finas: "linhasFinas",
-    vermelhidao: "vermelhidao",
-    espinhas_ativas: "espinhasAtivas",
-    cravos: "cravos",
-  };
-  
-  // Filtre apenas as condições ativas que têm score/impacto > 0
-  const impactfulConditions = activeConditions.filter((condition) => {
-    const scoreKey = conditionToScoreMap[condition.key];
-    const scoreValue = scoreKey ? analysis.scores[scoreKey] : 0;
-    return scoreValue !== undefined && scoreValue > 0;
-  });
-  const skinTypeLabel = analysis.skinType.trim().toLowerCase() === "mista" 
-    ? "PELE MISTA" 
+  const skinTypeLabel = analysis.skinType.trim().toLowerCase() === "mista"
+    ? "PELE MISTA"
     : analysis.skinType.trim().charAt(0).toUpperCase() + analysis.skinType.trim().slice(1).toLowerCase();
-  const extraReasonCandidates = [
-    analysis.conditions?.olheiras ? "olheiras" : null,
-    analysis.conditions?.manchas ? "manchas" : null,
-    analysis.conditions?.poros ? "poros dilatados" : null,
-    analysis.conditions?.acne ? "acne" : null,
-    analysis.scores.sensitivity >= 6 ? "sensibilidade" : null,
-    analysis.scores.darkSpots >= 6 ? "uniformizacao do tom" : null,
-    analysis.scores.oiliness >= 6 ? "controle de oleosidade" : null,
-  ].filter(Boolean) as string[];
-  const extraReasonsText = extraReasonCandidates.slice(0, 3).join(", ");
+  const skinRoutineTips = getSkinTypeTips(analysis.skinType);
+  const activeTips = getConditionTips(activeConditions);
 
   // Gerar insight dinamicamente baseado nos scores reais (não no summary do backend que pode estar desatualizado)
   const generateInsight = () => {
@@ -553,502 +497,323 @@ const Results = () => {
         />
       </motion.div>
 
-      {/* Premium upsell — imediatamente após o card de tipo de pele, só quando bloqueado */}
-      {isPremiumBlocked && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mb-4"
-        >
-          <PremiumUnlockModal isVisible={true} />
+      {/* ── ANÁLISE — VISÍVEL PARA TODOS OS USUÁRIOS ── */}
+
+      {/* ── S1: Hero — data, resumo, chips ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="rounded-2xl overflow-hidden mb-5"
+        style={{
+          background: "var(--glass-bg-strong)",
+          backdropFilter: "blur(28px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(28px) saturate(1.8)",
+          border: "1px solid var(--glass-border)",
+          boxShadow: "var(--glass-shadow)",
+        }}
+      >
+        {/* Gradient top accent */}
+        <div style={{ height: "3px", background: "var(--grad-coral)" }} />
+        <div className="p-5">
+          <div className="mb-3">
+            <span className="text-xs font-semibold text-primary border border-primary/20 bg-primary/5 px-3 py-1 rounded-full">
+              📅 {new Date(analysis.createdAtUtc).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+              {" às "}
+              {new Date(analysis.createdAtUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          </div>
+          <p className="text-base font-bold text-foreground mb-0.5">
+            {skinTypeLabel} · {skinAge} anos aparentes
+          </p>
+          <p className={`text-sm text-muted-foreground ${activeConditions.length > 0 ? "mb-3" : ""}`}>
+            {analysis.scores.sensitivity >= 7 ? "Alta Sensibilidade · " : analysis.scores.sensitivity >= 4 ? "Sensibilidade Moderada · " : ""}
+            Score geral: {analysis.overallScore}/100
+          </p>
+          {activeConditions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {activeConditions.map((c) => (
+                <span key={c.key} className="text-xs font-bold px-3 py-1 rounded-full"
+                  style={{ background: "linear-gradient(135deg, #fff1f2, #ffe4e6)", color: "#e11d48", border: "1px solid #fecdd3" }}>
+                  {c.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* ── S2: Pontos de Melhoria ── */}
+      {improvementMetrics.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }} className="mb-5">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #f97316, #ef4444)", boxShadow: "0 4px 12px -2px rgba(239,68,68,0.38)" }}>
+              <FontAwesomeIcon icon={faMicroscope} className="text-white text-sm" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-foreground leading-tight">Pontos de Melhoria</h3>
+              <p className="text-xs text-muted-foreground">Baseado na análise da sua pele</p>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {improvementMetrics.map((m, i) => (
+              <ImprovementBar key={m.label} label={m.label} value={m.value} icon={m.icon} delay={0.48 + i * 0.07} />
+            ))}
+          </div>
         </motion.div>
       )}
 
-      {/* Voltar ao Início — logo após o card premium quando bloqueado */}
-      {isPremiumBlocked && (
+      {/* ── S3: Análise por Região ── */}
+      {uniqueRegionPoints.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.56 }} className="mb-5">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", boxShadow: "0 4px 12px -2px rgba(99,102,241,0.38)" }}>
+              <FontAwesomeIcon icon={faMapLocation} className="text-white text-sm" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-foreground leading-tight">Análise por Região</h3>
+              <p className="text-xs text-muted-foreground">Regiões com condições identificadas</p>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {uniqueRegionPoints.map((pt, i) => (
+              <RegionCard key={`${pt.factor}-${i}`} point={pt} />
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── S4: Pontos Fortes — carrossel horizontal ── */}
+      {skinStrengths.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.63 }} className="mb-5">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 12px -2px rgba(16,185,129,0.38)" }}>
+              <FontAwesomeIcon icon={faStar} className="text-white text-sm" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-foreground leading-tight">Pontos Fortes da Pele</h3>
+              <p className="text-xs text-muted-foreground">Aspectos positivos identificados</p>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "10px", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", paddingBottom: "4px" }}>
+            {skinStrengths.map((s, i) => (
+              <div key={i} style={{ scrollSnapAlign: "start", flexShrink: 0, width: "calc(50% - 5px)" }}>
+                <StrengthCard insight={s} />
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── S5: Não Identificados ── */}
+      {okConditions.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.70 }}
+          className="lg-surface p-5 rounded-2xl mb-5"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 12px -2px rgba(16,185,129,0.35)" }}>
+              <FontAwesomeIcon icon={faShieldHalved} className="text-white text-sm" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-foreground leading-tight">Não Identificados</h3>
+              <p className="text-xs text-muted-foreground">Condições não detectadas na análise</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {okConditions.map((label) => (
+              <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200/60">
+                <CheckCircle2 size={13} className="text-green-600 flex-shrink-0" />
+                <span className="text-xs font-semibold text-green-800">{label}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── S6: Assistente IA ── */}
+      {aiCommentary && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.76 }}
+          className="rounded-2xl overflow-hidden mb-5"
+          style={{
+            background: "linear-gradient(135deg, var(--glass-bg-strong) 0%, rgba(239,143,184,0.08) 100%)",
+            backdropFilter: "blur(24px) saturate(1.8)",
+            WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+            border: "1px solid rgba(239,143,184,0.3)",
+            boxShadow: "0 4px 20px -6px rgba(239,143,184,0.2)",
+          }}
+        >
+          <div style={{ height: "2px", background: "var(--grad-coral-soft, var(--grad-coral))" }} />
+          <div className="p-5">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--grad-coral)", boxShadow: "0 3px 10px -2px rgba(220,100,140,0.4)" }}>
+                <span className="text-sm">✨</span>
+              </div>
+              <span className="text-sm font-bold text-primary">Assistente IA</span>
+            </div>
+            <p className="text-sm text-foreground leading-relaxed">{aiCommentary}</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── S7: Cuidados para sua pele — orientação por tipo ── */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82 }} className="mb-5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--grad-coral)", boxShadow: "0 4px 12px -2px rgba(220,100,140,0.38)" }}>
+            <FontAwesomeIcon icon={faDroplet} className="text-white text-sm" />
+          </div>
+          <div>
+            <h3 className="text-base font-extrabold text-foreground leading-tight">Cuidados para sua pele</h3>
+            <p className="text-xs text-muted-foreground">{skinRoutineTips.description}</p>
+          </div>
+        </div>
+        <div className="space-y-2.5">
+          {skinRoutineTips.routine.map((step, i) => {
+            const faIcon = step.step === "Limpeza" ? faSprayCan : step.step === "Hidratação" ? faDroplet : faSun;
+            return (
+              <motion.div
+                key={step.step}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.86 + i * 0.06 }}
+                className="flex items-start gap-3 p-4 rounded-2xl"
+                style={{
+                  background: "var(--glass-bg)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid var(--glass-border)",
+                  boxShadow: "0 2px 12px -4px rgba(60,30,50,0.1)",
+                }}
+              >
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "var(--grad-coral)", boxShadow: "0 4px 14px -2px rgba(220,100,140,0.45)" }}
+                >
+                  <FontAwesomeIcon icon={faIcon} className="text-white text-base" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">{step.step}</p>
+                  <p className="text-sm font-semibold text-foreground mb-1">{step.guidance}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{step.detail}</p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* ── S8: O que observar — dicas por condição detectada ── */}
+      {activeTips.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.96 }} className="mb-5">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #f97316, #f59e0b)", boxShadow: "0 4px 12px -2px rgba(249,115,22,0.38)" }}>
+              <FontAwesomeIcon icon={faTriangleExclamation} className="text-white text-sm" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-foreground leading-tight">O que observar</h3>
+              <p className="text-xs text-muted-foreground">Dicas para as condições detectadas</p>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {activeTips.map(({ label, icon, tip }) => (
+              <div
+                key={label}
+                className="flex items-start gap-3 p-4 rounded-2xl"
+                style={{
+                  background: "var(--glass-bg)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid var(--glass-border)",
+                  boxShadow: "0 2px 12px -4px rgba(60,30,50,0.1)",
+                }}
+              >
+                <span className="text-2xl leading-none mt-0.5 flex-shrink-0">{icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-foreground mb-1">{label}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{tip}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── CTA Rotina ── */}
+      {routineState === "loading" ? (
+        <div className="lg-surface p-5 rounded-2xl space-y-3 animate-pulse mb-5">
+          <div className="h-4 w-40 rounded-full bg-muted-foreground/20" />
+          <div className="h-12 rounded-2xl bg-muted-foreground/10" />
+        </div>
+      ) : isPremiumBlocked ? (
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.02 }}
+          onClick={() => setShowRoutineModal(true)}
+          className="w-full py-5 rounded-[999px] flex items-center justify-center gap-2 font-extrabold text-base text-white mb-5"
+          style={{ background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)", boxShadow: "0 6px 22px rgba(99,102,241,0.35)" }}
+        >
+          <Lock size={18} /> Desbloquear Rotina Personalizada
+        </motion.button>
+      ) : (() => {
+        const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
+        return isLatest ? (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.02 }}
+            onClick={handleLoadRoutine}
+            className="w-full py-5 rounded-[999px] flex items-center justify-center gap-2 font-extrabold text-base text-white mb-5"
+            style={{ background: "linear-gradient(135deg, #f97316 0%, #f472b6 100%)", boxShadow: "0 6px 22px rgba(249,115,22,0.38)" }}
+          >
+            <Sparkles size={18} /> Ver Rotina Personalizada
+          </motion.button>
+        ) : (
+          <div className="space-y-2 mb-5">
+            <button disabled className="liquiglass-button w-full py-4 rounded-2xl text-muted-foreground font-semibold text-sm cursor-not-allowed opacity-60">
+              Ver Rotina (análise anterior)
+            </button>
+            <p className="text-center text-xs text-muted-foreground">A rotina reflete sempre a análise mais recente</p>
+            <button onClick={() => navigate("/routine")} className="liquiglass-button w-full py-3 rounded-2xl text-foreground font-semibold text-sm flex items-center justify-center gap-2">
+              <BookOpen size={16} /> Ver rotina atual
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* Footer */}
+      <div className="pb-4">
         <button
           onClick={() => navigate("/dashboard")}
-          className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base mb-8"
+          className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base"
         >
           Voltar ao Início
         </button>
-      )}
-
-      {/* Premium Content - All remaining analysis details */}
-      {isPremiumBlocked ? (
-        <div className="mb-4 hidden">
-          {/* Blur layer kept but hidden — real upsell card is rendered below */}
-          <div className="blur-lg pointer-events-none select-none space-y-6">
-            {/* RESULTADO - Moved to top and renamed */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="lg-surface p-5 rounded-2xl"
-            >
-              <h3 className="text-sm font-bold text-[var(--fg-ink)] mb-3">Resultado</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                Sua análise facial está pronta. Idade da pele: <span className="font-bold text-foreground">{skinAge} anos</span>.
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {insight}
-              </p>
-              {impactfulConditions.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {impactfulConditions.map((item) => (
-                    <span
-                      key={item.key}
-                      className="px-3 py-1.5 rounded-full text-xs font-bold bg-coral-light text-primary"
-                    >
-                      {item.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-
-            {/* PONTOS DE MELHORIA - Métricas com scores > 0 */}
-            {metrics.filter((m) => m.value > 0).length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="lg-surface p-5 rounded-2xl"
-              >
-                <h3 className="text-sm font-bold text-[var(--fg-ink)] mb-4">Pontos de Melhoria</h3>
-                <div className="space-y-2.5">
-                  {metrics
-                    .filter((m) => m.value > 0)
-                    .map((metric, i) => (
-                      <MetricBar
-                        key={metric.label}
-                        label={metric.label}
-                        value={metric.value}
-                        icon={metric.icon}
-                        delay={0.55 + i * 0.1}
-                      />
-                    ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* PONTOS POSITIVOS - Métricas com scores = 0 */}
-            {metrics.filter((m) => m.value === 0).length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.65 }}
-                className="lg-surface p-5 rounded-2xl"
-              >
-                <h3 className="text-sm font-bold text-[var(--fg-ink)] mb-4">✅ Pontos Positivos</h3>
-                <div className="flex flex-wrap gap-2">
-                  {metrics
-                    .filter((m) => m.value === 0)
-                    .map((metric) => (
-                      <div
-                        key={metric.label}
-                        className="flex items-center gap-2 px-3 py-2 rounded-full bg-green-50 border border-green-200/60"
-                      >
-                        <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
-                        <span className="text-xs font-semibold text-green-800">{metric.label}</span>
-                      </div>
-                    ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Detected Conditions */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.75 }}
-              className="lg-surface p-5 rounded-2xl"
-            >
-              <h3 className="text-sm font-bold text-[var(--fg-ink)] mb-3">Pontos detectados pela IA</h3>
-              {activeConditions.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {activeConditions.map((item) => (
-                    <span
-                      key={item.key}
-                      className="px-3 py-1.5 rounded-full text-xs font-bold bg-coral-light text-primary"
-                    >
-                      {item.label}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nenhuma condicao adicional detectada.</p>
-              )}
-            </motion.div>
-
-            {/* Rotina + Produtos */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ delay: 0.85 }}
-            >
-              {routineState === "done" && primaryRecommendations.length > 0 && (
-                <div className="glass-card p-5 mb-4">
-                  <h3 className="text-sm font-bold text-foreground mb-3">Produtos Recomendados</h3>
-                  <Carousel opts={{ align: "start", loop: primaryRecommendations.length > 1 }} setApi={setCarouselApi} className="w-full">
-                    <CarouselContent className="-ml-2">
-                      {primaryRecommendations.map((item) => (
-                        <CarouselItem key={`${item.type}-${item.product}`} className="basis-1/3 sm:basis-1/4 pl-2">
-                          <div className="rounded-xl border border-border/60 p-2 h-full flex flex-col">
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground line-clamp-1">{item.type}</p>
-                            <div className="mt-1.5 overflow-hidden rounded-lg bg-muted aspect-[3/4] flex-shrink-0">
-                              <img src={item.imageUrl} alt={item.product} loading="eager" referrerPolicy="no-referrer"
-                                onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80"; }}
-                                className="w-full h-full object-contain bg-white p-1.5" />
-                            </div>
-                            <p className="text-[10px] font-bold text-foreground mt-1.5 line-clamp-2">{item.product}</p>
-                            <p className="text-[9px] text-muted-foreground mt-1 line-clamp-2 flex-1">{item.reason}</p>
-                          </div>
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                  </Carousel>
-                  {/* Dots interativos via embla API */}
-                  {carouselCount > 1 && (
-                    <div className="flex justify-center gap-1.5 mt-2.5">
-                      {Array.from({ length: carouselCount }).map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => carouselApi?.scrollTo(i)}
-                          className={`h-1.5 rounded-full transition-all duration-300 ${i === carouselCurrent ? "w-4 bg-primary" : "w-1.5 bg-primary/25"}`}
-                          aria-label={`Ir para página ${i + 1}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {routineState === "done" && extraRecommendations.length > 0 && (
-                <div className="glass-card p-5 mb-4">
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="extra-products" className="border-border/60">
-                      <AccordionTrigger className="py-0 hover:no-underline">
-                        <div className="flex items-center justify-between w-full pr-3">
-                          <h3 className="text-sm font-bold text-foreground text-left flex items-center gap-2">
-                            <Gift size={15} className="text-primary" /> Produtos Extras
-                          </h3>
-                          <span className="text-xs font-semibold text-muted-foreground">{extraRecommendations.length} itens</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="pt-3">
-                        <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                          Indicados para: {extraReasonsText || "olheiras, textura e equilíbrio da pele"}.
-                        </p>
-                        <Carousel opts={{ align: "start", loop: extraRecommendations.length > 1 }} className="w-full">
-                          <CarouselContent className="-ml-2">
-                            {extraRecommendations.map((item) => (
-                              <CarouselItem key={`${item.type}-${item.product}`} className="basis-1/3 sm:basis-1/4 pl-2">
-                                <div className="rounded-xl border border-border/60 p-1.5 h-full flex flex-col">
-                                  <p className="text-[9px] uppercase tracking-wide text-muted-foreground line-clamp-1">{item.type}</p>
-                                  <div className="mt-1 overflow-hidden rounded-lg bg-muted aspect-[3/4] flex-shrink-0">
-                                    <img src={item.imageUrl} alt={item.product} loading="eager" referrerPolicy="no-referrer"
-                                      onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80"; }}
-                                      className="w-full h-full object-contain bg-white p-1" />
-                                  </div>
-                                  <p className="text-[9px] font-bold text-foreground mt-1 line-clamp-2">{item.product}</p>
-                                  <p className="text-[8px] text-muted-foreground mt-0.5 line-clamp-2 flex-1">{item.reason}</p>
-                                </div>
-                              </CarouselItem>
-                            ))}
-                          </CarouselContent>
-                        </Carousel>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
-              )}
-            </motion.div>
-          </div>
-
-          {/* (hidden — modal rendered below) */}
-        </div>
-      ) : (
-        /* ── CONTEÚDO PREMIUM — 7 seções ── */
-        <div className="mb-8 space-y-5">
-
-          {/* ── S1: Hero — data, resumo, chips de condição ─────────────── */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}
-          >
-            {/* Badge de data */}
-            <div style={{ marginBottom: "12px" }}>
-              <span style={{
-                fontSize: "12px", fontWeight: 600,
-                background: "#f8f7ff", border: "1px solid #e0ddf4",
-                padding: "4px 12px", borderRadius: "999px", color: "#6366f1",
-              }}>
-                📅 {new Date(analysis.createdAtUtc).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-                {" às "}
-                {new Date(analysis.createdAtUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-
-            {/* Resumo 1 linha */}
-            <p style={{ fontSize: "15px", fontWeight: 700, color: "#1f2937", margin: "0 0 3px" }}>
-              {skinTypeLabel} · {skinAge} anos aparentes
-            </p>
-            <p style={{ fontSize: "13px", color: "#6b7280", margin: `0 0 ${activeConditions.length > 0 ? "14px" : "0"}` }}>
-              {analysis.scores.sensitivity >= 7 ? "Alta Sensibilidade · " : analysis.scores.sensitivity >= 4 ? "Sensibilidade Moderada · " : ""}
-              Score geral: {analysis.overallScore}/100
-            </p>
-
-            {/* Chips de condições ativas */}
-            {activeConditions.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {activeConditions.map((c) => (
-                  <span key={c.key} style={{
-                    fontSize: "11px", fontWeight: 700,
-                    padding: "5px 12px", borderRadius: "999px",
-                    background: "linear-gradient(135deg, #fff1f2, #ffe4e6)",
-                    color: "#e11d48", border: "1px solid #fecdd3",
-                  }}>
-                    {c.label}
-                  </span>
-                ))}
-              </div>
-            )}
-          </motion.div>
-
-          {/* ── S2: Pontos de Melhoria ─────────────────────────────────── */}
-          {improvementMetrics.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
-              <div style={{ marginBottom: "12px", paddingLeft: "2px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#1f2937", margin: "0 0 3px" }}>Pontos de Melhoria</h3>
-                <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>Baseado na análise da sua pele</p>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {improvementMetrics.map((m, i) => (
-                  <ImprovementBar key={m.label} label={m.label} value={m.value} icon={m.icon} delay={0.48 + i * 0.07} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── S3: Análise por Região ──────────────────────────────────── */}
-          {uniqueRegionPoints.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.56 }}>
-              <div style={{ marginBottom: "12px", paddingLeft: "2px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#1f2937", margin: "0 0 3px" }}>Análise por Região</h3>
-                <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>Regiões com condições identificadas</p>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {uniqueRegionPoints.map((pt, i) => (
-                  <RegionCard key={`${pt.factor}-${i}`} point={pt} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── S4: Pontos Fortes — carrossel horizontal ────────────────── */}
-          {skinStrengths.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.63 }}>
-              <div style={{ marginBottom: "12px", paddingLeft: "2px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 800, color: "#1f2937", margin: "0 0 3px" }}>✨ Pontos Fortes da Pele</h3>
-                <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>Aspectos positivos identificados</p>
-              </div>
-              {/* scroll-snap carousel sem dependência extra */}
-              <div style={{
-                display: "flex",
-                gap: "10px",
-                overflowX: "auto",
-                scrollSnapType: "x mandatory",
-                scrollbarWidth: "none",
-                WebkitOverflowScrolling: "touch",
-                paddingBottom: "4px",
-                marginLeft: "-2px",
-                paddingLeft: "2px",
-              }}>
-                {skinStrengths.map((s, i) => (
-                  <div key={i} style={{
-                    scrollSnapAlign: "start",
-                    flexShrink: 0,
-                    width: "calc(50% - 5px)",
-                  }}>
-                    <StrengthCard insight={s} />
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── S5: Não Identificados ────────────────────────────────────── */}
-          {okConditions.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.70 }}
-              style={{ background: "white", borderRadius: "20px", padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}
-            >
-              <h3 style={{ fontSize: "15px", fontWeight: 800, color: "#1f2937", marginBottom: "12px" }}>✅ Não Identificados</h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {okConditions.map((label) => (
-                  <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "999px", background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                    <CheckCircle2 size={13} style={{ color: "#16a34a", flexShrink: 0 }} />
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#166534" }}>{label}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── S6: Assistente IA comenta ────────────────────────────────── */}
-          {aiCommentary && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.76 }}
-              style={{ background: "linear-gradient(135deg, #f8f7ff 0%, #fdf4ff 100%)", borderRadius: "20px", padding: "20px", border: "1px solid #e9d5ff", boxShadow: "0 2px 12px rgba(167,139,250,0.08)" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                <span style={{ fontSize: "20px" }}>✨</span>
-                <span style={{ fontSize: "14px", fontWeight: 800, color: "#6d28d9" }}>Assistente IA</span>
-              </div>
-              <p style={{ fontSize: "13px", color: "#374151", lineHeight: "1.75", margin: 0 }}>
-                {aiCommentary}
-              </p>
-            </motion.div>
-          )}
-
-          {/* ── S7: Produtos recomendados + CTAs ─────────────────────────── */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82 }}>
-
-            {routineState === "done" && primaryRecommendations.length > 0 && (
-              <div className="glass-card p-5 mb-4">
-                <h3 className="text-sm font-bold text-foreground mb-3">Produtos Recomendados</h3>
-                <Carousel opts={{ align: "start", loop: primaryRecommendations.length > 1 }} setApi={setCarouselApi} className="w-full">
-                  <CarouselContent className="-ml-2">
-                    {primaryRecommendations.map((item) => (
-                      <CarouselItem key={`${item.type}-${item.product}`} className="basis-1/3 sm:basis-1/4 pl-2">
-                        <div className="rounded-xl border border-border/60 p-2 h-full flex flex-col">
-                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground line-clamp-1">{item.type}</p>
-                          <div className="mt-1.5 overflow-hidden rounded-lg bg-muted aspect-[3/4] flex-shrink-0">
-                            <img src={item.imageUrl} alt={item.product} loading="eager" referrerPolicy="no-referrer"
-                              onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80"; }}
-                              className="w-full h-full object-contain bg-white p-1.5" />
-                          </div>
-                          <p className="text-[10px] font-bold text-foreground mt-1.5 line-clamp-2">{item.product}</p>
-                          <p className="text-[9px] text-muted-foreground mt-1 line-clamp-2 flex-1">{item.reason}</p>
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                </Carousel>
-                {carouselCount > 1 && (
-                  <div className="flex justify-center gap-1.5 mt-2.5">
-                    {Array.from({ length: carouselCount }).map((_, i) => (
-                      <button key={i} onClick={() => carouselApi?.scrollTo(i)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${i === carouselCurrent ? "w-4 bg-primary" : "w-1.5 bg-primary/25"}`}
-                        aria-label={`Ir para página ${i + 1}`} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {routineState === "done" && extraRecommendations.length > 0 && (
-              <div className="lg-surface p-5 mb-4 rounded-2xl">
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="extra-products" className="border-border/60">
-                    <AccordionTrigger className="py-0 hover:no-underline">
-                      <div className="flex items-center justify-between w-full pr-3">
-                        <h3 className="text-sm font-bold text-foreground text-left flex items-center gap-2">
-                          <Gift size={15} className="text-primary" /> Produtos Extras
-                        </h3>
-                        <span className="text-xs font-semibold text-muted-foreground">{extraRecommendations.length} itens</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pt-3">
-                      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                        Indicados para: {extraReasonsText || "olheiras, textura e equilíbrio da pele"}.
-                      </p>
-                      <Carousel opts={{ align: "start", loop: extraRecommendations.length > 1 }} className="w-full">
-                        <CarouselContent className="-ml-2">
-                          {extraRecommendations.map((item) => (
-                            <CarouselItem key={`${item.type}-${item.product}`} className="basis-1/3 sm:basis-1/4 pl-2">
-                              <div className="rounded-xl border border-border/60 p-1.5 h-full flex flex-col">
-                                <p className="text-[9px] uppercase tracking-wide text-muted-foreground line-clamp-1">{item.type}</p>
-                                <div className="mt-1 overflow-hidden rounded-lg bg-muted aspect-[3/4] flex-shrink-0">
-                                  <img src={item.imageUrl} alt={item.product} loading="eager" referrerPolicy="no-referrer"
-                                    onError={(e) => { e.currentTarget.src = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80"; }}
-                                    className="w-full h-full object-contain bg-white p-1" />
-                                </div>
-                                <p className="text-[9px] font-bold text-foreground mt-1 line-clamp-2">{item.product}</p>
-                                <p className="text-[8px] text-muted-foreground mt-0.5 line-clamp-2 flex-1">{item.reason}</p>
-                              </div>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                      </Carousel>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
-            )}
-
-            {routineState === "loading" && (
-              <div className="lg-surface p-5 mb-4 rounded-2xl space-y-3 animate-pulse">
-                <div className="h-4 w-40 rounded-full bg-muted-foreground/20" />
-                <div className="h-32 rounded-xl bg-muted-foreground/10" />
-              </div>
-            )}
-
-            {/* CTAs */}
-            {routineState === "idle" && !isPremiumBlocked && (() => {
-              const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
-              return isLatest ? (
-                <button
-                  onClick={handleLoadRoutine}
-                  style={{ width: "100%", padding: "18px", borderRadius: "999px", border: "none", fontSize: "16px", fontWeight: 800, color: "white", cursor: "pointer", background: "linear-gradient(135deg, #f97316 0%, #f472b6 100%)", boxShadow: "0 6px 22px rgba(249,115,22,0.38)", marginBottom: "12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
-                >
-                  <Sparkles size={18} /> ✦ Ver Rotina Completa
-                </button>
-              ) : (
-                <div style={{ marginBottom: "12px" }}>
-                  <button disabled style={{ width: "100%", padding: "16px", borderRadius: "999px", border: "none", fontSize: "15px", fontWeight: 700, background: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed", marginBottom: "8px" }}>
-                    ✦ Ver Rotina Completa
-                  </button>
-                  <p className="text-center text-xs text-muted-foreground mb-2">Análise anterior — a rotina reflete sempre a mais recente</p>
-                  <button onClick={() => navigate("/routine")} className="liquiglass-button w-full py-3 rounded-2xl text-foreground font-semibold text-sm flex items-center justify-center gap-2">
-                    <BookOpen size={16} /> Ver rotina atual
-                  </button>
-                </div>
-              );
-            })()}
-          </motion.div>
-        </div>
-      )}
-
-      {/* Footer — sempre visível */}
-      <div className="space-y-3 mt-8">
-        {routineState === "done" && !isPremiumBlocked && (() => {
-          const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
-          return isLatest ? (
-            <button
-              onClick={handleLoadRoutine}
-              style={{ width: "100%", padding: "18px", borderRadius: "999px", border: "none", fontSize: "16px", fontWeight: 800, color: "white", cursor: "pointer", background: "linear-gradient(135deg, #f97316 0%, #f472b6 100%)", boxShadow: "0 6px 22px rgba(249,115,22,0.38)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
-            >
-              <BookOpen size={18} /> ✦ Ver Rotina Completa
-            </button>
-          ) : (
-            <button onClick={() => navigate("/routine")}
-              className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base flex items-center justify-center gap-2">
-              <BookOpen size={18} /> Ver rotina atual
-            </button>
-          );
-        })()}
-        {!isPremiumBlocked && (
-          <button onClick={() => navigate("/dashboard")}
-            className="liquiglass-button w-full py-4 rounded-2xl text-foreground font-semibold text-base">
-            Voltar ao Início
-          </button>
-        )}
       </div>
+
+      {/* Modal premium — rotina bloqueada */}
+      <AnimatePresence>
+        {showRoutineModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-6"
+            style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", overflowY: "auto" }}
+            onClick={() => setShowRoutineModal(false)}
+          >
+            <PremiumUnlockModal isVisible={true} onClose={() => setShowRoutineModal(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
       </div>
     </div>
   );

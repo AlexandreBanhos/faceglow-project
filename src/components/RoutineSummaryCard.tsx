@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Sun, Moon, ChevronRight, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { type AnalysisResponse, type AnalysisRecommendation } from "@/lib/analysis";
 import { fetchRoutineSteps, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
+import SerumSvg from "@/assets/serum-svg.svg";
 
 interface RoutineSummaryCardProps {
   analysis: AnalysisResponse;
@@ -14,23 +15,20 @@ interface RoutineSummaryCardProps {
 const getDisplayStorageKey = (analysisId: string) =>
   `faceglow-routine-display-${analysisId}`;
 
+const getRoutineStorageKey = (analysisId: string) => `faceglow-routine-schedule-${analysisId}`;
+
+const getRoutineTitle = (step: string) => {
+  const separatorIndex = step.indexOf(":");
+  const raw = separatorIndex >= 0 ? step.slice(separatorIndex + 1).trim() : step.trim();
+  return raw.replace(/\(([^)]+)\)\s*$/, "").trim();
+};
+
 const normalizeType = (value: string) =>
   value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]/g, "")
     .toLowerCase();
-
-const getStepType = (step: string) => {
-  const idx = step.indexOf(":");
-  return idx >= 0 ? step.slice(0, idx).trim() : step.trim();
-};
-
-const getStepTitle = (step: string) => {
-  const idx = step.indexOf(":");
-  const raw = idx >= 0 ? step.slice(idx + 1).trim() : step.trim();
-  return raw.replace(/\(([^)]+)\)\s*$/, "").trim();
-};
 
 interface ProductSlot {
   name: string;
@@ -123,8 +121,9 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
 
     const buildSlots = (steps: string[], period: "morning" | "night") => {
       const slots: ProductSlot[] = steps.slice(0, maxDisplay).map((step) => {
-        const type = getStepType(step);
-        const title = getStepTitle(step);
+        const idx = step.indexOf(":");
+        const type = idx >= 0 ? step.slice(0, idx).trim() : step.trim();
+        const title = getRoutineTitle(step);
         const itemKey = `${period}::${title.toLowerCase()}`;
         const displayName = displayNames[itemKey];
         const rec = recByType.get(normalizeType(type));
@@ -176,13 +175,14 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
         <div
           className="rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-sm border border-border/30"
           style={{
-            background: "rgba(255, 255, 255, 0.82)",
+            background: "linear-gradient(90deg, #FEF3C7 0%, #F5F3FF 50%, #F3E8FF 100%)",
             backdropFilter: "blur(12px)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.08)",
           }}
         >
           {/* Title row */}
           <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-            <h3 className="font-heading text-sm sm:text-base font-semibold text-foreground truncate">
+            <h3 className="text-sm sm:text-base font-semibold text-foreground truncate" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
               Sua Rotina
             </h3>
             <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
@@ -193,17 +193,16 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
                   <span className="sm:hidden">4</span>
                 </span>
               )}
-              <div className="flex items-center gap-1 text-xs sm:text-xs font-bold text-primary">
-                Ver
-                <ChevronRight size={12} className="sm:w-3.5 sm:h-3.5" />
+              <div className="flex items-center gap-0 text-primary">
+                <ChevronRight size={16} className="sm:w-5 sm:h-5" />
               </div>
             </div>
           </div>
 
           {/* Two-column layout */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 overflow-hidden">
             {/* Morning */}
-            <div className="min-w-0">
+            <div className="min-w-0 overflow-hidden">
               <div className="flex items-center gap-1 sm:gap-1.5 mb-2 sm:mb-2.5">
                 <Sun size={13} className="text-amber-500 shrink-0 sm:w-3.5 sm:h-3.5" />
                 <span className="text-xs sm:text-xs font-extrabold text-foreground">Manhã:</span>
@@ -211,11 +210,13 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
                   {morningCount} {morningCount === 1 ? "passo" : "passos"}
                 </span>
               </div>
-              <StackedSlots slots={morningSlots} extra={morningExtra} />
+              <div className="overflow-hidden">
+                <StackedSlots slots={morningSlots} extra={morningExtra} />
+              </div>
             </div>
 
             {/* Night */}
-            <div className="min-w-0">
+            <div className="min-w-0 overflow-hidden">
               <div className="flex items-center gap-1 sm:gap-1.5 mb-2 sm:mb-2.5">
                 <Moon size={13} className="text-indigo-500 shrink-0 sm:w-3.5 sm:h-3.5" />
                 <span className="text-xs sm:text-xs font-extrabold text-foreground">Noite:</span>
@@ -223,7 +224,9 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
                   {nightCount} {nightCount === 1 ? "passo" : "passos"}
                 </span>
               </div>
-              <StackedSlots slots={nightSlots} extra={nightExtra} />
+              <div className="overflow-hidden">
+                <StackedSlots slots={nightSlots} extra={nightExtra} />
+              </div>
             </div>
           </div>
         </div>
@@ -232,46 +235,69 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
   );
 };
 
-const getSlotSize = () => {
-  if (typeof window !== "undefined") {
-    return window.innerWidth < 640 ? 44 : 60; // 44px on mobile, 60px on desktop
-  }
-  return 60;
-};
-
-const SLOT_SIZE_DESKTOP = 60;
-const SLOT_SIZE_MOBILE = 44;
+const SLOT_SIZE_DESKTOP = 54;
+const SLOT_SIZE_MOBILE = 32;
 const OVERLAP_DESKTOP = Math.round(SLOT_SIZE_DESKTOP * 0.25); // 25% overlap
 const OVERLAP_MOBILE = Math.round(SLOT_SIZE_MOBILE * 0.25);
 
 // Stacked row: first slot fully visible, each next tucked behind with -OVERLAP margin
 const StackedSlots = ({ slots, extra = 0 }: { slots: ProductSlot[]; extra?: number }) => {
+  const [maxVisible, setMaxVisible] = useState(4);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const resizeObserver = new ResizeObserver(() => {
+      const width = containerRef.current?.clientWidth ?? 0;
+      const SLOT_SIZE = window.innerWidth < 640 ? 32 : 54;
+      const OVERLAP = window.innerWidth < 640 ? 8 : 15;
+      
+      // Calcular quantos slots cabem com margem de segurança
+      const availableWidth = width - 30; // margem para +numero e padding
+      let visibleCount = 0;
+      let usedWidth = 0;
+      
+      for (let i = 0; i < slots.length; i++) {
+        const slotWidth = i === 0 ? SLOT_SIZE : SLOT_SIZE - OVERLAP;
+        if (usedWidth + slotWidth <= availableWidth) {
+          usedWidth += slotWidth;
+          visibleCount++;
+        } else {
+          break;
+        }
+      }
+      
+      setMaxVisible(Math.max(1, visibleCount));
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, [slots.length]);
+
   const items = slots.length > 0 ? slots : ([{}, {}, {}, {}] as ProductSlot[]);
   const total = items.length;
+  const visibleSlots = items.slice(0, maxVisible);
+  const totalExtra = total - maxVisible + (extra ?? 0);
   
   return (
     <div
-      className="relative inline-flex"
+      ref={containerRef}
+      className="relative inline-flex max-w-full overflow-visible w-full"
       style={{
-        // Desktop
         "--slot-size": `${SLOT_SIZE_DESKTOP}px`,
         "--overlap": `${OVERLAP_DESKTOP}px`,
-        "--width": `${SLOT_SIZE_DESKTOP + (total - 1) * (SLOT_SIZE_DESKTOP - OVERLAP_DESKTOP)}px`,
-        // Mobile
         "--slot-size-mobile": `${SLOT_SIZE_MOBILE}px`,
         "--overlap-mobile": `${OVERLAP_MOBILE}px`,
-        "--width-mobile": `${SLOT_SIZE_MOBILE + (total - 1) * (SLOT_SIZE_MOBILE - OVERLAP_MOBILE)}px`,
       } as React.CSSProperties & {
         "--slot-size": string;
         "--overlap": string;
-        "--width": string;
         "--slot-size-mobile": string;
         "--overlap-mobile": string;
-        "--width-mobile": string;
       }}
     >
-      <div className="flex">
-        {items.map((slot, i) => (
+      <div className="flex flex-shrink-0 relative w-full">
+        {visibleSlots.map((slot, i) => (
           <div
             key={i}
             className="sm:block hidden"
@@ -285,7 +311,7 @@ const StackedSlots = ({ slots, extra = 0 }: { slots: ProductSlot[]; extra?: numb
             <ProductSlotCircle slot={slot} index={i} size="desktop" />
           </div>
         ))}
-        {items.map((slot, i) => (
+        {visibleSlots.map((slot, i) => (
           <div
             key={`mobile-${i}`}
             className="block sm:hidden"
@@ -299,20 +325,36 @@ const StackedSlots = ({ slots, extra = 0 }: { slots: ProductSlot[]; extra?: numb
             <ProductSlotCircle slot={slot} index={i} size="mobile" />
           </div>
         ))}
-      </div>
 
-      {extra > 0 && (
-        <div className="absolute -bottom-0.5 -right-0.5 z-50 flex items-center justify-center rounded-full font-extrabold text-xs text-foreground bg-secondary shrink-0 sm:w-6 sm:h-6 w-5 h-5 sm:text-xs text-[10px]">
-          +{extra}
-        </div>
-      )}
+        {totalExtra > 0 && (
+          <div className="sm:block hidden absolute z-50 flex items-center justify-center rounded-full font-extrabold text-xs text-foreground bg-secondary shrink-0 sm:w-6 sm:h-6"
+            style={{
+              bottom: "0px",
+              right: "0px",
+            }}
+          >
+            +{totalExtra}
+          </div>
+        )}
+        
+        {totalExtra > 0 && (
+          <div className="block sm:hidden absolute z-50 flex items-center justify-center rounded-full font-extrabold text-[10px] text-foreground bg-secondary shrink-0 w-5 h-5"
+            style={{
+              bottom: "0px",
+              right: "0px",
+            }}
+          >
+            +{totalExtra}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 const ProductSlotCircle = ({ slot, index, size }: { slot: ProductSlot; index: number; size: "mobile" | "desktop" }) => {
   const isFirst = index === 0;
-  const slotSize = size === "mobile" ? 44 : 60;
+  const slotSize = size === "mobile" ? 32 : 54;
 
   if (slot.imageUrl) {
     return (
@@ -346,21 +388,43 @@ const ProductSlotCircle = ({ slot, index, size }: { slot: ProductSlot; index: nu
     );
   }
 
-  return <EmptySlot muted={!isFirst} size={slotSize} />;
+  return (
+    <div
+      className="relative rounded-full overflow-hidden border-2 shadow-lg shrink-0 flex items-center justify-center group"
+      style={{
+        width: slotSize,
+        height: slotSize,
+        borderColor: "rgba(255,255,255,0.95)",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(240,240,245,0.9) 100%)",
+        boxShadow: isFirst
+          ? `0 3px 12px rgba(0,0,0,${size === "mobile" ? 0.1 : 0.12})`
+          : `0 1.5px 6px rgba(0,0,0,${size === "mobile" ? 0.06 : 0.08})`,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          background: "linear-gradient(135deg, #E8547A 0%, #E8A882 100%)",
+          WebkitMaskImage: `url(${SerumSvg})`,
+          maskImage: `url(${SerumSvg})`,
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+        }}
+      />
+      <div className="absolute inset-0 rounded-full pointer-events-none" style={{ background: "rgba(0,0,0,0.02)" }} />
+      {!isFirst && (
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+        />
+      )}
+    </div>
+  );
 };
-
-const EmptySlot = ({ muted = false, size = 72 }: { muted?: boolean; size?: number }) => (
-  <div
-    className="rounded-full shrink-0 border-2 border-white/70"
-    style={{
-      width: size,
-      height: size,
-      background: muted
-        ? "rgba(240,240,245,0.75)"
-        : "rgba(250,250,255,0.9)",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-    }}
-  />
-);
 
 export default RoutineSummaryCard;

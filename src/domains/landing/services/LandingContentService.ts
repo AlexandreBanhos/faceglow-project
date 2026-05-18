@@ -68,8 +68,8 @@ export class LandingContentService implements ILandingContentService {
       LandingBenefit.create(
         "b3",
         "⏰",
-        "Dermatologista é caro e lerdambi",
-        "R$ 5 online, 24/7, resultado instantâneo",
+        "Dermatologista é caro e demorado",
+        "1 análise grátis online, 24/7, resultado em 60s",
         "Consulta R$ 150-300, agendamento, fila",
         "Análise acessível em qualquer momento"
       ),
@@ -153,16 +153,17 @@ export class LandingContentService implements ILandingContentService {
     this.plans = [
       LandingPricingPlan.create(
         "free",
-        "Teste",
-        0, // R$ 0
-        "7 dias",
-        5,
-        "Comece grátis",
+        "Free",
+        0,
+        "vitalício",
+        1,
+        "Experimente sem compromisso",
         [
-          "✓ 5 análises grátis",
-          "✓ Diagnóstico completo",
-          "✓ Rotina personalizada",
-          "✗ Histórico de análises",
+          "✓ 1 análise gratuita",
+          "✓ Resultado facial completo",
+          "✓ Tipo de pele + condições",
+          "✗ Rotina personalizada",
+          "✗ Histórico e comparativo",
         ],
         false,
         null,
@@ -171,35 +172,36 @@ export class LandingContentService implements ILandingContentService {
       ),
       LandingPricingPlan.create(
         "monthly",
-        "Plano Mensal",
-        2990, // R$ 29,90
+        "Premium",
+        2490, // R$ 24,90
         "por mês",
-        6,
-        "Tudo que você precisa",
+        8,
+        "Acesso completo à plataforma",
         [
-          "✓ 6 análises por mês",
-          "✓ Diagnóstico completo",
-          "✓ Rotina personalizada",
-          "✓ Histórico completo",
-          "✓ Prioridade no suporte",
+          "✓ 8 análises por mês",
+          "✓ Rotina personalizada IA",
+          "✓ Checklist diário de rotina",
+          "✓ Histórico e comparativo",
+          "✓ Adicionar produtos próprios",
         ],
         true,
-        "MELHOR OFERTA",
+        "MAIS POPULAR",
         "Assinar Agora",
         "premium"
       ),
       LandingPricingPlan.create(
         "credits",
         "Análise Avulsa",
-        500, // R$ 5
+        490, // R$ 4,90
         "por análise",
         1,
-        "Sem compromisso",
+        "Sem assinatura, sem compromisso",
         [
-          "✓ 1 análise",
-          "✓ Diagnóstico completo",
-          "✓ Rotina personalizada",
-          "✓ Sem validade",
+          "✓ 1 análise completa",
+          "✓ Resultado facial detalhado",
+          "✓ Tipo de pele + condições",
+          "✗ Rotina personalizada",
+          "✗ Histórico de análises",
         ],
         false,
         null,
@@ -241,7 +243,7 @@ export class LandingContentService implements ILandingContentService {
         avatar: "CM",
         rating: 5,
         quote:
-          "Paguei R$ 5 em uma análise e economizei R$ 500 em produtos desnecessários. Vale MUITO a pena.",
+          "Paguei R$ 4,90 em uma análise e economizei R$ 500 em produtos desnecessários. Vale MUITO a pena.",
       },
       {
         id: "t3",

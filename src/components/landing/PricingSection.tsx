@@ -63,7 +63,7 @@ export const PricingSection = ({ onSelectPlan }: PricingSectionProps = {}) => {
             </span>
           </h2>
           <p className="text-[var(--fg-ink-3)] max-w-xl mx-auto">
-            Experimente com 5 análises gratuitas. Sem cartão de crédito, sem compromisso.
+            Comece com 1 análise gratuita. Sem cartão de crédito, sem compromisso.
           </p>
         </motion.div>
 

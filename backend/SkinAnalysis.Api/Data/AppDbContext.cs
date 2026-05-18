@@ -324,7 +324,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.ToTable("user_credits");
             e.HasKey(x => x.UserId);
             e.Property(x => x.UserId).HasColumnName("user_id");
-            e.Property(x => x.CreditsRemaining).HasColumnName("credits_remaining").HasDefaultValue(5);
+            e.Property(x => x.CreditsRemaining).HasColumnName("credits_remaining").HasDefaultValue(1);
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
         });
 

@@ -20,11 +20,10 @@ public class BillingService : IBillingService
 
     private static readonly IReadOnlyDictionary<string, BillingPlanDefinition> Plans = new Dictionary<string, BillingPlanDefinition>(StringComparer.OrdinalIgnoreCase)
     {
-        ["test"] = new BillingPlanDefinition("test", "Plano Teste", 100, 1),
-        ["credits"] = new BillingPlanDefinition("credits", "Análise Avulsa", 500, 0),
-        ["monthly"] = new BillingPlanDefinition("monthly", "Plano Mensal", 2990, 30),
-        ["quarterly"] = new BillingPlanDefinition("quarterly", "Plano Trimestral", 7990, 90),
-        ["annual"] = new BillingPlanDefinition("annual", "Plano Anual", 19999, 365),
+        ["test"]    = new BillingPlanDefinition("test",    "Plano Teste",    100,   1),
+        ["credits"] = new BillingPlanDefinition("credits", "Análise Avulsa", 490,   0),
+        ["monthly"] = new BillingPlanDefinition("monthly", "Premium Mensal", 2490, 30),
+        ["annual"]  = new BillingPlanDefinition("annual",  "Premium Anual",  19790, 365),
     };
 
     public BillingService(

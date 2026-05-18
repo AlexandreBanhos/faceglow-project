@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, TrendingUp, Droplets, Sun, Moon, ChevronRight, Check, Flame, Lock } from "lucide-react";
+import { TrendingUp, Droplets, ChevronDown, ChevronUp, AlertCircle, Eye, Zap, Wind, Sun } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import SkinTypeInfoSection from "@/components/SkinTypeInfoSection";
 import RoutineSummaryCard from "@/components/RoutineSummaryCard";
+import DailyRoutineSection from "@/components/DailyRoutineSection";
 import { Skeleton } from "@/components/ui/skeleton";
-import DashboardSkeleton from "@/components/skeletons/DashboardSkeleton";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
 import { type AnalysisResponse } from "@/lib/analysis";
 import { fetchDashboardSummary, fetchRoutineSteps } from "@/lib/analysisClient";
@@ -14,7 +14,7 @@ import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { staleWhileRevalidate } from "@/shared/services/cache/CacheService";
-import { AuroraBackdrop, FGScoreOrb, FGMetricBar } from "@/components/shared";
+import { AuroraBackdrop, FGScoreOrb } from "@/components/shared";
 
 type RoutineSchedule = {
   daysByItem?: Record<string, string[]>;
@@ -74,6 +74,62 @@ const parseRoutineForPeriod = (
     .filter((item) => item.isScheduledToday && !isExtraRoutineStep(item.step));
 };
 
+// ── Mini anel de métrica ─────────────────────────────────────────────────────
+function MetricRing({
+  value, label, icon, delay = 0,
+}: { value: number; label: string; icon: React.ReactNode; delay?: number }) {
+  const R = 22; const C = 2 * Math.PI * R;
+  const id = `mgr-${label.replace(/[^a-z]/gi, "").toLowerCase()}`;
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative" style={{ width: 56, height: 56 }}>
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none"
+          style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
+          <defs>
+            <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stopColor="#E8547A" />
+              <stop offset="100%" stopColor="#E8A882" />
+            </linearGradient>
+          </defs>
+          <circle cx="28" cy="28" r={R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="5" />
+          <motion.circle
+            cx="28" cy="28" r={R}
+            fill="none" stroke={`url(#${id})`}
+            strokeWidth="5" strokeLinecap="round"
+            strokeDasharray={C}
+            initial={{ strokeDashoffset: C }}
+            animate={{ strokeDashoffset: C * (1 - Math.min(value, 100) / 100) }}
+            transition={{ duration: 1.1, ease: "easeOut", delay }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span style={{ fontSize: 11, fontWeight: 800, color: "var(--fg-ink)" }}>{value}%</span>
+        </div>
+      </div>
+      <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>
+      <span className="fg-mono uppercase text-center"
+        style={{ fontSize: 9, letterSpacing: "0.08em", color: "var(--fg-ink-3)", lineHeight: 1.2 }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// ── Mapa de métricas com labels e ícones ─────────────────────────────────────
+const metricsMap: Record<string, { label: string; icon: React.ReactNode }> = {
+  acne: { label: "Acne", icon: <Droplets size={14} /> },
+  oiliness: { label: "Oleosidade", icon: <Sun size={14} /> },
+  hydration: { label: "Hidratação", icon: <TrendingUp size={14} /> },
+  darkSpots: { label: "Manchas Escuras", icon: <AlertCircle size={14} /> },
+  sensitivity: { label: "Sensibilidade", icon: <Zap size={14} /> },
+  poros: { label: "Poros", icon: <Wind size={14} /> },
+  olheiras: { label: "Olheiras", icon: <Eye size={14} /> },
+  linhasFinas: { label: "Linhas Finas", icon: <TrendingUp size={14} /> },
+  vermelhidao: { label: "Vermelhidão", icon: <AlertCircle size={14} /> },
+  espinhasAtivas: { label: "Espinhas Ativas", icon: <Droplets size={14} /> },
+  cravos: { label: "Cravos", icon: <Wind size={14} /> },
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,6 +141,7 @@ const Dashboard = () => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [avatarLetter, setAvatarLetter] = useState("U");
   const [userReady, setUserReady] = useState(false);
+  const [expandMetrics, setExpandMetrics] = useState(false);
   const { isPremium, isConfirmedNonPremium } = useIsPremium();
   const isPremiumBlocked = isConfirmedNonPremium;
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
@@ -224,6 +281,26 @@ const Dashboard = () => {
     if (t.includes("norm") || t === "normal")       return { bg: "#F0FDF4", color: "#16A34A", label: "Normal",     dot: "#22C55E" };
     return null;
   })();
+
+  // 📊 Ordenar métricas pelos 3 piores scores (maiores valores)
+  const sortedMetrics = useMemo(() => {
+    if (!latestAnalysis?.scores) return { top3: [], others: [] };
+    
+    const allMetrics = Object.entries(latestAnalysis.scores)
+      .filter(([, value]) => typeof value === 'number' && value > 0 && value <= 10)
+      .map(([key, value]) => ({
+        key,
+        value: Math.round(value * 10), // Converter para percentual
+        label: metricsMap[key]?.label || key,
+        icon: metricsMap[key]?.icon || <AlertCircle size={14} />,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      top3: allMetrics.slice(0, 3),
+      others: allMetrics.slice(3),
+    };
+  }, [latestAnalysis?.scores]);
 
   const currentPeriod: "morning" | "night" = new Date().getHours() < 18 ? "morning" : "night";
   const periodLabel = currentPeriod === "morning" ? "Manha" : "Noite";
@@ -375,7 +452,7 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="mx-6 mt-6 lg-surface-strong p-6 rounded-3xl"
+        className="mx-6 mt-6 lg-surface-strong p-6 rounded-3xl relative"
       >
         {isLoading ? (
           <div className="flex items-center justify-between gap-4">
@@ -390,109 +467,112 @@ const Dashboard = () => {
             <Skeleton className="w-[110px] h-[110px] rounded-full flex-shrink-0" />
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              {/* Label row + skin type badge */}
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <p className="fg-mono text-[11px] text-[var(--fg-ink-3)] font-semibold tracking-wide uppercase">Score geral</p>
-                {skinTypeMeta && (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.85 }}
+          <>
+            {/* Score Orb + Pontuação — FIXO no canto superior direito */}
+            <div className="absolute top-6 right-6 flex flex-col items-center gap-1.5">
+              <div className="relative">
+                <FGScoreOrb score={latestAnalysis?.overallScore ?? 0} size={116} variant="compact" />
+                {scoreChange !== null && (
+                  <motion.div
+                    className="absolute bottom-5 left-1/4 -translate-x-1/2 text-center"
+                    initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.25, type: "spring", stiffness: 300, damping: 20 }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
-                    style={{ background: skinTypeMeta.bg, color: skinTypeMeta.color }}
+                    transition={{ delay: 0.35 }}
                   >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: skinTypeMeta.dot }}
-                    />
-                    Pele {skinTypeMeta.label}
-                  </motion.span>
+                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded block" 
+                      style={{ 
+                        color: "var(--fg-ink-3)"
+                      }}>
+                      {scoreChange > 0 ? "+" : ""}{scoreChange} pts
+                    </span>
+                  </motion.div>
                 )}
               </div>
+              <span className="fg-mono uppercase text-center mt-2"
+                style={{ fontSize: 9, letterSpacing: "0.08em", color: "var(--fg-ink-3)", lineHeight: 1.2 }}>
+                Pontuação
+              </span>
+            </div>
 
-              {/* Score number */}
-              <div className="flex items-baseline gap-1.5 mb-3">
-                <motion.span
-                  className="font-heading text-5xl font-bold leading-none text-[var(--fg-ink)]"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  {latestAnalysis?.overallScore ?? 0}
-                </motion.span>
-                <span className="text-base text-[var(--fg-ink-3)] font-medium">/100</span>
+            {/* Container esquerdo — Pele + Top 3 Metrics + Expandidas */}
+            <motion.div 
+              layout
+              className="flex flex-col gap-3 pr-32"
+            >
+              {/* Pele + Top 3 Metrics */}
+              <div>
+                {skinTypeMeta && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="flex flex-col gap-0.5 mb-2"
+                  >
+                    <p className="text-xs font-semibold text-[var(--fg-ink-3)]">
+                      Sua pele está:
+                    </p>
+                    <p className="text-2xl font-black" style={{
+                      background: "linear-gradient(135deg, #E8547A 0%, #E8A882 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}>
+                      {skinTypeMeta.label.toUpperCase()}
+                    </p>
+                  </motion.div>
+                )}
+                <div className="flex gap-3.5">
+                  {sortedMetrics.top3.map((metric, idx) => (
+                    <MetricRing
+                      key={metric.key}
+                      value={metric.value}
+                      label={metric.label}
+                      icon={metric.icon}
+                      delay={0.12 + idx * 0.08}
+                    />
+                  ))}
+                </div>
               </div>
 
-              {/* Change indicator */}
-              {scoreChange !== null ? (
+              {/* Métricas expandidas */}
+              {expandMetrics && sortedMetrics.others.length > 0 && (
                 <motion.div
-                  className="flex items-center gap-1.5"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex gap-3 flex-wrap pt-2 border-t border-[var(--fg-ink-2)]/10"
                 >
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-r from-coral to-pink flex items-center justify-center flex-shrink-0">
-                    <TrendingUp size={10} className="text-white" />
-                  </div>
-                  <span className="text-xs font-semibold" style={{ color: scoreChange >= 0 ? "#16A34A" : "#DC2626" }}>
-                    {scoreChange > 0 ? "+" : ""}{scoreChange} desde última análise
-                  </span>
+                  {sortedMetrics.others.map((metric, idx) => (
+                    <MetricRing
+                      key={metric.key}
+                      value={metric.value}
+                      label={metric.label}
+                      icon={metric.icon}
+                      delay={0.48 + idx * 0.06}
+                    />
+                  ))}
                 </motion.div>
-              ) : (
-                <p className="text-xs text-[var(--fg-ink-4)]">Primeira análise registrada</p>
               )}
-            </div>
+            </motion.div>
 
-            <FGScoreOrb score={latestAnalysis?.overallScore ?? 0} size={110} variant="compact" />
-          </div>
-        )}
-      </motion.div>
-
-      {/* Scan CTA */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        className="px-6 mt-6"
-      >
-        <button
-          onClick={() => navigate("/analyze")}
-          className="coral-button w-full py-4 rounded-2xl text-base flex items-center justify-center gap-3 font-bold"
-        >
-          <Camera size={20} />
-          Analisar Minha Pele
-        </button>
-      </motion.div>
-
-      {/* Quick Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35 }}
-        className="px-6 mt-6 grid grid-cols-3 gap-3"
-      >
-        {isLoading ? (
-          <>
-            <Skeleton className="h-24 rounded-2xl" />
-            <Skeleton className="h-24 rounded-2xl" />
-            <Skeleton className="h-24 rounded-2xl" />
+            {/* Ícone Chevron no canto inferior esquerdo — só apareça se houver mais de 3 métricas */}
+            {sortedMetrics.others.length > 0 && (
+              <motion.button
+                onClick={() => setExpandMetrics(!expandMetrics)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.40 }}
+                className="absolute bottom-3 left-6 text-[var(--fg-ink-3)] hover:text-[var(--fg-ink)] transition p-1.5"
+              >
+                <motion.div
+                  animate={{ rotate: expandMetrics ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {expandMetrics ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </motion.div>
+              </motion.button>
+            )}
           </>
-        ) : (
-          [
-            { label: "Acne", value: `${(latestAnalysis?.scores.acne ?? 0) * 10}%`, icon: <Droplets size={18} /> },
-            { label: "Oleosidade", value: `${(latestAnalysis?.scores.oiliness ?? 0) * 10}%`, icon: <Sun size={18} /> },
-            { label: "Hidratacao", value: `${(latestAnalysis?.scores.hydration ?? 0) * 10}%`, icon: <TrendingUp size={18} /> },
-          ].map((stat) => (
-            <div key={stat.label} className="lg-surface p-4 rounded-2xl text-center">
-              <span className="text-lg flex justify-center items-center text-[var(--fg-ink-2)]">{stat.icon}</span>
-              <p className="text-sm font-bold text-[var(--fg-ink)] mt-2">{stat.value}</p>
-              <p className="text-xs fg-mono text-[var(--fg-ink-3)] uppercase tracking-wide">
-                {stat.label}
-              </p>
-            </div>
-          ))
         )}
       </motion.div>
 
@@ -500,6 +580,18 @@ const Dashboard = () => {
       {latestAnalysis && !isPremiumBlocked && (
         <RoutineSummaryCard analysis={latestAnalysis} delay={0.38} />
       )}
+
+      {/* Daily Routine Section */}
+      <DailyRoutineSection
+        analysis={latestAnalysis}
+        isPremiumBlocked={isPremiumBlocked}
+        currentPeriod={currentPeriod}
+        periodLabel={periodLabel}
+        routineSummary={routineSummary}
+        motivationText={motivationText}
+        isLoading={isLoading}
+        delay={0.45}
+      />
 
       {/* Skin Type Info Section */}
       {latestAnalysis && (
@@ -510,153 +602,6 @@ const Dashboard = () => {
           className="px-6 mt-6"
         >
           <SkinTypeInfoSection currentSkinType={latestAnalysis.skinType} showAllTypes={false} delay={0.42} />
-        </motion.div>
-      )}
-
-      {/* Daily Routine or Premium Upsell */}
-      {isPremiumBlocked ? (
-        // Premium Upsell Banner
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="px-6 mt-6 mb-6"
-        >
-          <div className="lg-surface-strong p-6 rounded-3xl">
-            {/* Header */}
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-coral/30 to-pink/30 flex items-center justify-center flex-shrink-0">
-                <Flame size={20} className="text-[#ef8fb8]" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-bold text-[var(--fg-ink)]">
-                  Desbloqueie sua análise completa
-                </h2>
-                <p className="text-sm text-[var(--fg-ink-3)] mt-1 leading-relaxed">
-                  Assine Premium para ver todos os produtos e sua rotina personalizada.
-                </p>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div className="space-y-2 mb-6">
-              <div className="flex items-center gap-2.5">
-                <Check size={16} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm text-[var(--fg-ink)]">Todos os produtos recomendados</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Check size={16} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm text-[var(--fg-ink)]">Rotina personalizada (manhã e noite)</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Check size={16} className="text-green-500 flex-shrink-0" />
-                <span className="text-sm text-[var(--fg-ink)]">Análise completa com detalhes</span>
-              </div>
-            </div>
-
-            {/* CTA Button */}
-            <button
-              onClick={() => navigate("/premium")}
-              className="coral-button w-full py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"
-            >
-              <Lock size={16} />
-              Desbloquear Premium
-            </button>
-          </div>
-        </motion.div>
-      ) : (
-        // Normal Routine Display
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="px-6 mt-6"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              {currentPeriod === "morning" ? (
-                <Sun size={20} className="text-[#ddb693]" />
-              ) : (
-                <Moon size={20} className="text-[#ef8fb8]" />
-              )}
-              <h2 className="text-lg font-bold text-[var(--fg-ink)]">
-                Rotina da {periodLabel}
-              </h2>
-            </div>
-            <button
-              onClick={() => navigate("/routine", latestAnalysis ? { state: { analysis: latestAnalysis } } : undefined)}
-              className="flex items-center gap-1 text-xs font-bold text-[var(--fg-ink-2)] hover:text-[var(--fg-ink)]"
-            >
-              Ver tudo
-              <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div className="lg-surface p-4 mb-4 rounded-2xl">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <p className="text-sm font-bold text-[var(--fg-ink)]">Resumo de hoje</p>
-              <span className="text-xs font-bold text-[var(--fg-ink-2)]">
-                {routineSummary.pending} pendentes
-              </span>
-            </div>
-            <p className="text-xs text-[var(--fg-ink-3)]">{motivationText}</p>
-          </div>
-
-          <div className="space-y-2">
-            {routineSummary.items.slice(0, 4).map((item, i) => (
-              <motion.div
-                key={`${item.title}-${i}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + i * 0.08 }}
-                className={`lg-surface p-4 rounded-2xl flex items-center gap-3 transition-all ${
-                  item.done ? "opacity-60" : ""
-                }`}
-              >
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                  item.done 
-                    ? "bg-gradient-to-r from-coral to-pink border-none" 
-                    : "border-[var(--glass-border)]"
-                }`}>
-                  {item.done && (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-bold ${item.done ? "line-through text-[var(--fg-ink-3)]" : "text-[var(--fg-ink)]"}`}>
-                    {item.title}
-                  </p>
-                  <p className="text-xs text-[var(--fg-ink-3)]">
-                    {item.done ? "Concluído" : "Pendente"}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-            {!isLoading && routineSummary.items.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="lg-surface p-6 rounded-2xl flex flex-col items-center text-center gap-3"
-              >
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #FEF3C7, #FED7AA)" }}>
-                  <span className="text-2xl">✨</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-[var(--fg-ink)] mb-1">Sua rotina vai aparecer aqui</p>
-                  <p className="text-xs text-[var(--fg-ink-3)] leading-relaxed">Faça uma análise facial para receber uma rotina personalizada para o seu tipo de pele.</p>
-                </div>
-                <button
-                  onClick={() => navigate("/analyze")}
-                  className="mt-1 px-4 py-2 rounded-xl text-xs font-bold text-white"
-                  style={{ background: "var(--grad-coral)" }}
-                >
-                  Fazer análise agora
-                </button>
-              </motion.div>
-            )}
-          </div>
         </motion.div>
       )}
 

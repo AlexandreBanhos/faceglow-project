@@ -75,7 +75,7 @@ export const useUserStatus = (enabled = true) => {
           isPremium = billing.isActive === true;
           
           // Type-safe assignment
-          if (billing.planKey && ["credits", "monthly", "quarterly", "annual"].includes(billing.planKey)) {
+          if (billing.planKey && ["credits", "monthly", "annual", "test"].includes(billing.planKey)) {
             subscriptionType = billing.planKey as UserStatus["subscriptionType"];
           }
           

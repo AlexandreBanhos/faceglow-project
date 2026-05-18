@@ -1,7 +1,13 @@
-﻿import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Heart, Sparkles, Zap, Lock, RotateCw, QrCode, CreditCard, CheckCircle2, Calendar, Zap as ZapIcon } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, RotateCw, QrCode, CreditCard } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faStar, faChartLine, faListCheck, faBottleDroplet,
+  faArrowsLeftRight, faLayerGroup, faMicroscope,
+  faChevronRight, faCrown, faCheckDouble,
+} from "@fortawesome/free-solid-svg-icons";
 import logoFaceglow from "@/assets/logo-faceglow.svg";
 import { createBillingCheckout, type BillingPlanKey, type BillingStatusResponse, fetchBillingStatus } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/auth";
@@ -9,528 +15,573 @@ import { getCachedLatestAnalysis } from "@/lib/analysisClient";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
 import { AuroraBackdrop } from "@/components/shared";
 
-type Plan = {
-  key: BillingPlanKey;
+// ── Planos ────────────────────────────────────────────────────────────────────
+
+type PlanTier = "credits" | "monthly" | "annual";
+
+interface Plan {
+  key: PlanTier;
   name: string;
-  price: number;
-  analysisCount: number;
+  priceCents: number;
+  monthlyEquiv?: number;
   period: string;
   badge: string | null;
-  description: string;
-};
+  savings?: string;
+}
 
-type Feature = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  icon: any;
-  label: string;
-  color: string;
-};
-
-const PLANS: Plan[] = [
-  {
-    key: "monthly",
-    name: "Premium",
-    price: 2990,
-    analysisCount: 6,
-    period: "por mês",
-    badge: "MELHOR OFERTA",
-    description: "Acesso completo com rotinas e comparativos",
-  },
-  {
+const PLANS: Record<PlanTier, Plan> = {
+  credits: {
     key: "credits",
     name: "Análise Avulsa",
-    price: 500,
-    analysisCount: 1,
+    priceCents: 490,
     period: "por análise",
     badge: null,
-    description: "1 análise sem assinatura",
   },
-];
-
-const FEATURES: Feature[] = [
-  { icon: Sparkles, label: "6 análises por mês", color: "text-blue-500" },
-  { icon: Heart, label: "Rotinas personalizadas", color: "text-pink-500" },
-  { icon: Zap, label: "Comparativos de evolução", color: "text-amber-500" },
-  { icon: Lock, label: "Acesso completo", color: "text-emerald-500" },
-];
-
-const getPlanFeatures = (planKey: BillingPlanKey): string[] => {
-  const featuresByPlan: Record<BillingPlanKey, string[]> = {
-    monthly: [
-      "6 análises por mês",
-      "Diagnóstico completo do tipo de pele",
-      "Rotinas personalizadas pela IA",
-      "Produtos recomendados",
-      "Comparativos de evolução",
-      "Acesso completo à plataforma",
-      "Histórico de análises",
-    ],
-    quarterly: [
-      "Até 18 análises por trimestre",
-      "Rotinas personalizadas de IA",
-      "Produtos recomendados",
-      "Histórico completo",
-    ],
-    annual: [
-      "Até 72 análises por ano",
-      "Rotinas personalizadas de IA",
-      "Produtos recomendados",
-      "Histórico completo",
-      "Descontos exclusivos",
-    ],
-    credits: [
-      "1 análise avulsa",
-      "Diagnóstico do tipo de pele",
-      "Resultado parcial (sem rotinas)",
-      "Sem comparativos de evolução",
-    ],
-    test: ["Acesso de teste"],
-  };
-  return featuresByPlan[planKey] || [];
+  monthly: {
+    key: "monthly",
+    name: "Premium Mensal",
+    priceCents: 2490,
+    period: "por mês",
+    badge: null,
+  },
+  annual: {
+    key: "annual",
+    name: "Premium Anual",
+    priceCents: 19790,
+    monthlyEquiv: 1649,
+    period: "por ano",
+    badge: "2 MESES GRÁTIS",
+    savings: "Economia de R$ 100/ano",
+  },
 };
 
-const getPaymentMethodLabel = (gateway?: string): string => {
-  if (gateway?.includes("pix")) return "PIX";
-  if (gateway?.includes("mercadopago")) return "MercadoPago";
-  if (gateway?.includes("stripe")) return "Cartão de Crédito";
-  return "Indefinido";
-};
+// ── Features por tier ────────────────────────────────────────────────────────
 
-const formatDate = (dateString?: string): string => {
-  if (!dateString) return "N/A";
+interface FeatureDef {
+  icon: Parameters<typeof FontAwesomeIcon>[0]["icon"];
+  label: string;
+  free: boolean;
+  avulsa: boolean;
+  premium: boolean;
+}
+
+const FEATURES: FeatureDef[] = [
+  { icon: faMicroscope,     label: "Análise facial completa",           free: true,  avulsa: true,  premium: true  },
+  { icon: faLayerGroup,     label: "Resultado detalhado por categoria",  free: true,  avulsa: true,  premium: true  },
+  { icon: faListCheck,      label: "Rotina personalizada pela IA",       free: false, avulsa: false, premium: true  },
+  { icon: faCheckDouble,    label: "Checklist diário de rotina",         free: false, avulsa: false, premium: true  },
+  { icon: faChartLine,      label: "Histórico e evolução da pele",       free: false, avulsa: false, premium: true  },
+  { icon: faArrowsLeftRight,label: "Comparativo entre análises",         free: false, avulsa: false, premium: true  },
+  { icon: faBottleDroplet,  label: "Adicionar produtos próprios",        free: false, avulsa: false, premium: true  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const fmt = (cents: number) =>
+  `R$ ${(cents / 100).toFixed(2).replace(".", ",")}`;
+
+const formatDate = (s?: string) => {
+  if (!s) return "N/A";
   try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return dateString;
-  }
+    return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  } catch { return s; }
 };
+
+const getPaymentLabel = (gateway?: string) => {
+  if (gateway?.includes("pix")) return "PIX";
+  if (gateway?.includes("stripe")) return "Cartão de Crédito";
+  return gateway ?? "—";
+};
+
+const ACTIVE_PLAN_FEATURES: Record<BillingPlanKey, string[]> = {
+  monthly: [
+    "8 análises por mês",
+    "Rotina personalizada pela IA",
+    "Checklist diário de rotina",
+    "Histórico completo de análises",
+    "Comparativo de evolução da pele",
+    "Biblioteca de produtos próprios",
+  ],
+  annual: [
+    "8 análises por mês (sem interrupção)",
+    "Rotina personalizada pela IA",
+    "Checklist diário de rotina",
+    "Histórico completo de análises",
+    "Comparativo de evolução da pele",
+    "Biblioteca de produtos próprios",
+    "2 meses grátis vs. mensal",
+  ],
+  credits: [
+    "1 análise avulsa",
+    "Resultado facial completo",
+    "Diagnóstico de tipo de pele",
+    "Condições e pontos de melhoria",
+  ],
+  test: ["Acesso de teste"],
+};
+
+// ── Componente principal ──────────────────────────────────────────────────────
 
 const Premium = () => {
   const navigate = useNavigate();
-  const [selectedPlan, setSelectedPlan] = useState<BillingPlanKey>("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<PlanTier>("annual");
   const [selectedPayment, setSelectedPayment] = useState<"stripe-card" | "mercadopago-pix">("stripe-card");
+  const [billingType, setBillingType] = useState<"subscription" | "avulsa">("subscription");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<unknown>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [billingStatus, setBillingStatus] = useState<BillingStatusResponse | null>(null);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
-  const [statusError, setStatusError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-
-  const loadUserAndStatus = async () => {
-    setIsCheckingStatus(true);
-    setStatusError(null);
-    try {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-      // Always force-refresh billing status (no cache) to get latest subscription state
-      const status = await fetchBillingStatus({ forceRefresh: true });
-      setBillingStatus(status);
-      const isPremiumActive = status?.isActive ?? false;
-      setIsPremium(isPremiumActive);
-      setRetryCount(0);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      // Apenas mostrar erro se não for 404 (sem assinatura é normal)
-      if (!errorMsg.includes("404")) {
-        setStatusError(errorMsg);
-      }
-      setIsPremium(false);
-    } finally {
-      setIsCheckingStatus(false);
-    }
-  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    loadUserAndStatus();
+    (async () => {
+      try {
+        const [u, status] = await Promise.all([getCurrentUser(), fetchBillingStatus({ forceRefresh: true })]);
+        setUser(u);
+        setBillingStatus(status);
+        setIsPremium(status?.isActive ?? false);
+      } catch {
+        setIsPremium(false);
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    })();
   }, []);
 
-  const plan = PLANS.find((p) => p.key === selectedPlan) ?? PLANS[0];
+  // Sincroniza o plano selecionado com o modo assinatura/avulsa
+  useEffect(() => {
+    if (billingType === "avulsa") setSelectedPlan("credits");
+    else setSelectedPlan("annual");
+  }, [billingType]);
+
+  const activePlan = PLANS[selectedPlan];
 
   const handleCheckout = async () => {
     setError("");
-    
-    if (!user) {
-      setError("Você precisa estar autenticado para continuar");
-      return;
-    }
-
+    if (!user) { setError("Você precisa estar autenticado para continuar"); return; }
     setIsProcessing(true);
-
     try {
-      const result = await createBillingCheckout({
-        planKey: selectedPlan,
-        gateway: selectedPayment,
-      });
-
+      const result = await createBillingCheckout({ planKey: selectedPlan, gateway: selectedPayment });
       if (selectedPayment === "mercadopago-pix") {
-        if (!result.pixQrCodeBase64 || !result.pixQrCode) {
-          throw new Error("Não foi possível gerar o QR Code PIX");
-        }
+        if (!result.pixQrCodeBase64 || !result.pixQrCode) throw new Error("Não foi possível gerar o QR Code PIX");
         navigate("/pix-checkout", {
           state: {
             qrCodeBase64: result.pixQrCodeBase64,
             qrCode: result.pixQrCode,
             amount: result.amountCents / 100,
             externalReference: result.externalReference,
-            plan: plan.name,
+            plan: activePlan.name,
           },
         });
-      } else if (selectedPayment === "stripe-card") {
-        if (!result.checkoutUrl) {
-          throw new Error("Não foi possível gerar o link de pagamento");
-        }
+      } else {
+        if (!result.checkoutUrl) throw new Error("Não foi possível gerar o link de pagamento");
         window.location.href = result.checkoutUrl;
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao processar pagamento";
-      console.error("Erro:", message);
-      setError(message);
+      setError(err instanceof Error ? err.message : "Erro ao processar pagamento");
     } finally {
       setIsProcessing(false);
     }
   };
 
+  if (isCheckingStatus) return <LoadingSpinnerFullScreen message="Carregando seu plano..." />;
+
   return (
     <div className="relative w-full min-h-screen overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
+      <div className="relative z-10 mx-auto max-w-md px-5 pt-4 pb-24">
 
-      {/* Loading state */}
-      {isCheckingStatus && <LoadingSpinnerFullScreen message="Carregando seu plano..." />}
-
-      <div className="relative z-10 mx-auto max-w-md px-6 py-4">
-        {/* Back button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-6 p-2 hover:bg-card/40 rounded-full transition-colors"
-        >
-          <ArrowLeft size={24} className="text-foreground" />
+        {/* Back */}
+        <button onClick={() => navigate(-1)} className="mb-5 w-10 h-10 rounded-2xl liquiglass-button flex items-center justify-center">
+          <ArrowLeft size={18} className="text-foreground" />
         </button>
 
-        {/* Error loading status */}
-        {!isCheckingStatus && statusError && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/30"
-          >
-            <p className="text-sm text-destructive font-medium">⚠️ Erro ao carregar status: {statusError}</p>
-            <button
-              onClick={() => {
-                setRetryCount(retryCount + 1);
-                loadUserAndStatus();
-              }}
-              disabled={isCheckingStatus}
-              className="mt-2 text-xs text-destructive underline font-semibold disabled:opacity-50"
-            >
-              {isCheckingStatus ? "Carregando..." : "Tentar novamente"}
-            </button>
-          </motion.div>
+        {/* ── ESTADO: JÁ É PREMIUM ── */}
+        {isPremium && billingStatus && (
+          <ActivePremiumView
+            billingStatus={billingStatus}
+            onDashboard={() => navigate("/dashboard")}
+            onRoutine={() => {
+              const a = getCachedLatestAnalysis();
+              navigate("/routine", a ? { state: { analysis: a } } : undefined);
+            }}
+          />
         )}
 
-        {/* Premium Already Active */}
-        {!isCheckingStatus && isPremium && billingStatus && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
-            {/* Header */}
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/20 mb-6">
-                <CheckCircle2 size={40} className="text-green-500" />
-              </div>
+        {/* ── ESTADO: PRECISA ASSINAR ── */}
+        {!isPremium && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
 
-              <h1 className="text-3xl font-black text-foreground mb-3 leading-tight">
-                Você é Premium! 🎉
+            {/* Logo + headline */}
+            <div className="text-center">
+              <img src={logoFaceglow} alt="FaceGlow" className="h-20 mx-auto mb-4" />
+              <h1 className="text-2xl font-black text-foreground leading-tight mb-1">
+                Cuide da sua pele com <span className="text-primary">inteligência</span>
               </h1>
-              <p className="text-muted-foreground text-base max-w-sm mx-auto">
-                Explore todos os recursos e acessos do seu plano
+              <p className="text-sm text-muted-foreground">
+                Análises personalizadas, rotina diária e evolução real da sua pele
               </p>
             </div>
 
-            {/* Plan Details Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 border border-primary/20 space-y-4"
+            {/* Toggle: Assinatura / Avulsa */}
+            <div
+              className="flex rounded-2xl p-1 gap-1"
+              style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-border)" }}
             >
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Plano Ativo</p>
-                  <p className="text-lg font-bold text-foreground mt-1">{billingStatus.planName}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Forma de Pagamento</p>
-                  <p className="text-lg font-bold text-foreground mt-1">{getPaymentMethodLabel(billingStatus.gateway)}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Ativado em</p>
-                  <p className="text-sm font-semibold text-foreground mt-1">
-                    {formatDate(billingStatus.activatedAtUtc)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Próxima Renovação</p>
-                  <p className="text-sm font-semibold text-foreground mt-1">
-                    {formatDate(billingStatus.expiresAtUtc)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg bg-accent/10 border border-accent/20">
-                <div className="flex items-center gap-2">
-                  <ZapIcon size={16} className="text-accent" />
-                  <span className="text-sm font-semibold text-foreground">Valor Mensal</span>
-                </div>
-                <p className="text-lg font-black text-accent">
-                  R$ {(billingStatus.amountCents / 100).toFixed(2).replace(".", ",")}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Features/Resources */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="space-y-3"
-            >
-              <p className="text-sm font-semibold text-foreground">Seus Recursos e Acessos</p>
-              <div className="grid gap-2">
-                {getPlanFeatures(billingStatus.planKey).map((feature, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.05 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-card/70 border border-border hover:border-primary/30 transition-colors"
-                  >
-                    <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" />
-                    <span className="text-sm font-medium text-foreground">{feature}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Action Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="grid grid-cols-2 gap-3 pt-4"
-            >
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm active:scale-[0.97] transition-transform"
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => {
-                  const latestAnalysis = getCachedLatestAnalysis();
-                  navigate("/routine", latestAnalysis ? { state: { analysis: latestAnalysis } } : undefined);
-                }}
-                className="px-4 py-3 rounded-xl bg-card border border-border text-foreground font-bold text-sm active:scale-[0.97] transition-transform hover:border-primary/30"
-              >
-                Rotina
-              </button>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
-              className="text-center pt-4"
-            >
-              <p className="text-xs text-muted-foreground mb-3">
-                📅 Renovação automática. Você pode cancelar seu plano a qualquer momento.
-              </p>
-              <button
-                onClick={() => alert("Funcionalidade de cancelamento em desenvolvimento")}
-                className="inline-block text-xs text-destructive font-semibold hover:underline"
-              >
-                Cancelar meu plano
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Premium Checkout (shown only if not premium) */}
-        {!isCheckingStatus && !isPremium && (
-          <>
-            {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center mb-4"
-            >
-              <img src={logoFaceglow} alt="FaceGlow" className="h-36 mx-auto mb-3" />
-              <h1 className="text-2xl font-black text-foreground leading-tight">
-                Desbloqueie sua melhor pele com{" "}
-                <span className="text-primary">FaceGlow Premium</span>
-              </h1>
-              <p className="text-xs text-muted-foreground mt-1">
-                Análises faciais e rotinas personalizadas para sua pele
-              </p>
-            </motion.div>
-
-            {/* Features — lista de benefícios centralizada */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="mb-4 flex flex-col items-center gap-2"
-            >
-              {FEATURES.map((feature, i) => {
-                const Icon = feature.icon;
-                return (
-                  <div key={i} className="flex items-center gap-2">
-                    <Icon size={15} className={feature.color} />
-                    <p className="text-sm font-semibold text-foreground">{feature.label}</p>
-                  </div>
-                );
-              })}
-            </motion.div>
-
-            {/* Plans */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="space-y-2 mb-4"
-            >
-              {PLANS.map((p) => (
+              {(["subscription", "avulsa"] as const).map((t) => (
                 <button
-                  key={p.key}
-                  onClick={() => setSelectedPlan(p.key)}
-                  className={`relative w-full p-3.5 rounded-2xl border-2 transition-all text-left ${
-                    selectedPlan === p.key
-                      ? "border-primary lg-surface-strong shadow-lg"
-                      : "border-white/80 lg-surface hover:border-primary/30"
+                  key={t}
+                  onClick={() => setBillingType(t)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    billingType === t
+                      ? "coral-button text-white shadow-glow"
+                      : "text-muted-foreground"
                   }`}
                 >
-                  {p.badge && (
-                    <div className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full shadow-md">
-                      {p.badge}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1">
-                      <p className="font-bold text-foreground text-sm">{p.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xl font-black text-foreground">
-                        R$ {(p.price / 100).toFixed(2).replace(".", ",")}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">{p.period}</p>
-                    </div>
-                  </div>
-                  {selectedPlan === p.key && (
-                    <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-md">
-                      <div className="w-1.5 h-1.5 bg-card rounded-full" />
-                    </div>
-                  )}
+                  {t === "subscription" ? "✨ Assinatura" : "⚡ Análise Avulsa"}
                 </button>
               ))}
-            </motion.div>
+            </div>
 
-            {/* Payment Method */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="mb-4"
-            >
-              <p className="text-xs font-semibold text-foreground mb-2">Forma de Pagamento</p>
+            {/* ── Planos de assinatura ── */}
+            <AnimatePresence mode="wait">
+              {billingType === "subscription" && (
+                <motion.div
+                  key="subscription"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="space-y-3"
+                >
+                  {(["annual", "monthly"] as PlanTier[]).map((key) => {
+                    const p = PLANS[key];
+                    const isSelected = selectedPlan === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedPlan(key)}
+                        className={`relative w-full p-4 rounded-2xl text-left transition-all ${
+                          isSelected
+                            ? "lg-surface-strong"
+                            : "lg-surface opacity-80"
+                        }`}
+                        style={{
+                          border: isSelected
+                            ? "2px solid var(--primary, #e8a9c2)"
+                            : "2px solid var(--glass-border)",
+                          boxShadow: isSelected ? "0 0 0 4px rgba(232,169,194,0.15)" : undefined,
+                        }}
+                      >
+                        {p.badge && (
+                          <span
+                            className="absolute -top-2.5 right-4 px-2.5 py-0.5 text-[10px] font-black text-white rounded-full"
+                            style={{ background: "var(--grad-coral)" }}
+                          >
+                            {p.badge}
+                          </span>
+                        )}
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-extrabold text-foreground text-sm">{p.name}</p>
+                            {p.savings && (
+                              <p className="text-[11px] text-green-600 font-semibold mt-0.5">{p.savings}</p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {p.monthlyEquiv && (
+                              <p className="text-[10px] text-muted-foreground line-through">
+                                {fmt(2490)}/mês
+                              </p>
+                            )}
+                            <p className="text-xl font-black text-foreground">
+                              {p.monthlyEquiv ? fmt(p.monthlyEquiv) : fmt(p.priceCents)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {p.monthlyEquiv ? "por mês · cobrado anualmente" : p.period}
+                            </p>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div
+                            className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center"
+                            style={{ background: "var(--grad-coral)", boxShadow: "0 2px 8px rgba(220,100,140,0.5)" }}
+                          >
+                            <div className="w-2 h-2 bg-white rounded-full" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+
+              {/* ── Avulsa ── */}
+              {billingType === "avulsa" && (
+                <motion.div
+                  key="avulsa"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="lg-surface-strong p-5 rounded-2xl"
+                  style={{ border: "2px solid var(--primary, #e8a9c2)" }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-extrabold text-foreground">Análise Avulsa</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Resultado completo, sem assinatura</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-foreground">R$ 4,90</p>
+                      <p className="text-[10px] text-muted-foreground">por análise</p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 font-medium">
+                    ℹ️ Inclui análise completa, mas não dá acesso à rotina personalizada nem ao histórico.
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* ── Tabela de features ── */}
+            <div className="lg-surface rounded-2xl overflow-hidden">
+              {/* Header */}
+              <div
+                className="grid gap-0 text-center py-2"
+                style={{
+                  gridTemplateColumns: "1fr 64px 64px 72px",
+                  borderBottom: "1px solid var(--glass-border)",
+                  padding: "10px 12px",
+                }}
+              >
+                <span className="text-[11px] font-bold text-muted-foreground text-left">Recurso</span>
+                <span className="text-[11px] font-bold text-muted-foreground">Free</span>
+                <span className="text-[11px] font-bold text-muted-foreground">Avulsa</span>
+                <span className="text-[11px] font-extrabold text-primary">Premium</span>
+              </div>
+
+              {/* Rows */}
+              {FEATURES.map((f, i) => (
+                <div
+                  key={i}
+                  className="grid items-center"
+                  style={{
+                    gridTemplateColumns: "1fr 64px 64px 72px",
+                    padding: "9px 12px",
+                    borderBottom: i < FEATURES.length - 1 ? "1px solid var(--glass-border-soft)" : undefined,
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: "var(--glass-bg-soft)" }}
+                    >
+                      <FontAwesomeIcon icon={f.icon} style={{ fontSize: "10px", color: "var(--fg-ink-3)" }} />
+                    </div>
+                    <span className="text-xs font-medium text-foreground leading-tight">{f.label}</span>
+                  </div>
+                  <FeatureTick ok={f.free} />
+                  <FeatureTick ok={f.avulsa} />
+                  <FeatureTick ok={f.premium} highlight />
+                </div>
+              ))}
+            </div>
+
+            {/* ── Forma de pagamento ── */}
+            <div>
+              <p className="text-xs font-bold text-foreground mb-2">Forma de pagamento</p>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: "stripe-card" as const, label: "Cartão", icon: CreditCard },
                   { id: "mercadopago-pix" as const, label: "PIX", icon: QrCode },
-                ].map((method) => (
+                ].map((m) => (
                   <button
-                    key={method.id}
-                    onClick={() => setSelectedPayment(method.id)}
-                    className={`p-2.5 rounded-xl border-2 font-semibold transition-all flex items-center justify-center gap-2 ${
-                      selectedPayment === method.id
+                    key={m.id}
+                    onClick={() => setSelectedPayment(m.id)}
+                    className={`p-3 rounded-xl border-2 font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                      selectedPayment === m.id
                         ? "border-primary lg-surface-strong text-primary"
-                        : "border-white/80 lg-surface text-foreground hover:border-primary/30"
+                        : "lg-surface text-foreground"
                     }`}
+                    style={{
+                      borderColor: selectedPayment === m.id ? "var(--primary, #e8a9c2)" : "var(--glass-border)",
+                    }}
                   >
-                    <method.icon size={18} />
-                    <p className="text-sm">{method.label}</p>
+                    <m.icon size={16} />
+                    {m.label}
                   </button>
                 ))}
               </div>
-            </motion.div>
+            </div>
 
-            {/* Error message */}
+            {/* Erro */}
             {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
+              <motion.p
+                initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive"
+                className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3"
               >
                 {error}
-              </motion.div>
+              </motion.p>
             )}
 
-            {/* CTA Button */}
+            {/* CTA */}
             <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              whileTap={{ scale: 0.97 }}
               onClick={handleCheckout}
               disabled={isProcessing}
-              className="coral-button w-full py-3.5 rounded-2xl font-bold text-base active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+              className="coral-button w-full py-4 rounded-2xl font-extrabold text-base flex items-center justify-center gap-2.5 shadow-glow disabled:opacity-50"
             >
               {isProcessing ? (
-                <span className="flex items-center justify-center gap-2">
+                <>
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                   {selectedPayment === "stripe-card" ? "Abrindo checkout..." : "Gerando PIX..."}
-                </span>
+                </>
               ) : (
-                selectedPayment === "stripe-card" ? "Pagar com Cartão" : "Pagar com PIX"
+                <>
+                  <FontAwesomeIcon icon={faCrown} className="text-sm" />
+                  {billingType === "avulsa"
+                    ? "Comprar 1 Análise · R$ 4,90"
+                    : selectedPlan === "annual"
+                    ? `Assinar Anual · ${fmt(19790)}/ano`
+                    : `Assinar Mensal · ${fmt(2490)}/mês`}
+                  <FontAwesomeIcon icon={faChevronRight} className="text-xs opacity-75" />
+                </>
               )}
             </motion.button>
 
-            {/* Footer */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-center"
-            >
-              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground mb-1.5">
-                <RotateCw size={12} />
-                <p>Renovação automática. Cancele a qualquer hora.</p>
-              </div>
+            {/* Rodapé legal */}
+            <div className="text-center space-y-1.5 pb-4">
+              {billingType === "subscription" && (
+                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                  <RotateCw size={11} />
+                  <span>Renovação automática. Cancele a qualquer momento.</span>
+                </div>
+              )}
               <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                 <a href="#" className="underline">Termos de Uso</a>
                 <span className="opacity-40">|</span>
                 <a href="#" className="underline">Privacidade</a>
                 <span className="opacity-40">|</span>
-                <a href="#" className="underline">Restaurar</a>
+                <a href="#" className="underline">Restaurar compra</a>
               </div>
-            </motion.div>
-          </>
+            </div>
+          </motion.div>
         )}
       </div>
     </div>
   );
 };
+
+// ── Subcomponentes ────────────────────────────────────────────────────────────
+
+const FeatureTick = ({ ok, highlight }: { ok: boolean; highlight?: boolean }) => (
+  <div className="flex justify-center">
+    {ok ? (
+      <CheckCircle2
+        size={16}
+        className={highlight ? "text-primary" : "text-green-500"}
+        style={highlight ? { filter: "drop-shadow(0 0 4px rgba(220,100,140,0.4))" } : undefined}
+      />
+    ) : (
+      <XCircle size={16} className="text-muted-foreground opacity-30" />
+    )}
+  </div>
+);
+
+const ActivePremiumView = ({
+  billingStatus,
+  onDashboard,
+  onRoutine,
+}: {
+  billingStatus: BillingStatusResponse;
+  onDashboard: () => void;
+  onRoutine: () => void;
+}) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+    {/* Header */}
+    <div className="text-center">
+      <div
+        className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
+        style={{ background: "var(--grad-coral)", boxShadow: "0 8px 28px -4px rgba(220,100,140,0.5)" }}
+      >
+        <FontAwesomeIcon icon={faCrown} className="text-white text-3xl" />
+      </div>
+      <h1 className="text-2xl font-black text-foreground mb-1">Você é Premium! 🎉</h1>
+      <p className="text-sm text-muted-foreground">Explore todos os recursos do seu plano</p>
+    </div>
+
+    {/* Detalhes do plano */}
+    <div
+      className="lg-surface-strong p-5 rounded-2xl space-y-4"
+      style={{ border: "1px solid var(--primary, #e8a9c2)" }}
+    >
+      <div className="grid grid-cols-2 gap-4">
+        <InfoCell label="Plano Ativo" value={billingStatus.planName} />
+        <InfoCell label="Pagamento" value={getPaymentLabel(billingStatus.gateway)} />
+        <InfoCell label="Ativado em" value={formatDate(billingStatus.activatedAtUtc)} small />
+        <InfoCell label="Próxima renovação" value={formatDate(billingStatus.expiresAtUtc)} small />
+      </div>
+      <div
+        className="flex items-center justify-between p-3 rounded-xl"
+        style={{ background: "var(--glass-bg-soft)", border: "1px solid var(--glass-border-soft)" }}
+      >
+        <span className="text-sm font-semibold text-foreground">Valor do plano</span>
+        <span className="text-lg font-black text-primary">
+          {fmt(billingStatus.amountCents)}
+        </span>
+      </div>
+    </div>
+
+    {/* Features ativas */}
+    <div>
+      <p className="text-sm font-bold text-foreground mb-2">O que está incluído</p>
+      <div className="space-y-2">
+        {(ACTIVE_PLAN_FEATURES[billingStatus.planKey] ?? []).map((feat, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 + i * 0.04 }}
+            className="flex items-center gap-3 p-3 rounded-xl lg-surface"
+          >
+            <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
+            <span className="text-sm font-medium text-foreground">{feat}</span>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+
+    {/* Ações */}
+    <div className="grid grid-cols-2 gap-3">
+      <button onClick={onDashboard} className="coral-button py-3 rounded-xl font-bold text-sm">
+        Dashboard
+      </button>
+      <button onClick={onRoutine} className="liquiglass-button py-3 rounded-xl font-bold text-sm">
+        Minha Rotina
+      </button>
+    </div>
+
+    <div className="text-center pb-4">
+      <p className="text-xs text-muted-foreground mb-2">
+        Renovação automática. Cancele a qualquer momento.
+      </p>
+      <button
+        onClick={() => alert("Funcionalidade de cancelamento em desenvolvimento")}
+        className="text-xs text-rose-500 font-semibold underline"
+      >
+        Cancelar meu plano
+      </button>
+    </div>
+  </motion.div>
+);
+
+const InfoCell = ({ label, value, small }: { label: string; value: string; small?: boolean }) => (
+  <div>
+    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
+    <p className={`font-bold text-foreground mt-0.5 ${small ? "text-sm" : "text-base"}`}>{value}</p>
+  </div>
+);
 
 export default Premium;

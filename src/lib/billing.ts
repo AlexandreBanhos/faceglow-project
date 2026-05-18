@@ -1,7 +1,7 @@
 import { apiClient } from "@/shared/services/api/ApiClient";
 import { getAccessTokenWithWait } from "@/lib/auth";
 
-export type BillingPlanKey = "test" | "credits" | "monthly" | "quarterly" | "annual";
+export type BillingPlanKey = "test" | "credits" | "monthly" | "annual";
 export type BillingGatewayKey = "mercadopago-pix" | "mercadopago-card" | "stripe-card";
 
 export type BillingCheckoutRequest = {

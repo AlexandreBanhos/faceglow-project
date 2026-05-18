@@ -181,6 +181,29 @@ const History = () => {
         </div>
       </motion.div>
 
+      {/* Botão Nova Análise — abaixo do gráfico */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="px-6 mb-6"
+      >
+        <button
+          onClick={() => navigate("/analyze")}
+          className="w-full flex items-center justify-center gap-3 font-bold text-white"
+          style={{
+            height: 52,
+            background: "linear-gradient(135deg, #E8A882 0%, #D4856A 100%)",
+            borderRadius: 16,
+            border: "none",
+            boxShadow: "0 6px 20px -4px rgba(212,133,106,0.45)",
+            fontSize: 15,
+          }}
+        >
+          📷 Nova Análise
+        </button>
+      </motion.div>
+
       {latestAnalysis && analyses.length > 1 && (
         <>
           {/* Análise Principal */}

@@ -13,9 +13,8 @@ const POLL_INTERVAL_MS = 4_000;
 
 const CREDITS_BY_PLAN: Record<string, number> = {
   "credits": 1,
-  "monthly": 5,
-  "quarterly": 15,
-  "annual": 60,
+  "monthly": 8,
+  "annual": 8,
 };
 
 const BillingSuccess = () => {
@@ -36,9 +35,8 @@ const BillingSuccess = () => {
   const planName = useMemo(() => {
     const plan = searchParams.get("plan");
     if (plan === "credits") return "Análise Avulsa";
-    if (plan === "monthly") return "Plano Mensal";
-    if (plan === "quarterly") return "Plano Trimestral";
-    if (plan === "annual") return "Plano Anual";
+    if (plan === "monthly") return "Premium Mensal";
+    if (plan === "annual") return "Premium Anual";
     return "Plano Premium";
   }, [searchParams]);
 

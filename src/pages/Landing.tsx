@@ -122,7 +122,7 @@ export function LandingPageContent() {
 
             {/* Subheading */}
             <p className="text-[var(--fg-ink-3)] text-lg mb-8 max-w-xl mx-auto">
-              5 análises grátis. Sem cartão de crédito. Resultado em 60 segundos.
+              1 análise grátis. Sem cartão de crédito. Resultado em 60 segundos.
             </p>
 
             {/* Primary CTA */}
@@ -137,7 +137,7 @@ export function LandingPageContent() {
             <div className="flex flex-col md:flex-row gap-4 justify-center items-center text-[var(--fg-ink-3)] text-sm">
               <div className="flex items-center gap-2">
                 <span className="text-green-500 font-bold">✓</span>
-                <span>5 análises grátis</span>
+                <span>1 análise grátis</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-green-500 font-bold">✓</span>

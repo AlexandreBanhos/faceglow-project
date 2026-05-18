@@ -4,7 +4,7 @@ export interface UserStatus {
   userId: string;
   isPremium: boolean;
   isFullAccess: boolean;
-  subscriptionType?: "credits" | "monthly" | "quarterly" | "annual";
+  subscriptionType?: "credits" | "monthly" | "annual" | "test";
   creditsRemaining: number;
   subscriptionStatus?: "active" | "expired" | "pending" | "failed";
   expiresAtUtc?: string;

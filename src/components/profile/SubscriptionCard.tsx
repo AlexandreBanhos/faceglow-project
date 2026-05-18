@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { ChevronRight, Sparkles, CreditCard, Coins } from "lucide-react";
 
 const PLAN_LABELS: Record<string, string> = {
-  monthly: "Mensal", quarterly: "Trimestral",
-  annual: "Anual",   credits: "Créditos",
+  monthly: "Premium Mensal",
+  annual:  "Premium Anual",
+  credits: "Análise Avulsa",
+  test:    "Teste",
 };
 
 interface SubscriptionCardProps {

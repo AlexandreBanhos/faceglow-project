@@ -22,23 +22,27 @@ const maxCx = (W: number) => W - DIP_HW - 2;
 
 interface Tab { path: string; icon: LucideIcon; label: string }
 
-// ── Path SVG: borda reta + dip suave (8 comandos fixos) ──────────────────────
-// Cantos superiores em ângulo reto (L direto) — sem Q, sem border-radius.
-// A curvatura S do dip usa dois cubic bezier (C) com os mesmos parâmetros do
-// referencial fornecido: sm = DW*0.48 (spread), bm = DW*0.22 (inner tangent).
+// ── Path SVG: borda reta + dip suave + cantos arredondados ──────────────────
+// Cantos superiores com raio de 20px, dip no meio.
 function buildNavPath(W: number, H: number, cx: number): string {
   const hw = DIP_HW;
   const sm = hw * 0.48;   // spread do ponto de controle externo
   const bm = hw * 0.22;   // spread do ponto de controle interno
   const d  = DIP_D;
+  const r  = 20;          // border-radius
   return [
-    `M 0 0`,
+    `M ${r} 0`,
     `L ${cx - hw} 0`,
     `C ${cx - hw + sm} 0 ${cx - bm} ${d} ${cx} ${d}`,  // descida suave
     `C ${cx + bm} ${d} ${cx + hw - sm} 0 ${cx + hw} 0`, // subida suave
-    `L ${W} 0`,   // canto sup-dir — ângulo reto
-    `L ${W} ${H}`,
-    `L 0 ${H}`,
+    `L ${W - r} 0`,
+    `Q ${W} 0 ${W} ${r}`,  // canto sup-dir arredondado
+    `L ${W} ${H - r}`,
+    `Q ${W} ${H} ${W - r} ${H}`, // canto inf-dir arredondado
+    `L ${r} ${H}`,
+    `Q 0 ${H} 0 ${H - r}`, // canto inf-esq arredondado
+    `L 0 ${r}`,
+    `Q 0 0 ${r} 0`,        // canto sup-esq arredondado
     `Z`,
   ].join(" ");
 }
@@ -184,10 +188,10 @@ const BottomNav = () => {
   const cameraShift  = NAV_H / 2 - DIP_D / 2;
 
   return (
-    <nav className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 bottom-nav-safe">
+    <nav className="pointer-events-none fixed bottom-0 left-1/2 -translate-x-1/2 z-50 bottom-nav-safe px-3 sm:px-4 pb-3 sm:pb-4 w-full max-w-screen-sm">
       <div
         ref={containerRef}
-        style={{ position: "relative", height: NAV_H, width: "100%", overflow: "visible", pointerEvents: "auto" }}
+        style={{ position: "relative", height: NAV_H, width: "100%", overflow: "visible", pointerEvents: "auto", borderRadius: "20px 20px 0 0" }}
       >
         {/* ── z:1 Glass com clip-path do dip ─────────────────────────────── */}
         {ready && (
@@ -199,6 +203,7 @@ const BottomNav = () => {
             clipPath: navPath ? `path('${navPath}')` : undefined,
             transition: `clip-path 0.4s ${EASING}`,
             zIndex: 1, pointerEvents: "none",
+            borderRadius: "20px 20px 0 0",
           }} />
         )}
 

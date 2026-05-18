@@ -11,8 +11,8 @@ interface Props {
 }
 
 const CHIPS = [
-  { emoji: "✨", label: "100% gratuito" },
-  { emoji: "⚡", label: "Resultado em 30s" },
+  { emoji: "🎁", label: "1ª análise grátis" },
+  { emoji: "⚡", label: "Resultado em 60s" },
   { emoji: "🔒", label: "Privacidade garantida" },
 ];
 

@@ -27,19 +27,32 @@ const getFriendlyAuthMessage = (error: unknown, fallback: string) => {
     return "Seu e-mail ainda nao foi confirmado. Verifique sua caixa de entrada.";
   }
 
-  if (message.includes("invalid email") || message.includes("email address") || message.includes("email")) {
-    return "E-mail invalido. Revise o endereco digitado.";
+  // Checar rate limit ANTES do check genérico de "email" — o Supabase retorna
+  // "Email rate limit exceeded" no 429, que contém "email" e causaria falso positivo.
+  if (
+    message.includes("rate limit") ||
+    message.includes("too many request") ||
+    message.includes("for security purposes") ||
+    message.includes("after 60 seconds") ||
+    message.includes("after 1 hour") ||
+    message.includes("over_email")
+  ) {
+    return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
   }
 
   if (message.includes("user already registered") || message.includes("already registered")) {
     return "Este e-mail ja esta cadastrado. Tente entrar ou recuperar sua senha.";
   }
 
+  if (message.includes("invalid email") || message.includes("email address")) {
+    return "E-mail invalido. Revise o endereco digitado.";
+  }
+
   if (message.includes("password") && message.includes("weak")) {
     return "Senha fraca. Use pelo menos 6 caracteres com letras e numeros.";
   }
 
-  if (message.includes("network") || message.includes("fetch") || message.includes("timeout")) {
+  if (message.includes("network") || message.includes("fetch") || message.includes("timeout") || message.includes("connection")) {
     return "Nao foi possivel conectar agora. Verifique sua internet e tente novamente.";
   }
 

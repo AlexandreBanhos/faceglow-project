@@ -56,9 +56,11 @@ export default function TermsOfUse() {
         <section>
           <h2 className="text-lg font-semibold mb-2">4. Créditos e planos</h2>
           <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-            <li><strong>Crédito único:</strong> R$ 5,00 por análise (PIX via MercadoPago).</li>
-            <li><strong>Plano mensal:</strong> R$ 29,90/mês com 5 análises incluídas (cartão via Stripe).</li>
-            <li>Créditos não utilizados não expiram enquanto a conta estiver ativa.</li>
+            <li><strong>Plano Free:</strong> 1 análise gratuita vitalícia, sem cartão de crédito.</li>
+            <li><strong>Análise Avulsa:</strong> R$ 4,90 por análise (PIX via MercadoPago ou cartão).</li>
+            <li><strong>Premium Mensal:</strong> R$ 24,90/mês com 8 análises mensais e acesso completo (cartão via Stripe ou PIX).</li>
+            <li><strong>Premium Anual:</strong> R$ 197,90/ano (equivalente a R$ 16,49/mês) — 2 meses grátis em relação ao plano mensal.</li>
+            <li>Créditos avulsos não utilizados não expiram enquanto a conta estiver ativa.</li>
             <li>Não há reembolso de créditos já utilizados em análises concluídas.</li>
           </ul>
         </section>
