@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield } from "lucide-react";
+import { Shield, ImageOff, Share2, UserCheck } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -8,9 +8,27 @@ interface Props {
 }
 
 const GUARANTEES = [
-  { emoji: "🔒", title: "Não armazenamos suas fotos", desc: "As imagens são processadas e descartadas imediatamente após a análise." },
-  { emoji: "🚫", title: "Não compartilhamos dados",   desc: "Nenhuma informação é enviada a terceiros." },
-  { emoji: "✅", title: "Análise anônima",            desc: "Sem identificação pessoal vinculada ao resultado." },
+  {
+    Icon: ImageOff,
+    color: "#6366f1",
+    bg: "#f0f0ff",
+    title: "Fotos não armazenadas",
+    desc: "Sua imagem é processada pela IA e descartada logo após a análise. Não mantemos cópias.",
+  },
+  {
+    Icon: Share2,
+    color: "#0ea5e9",
+    bg: "#f0f9ff",
+    title: "Sem compartilhamento de dados",
+    desc: "Seus dados e imagem jamais são enviados a terceiros nem usados para treinar modelos.",
+  },
+  {
+    Icon: UserCheck,
+    color: "#16a34a",
+    bg: "#f0fdf4",
+    title: "Análise segura e privada",
+    desc: "Os resultados são acessíveis apenas por você. Tudo protegido conforme a LGPD.",
+  },
 ];
 
 export const AnalysisTermsModal = ({ open, onAccept, onDecline }: Props) => (
@@ -82,7 +100,12 @@ export const AnalysisTermsModal = ({ open, onAccept, onDecline }: Props) => (
                     boxShadow: "0 2px 12px rgba(244,168,199,0.08), inset 0 1px 0 rgba(255,255,255,0.8)",
                   }}
                 >
-                  <span style={{ fontSize: 22, flexShrink: 0, marginTop: 1 }}>{g.emoji}</span>
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ background: g.bg }}
+                  >
+                    <g.Icon size={17} style={{ color: g.color }} />
+                  </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#1A1A1A", marginBottom: 2 }}>{g.title}</div>
                     <div style={{ fontSize: 12, color: "#6B6B6B", lineHeight: 1.4 }}>{g.desc}</div>

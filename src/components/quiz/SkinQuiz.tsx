@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import { Mascot, useFloatAnimation } from "@/components/quiz/Mascot";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type MascotMood = "happy" | "thinking" | "sad";
+export type { MascotMood } from "@/components/quiz/Mascot";
 
 export interface QuizOption {
   id: string;
@@ -19,7 +20,7 @@ export interface QuizQuestion {
   question: string;
   highlight?: string;
   subtitle?: string;
-  mascotMood?: MascotMood;
+  mascotMood?: import("@/components/quiz/Mascot").MascotMood;
   type: "single" | "multi";
   columns?: 1 | 2;
   options: QuizOption[];
@@ -31,84 +32,6 @@ export interface SkinQuizProps {
   onBack?: () => void;
   /** Mostra banner de análise em andamento (quiz durante loading) */
   analysisInProgress?: boolean;
-}
-
-// ─── Float animation (injected once) ────────────────────────────────────────
-
-const FLOAT_KEYFRAME = `
-@keyframes _quiz_float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-7px); }
-}`;
-
-function useFloatAnimation() {
-  useEffect(() => {
-    if (document.getElementById("_quiz_float_style")) return;
-    const el = document.createElement("style");
-    el.id = "_quiz_float_style";
-    el.textContent = FLOAT_KEYFRAME;
-    document.head.appendChild(el);
-    return () => { el.remove(); };
-  }, []);
-}
-
-// ─── Mascot ──────────────────────────────────────────────────────────────────
-
-function Mascot({ mood = "happy" }: { mood?: MascotMood }) {
-  return (
-    <div style={{ flexShrink: 0, animation: "_quiz_float 3.2s ease-in-out infinite" }}>
-      <svg width="72" height="72" viewBox="0 0 72 72" fill="none" aria-hidden="true">
-        <circle cx="36" cy="36" r="35" fill="white" stroke="#e0ddf4" strokeWidth="2" />
-
-        {mood === "happy" && (
-          <>
-            <ellipse cx="19" cy="43" rx="6" ry="4" fill="#fda4af" opacity="0.5" />
-            <ellipse cx="53" cy="43" rx="6" ry="4" fill="#fda4af" opacity="0.5" />
-            {/* Closed happy eyes */}
-            <path d="M22 30 Q27 24 32 30" stroke="#1e1b4b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            <path d="M40 30 Q45 24 50 30" stroke="#1e1b4b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            {/* Wide smile */}
-            <path d="M23 42 Q36 55 49 42" stroke="#1e1b4b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-          </>
-        )}
-
-        {mood === "thinking" && (
-          <>
-            <circle cx="26" cy="32" r="5" fill="#1e1b4b" />
-            <circle cx="46" cy="32" r="5" fill="#1e1b4b" />
-            <circle cx="28" cy="30" r="1.8" fill="white" />
-            <circle cx="48" cy="30" r="1.8" fill="white" />
-            {/* Left eyebrow normal */}
-            <path d="M21 25 Q26 23 31 25" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" fill="none" />
-            {/* Right eyebrow raised */}
-            <path d="M41 23 Q46 20 51 22" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" fill="none" />
-            {/* Slight smirk */}
-            <path d="M28 46 Q36 43 44 45" stroke="#1e1b4b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            {/* Thought bubbles */}
-            <circle cx="55" cy="18" r="2.5" fill="#c4b5fd" opacity="0.6" />
-            <circle cx="60" cy="12" r="3.5" fill="#c4b5fd" opacity="0.4" />
-            <circle cx="65" cy="6"  r="4.5" fill="#c4b5fd" opacity="0.25" />
-          </>
-        )}
-
-        {mood === "sad" && (
-          <>
-            <circle cx="26" cy="33" r="4.5" fill="#1e1b4b" />
-            <circle cx="46" cy="33" r="4.5" fill="#1e1b4b" />
-            <circle cx="28" cy="31" r="1.5" fill="white" />
-            <circle cx="48" cy="31" r="1.5" fill="white" />
-            {/* Sad eyebrows (inner corners raised) */}
-            <path d="M21 26 Q26 22 31 25" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" fill="none" />
-            <path d="M41 25 Q46 22 51 26" stroke="#1e1b4b" strokeWidth="2" strokeLinecap="round" fill="none" />
-            {/* Downturned mouth */}
-            <path d="M27 48 Q36 42 45 48" stroke="#1e1b4b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            {/* Tear */}
-            <ellipse cx="23" cy="44" rx="2" ry="3.5" fill="#93c5fd" opacity="0.75" />
-          </>
-        )}
-      </svg>
-    </div>
-  );
 }
 
 // ─── ProgressBar ─────────────────────────────────────────────────────────────

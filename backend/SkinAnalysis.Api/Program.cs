@@ -334,6 +334,7 @@ app.MapPut("/profile/lifestyle", async (
     HttpContext ctx,
     AppDbContext db,
     RoutineGeneratorService routineEngine,
+    RoutineSuggestionService suggestionService,
     CancellationToken ct) =>
 {
     var userId = EndpointHelpers.GetAuthenticatedUserId(ctx.User);
@@ -346,16 +347,69 @@ app.MapPut("/profile/lifestyle", async (
     if (profile is null)
         return Results.NotFound(new { detail = "Perfil não encontrado. Realize uma análise primeiro." });
 
+    if (profile.LifestyleQuestionnaireCompletedAt.HasValue)
+        return Results.Conflict(new { detail = "Questionário já respondido.", completedAt = profile.LifestyleQuestionnaireCompletedAt });
+
     profile.UsesMakeup    = dto.UsesMakeup;
     profile.BudgetRange   = dto.BudgetRange;
     profile.PregnancySafe = dto.PregnancySafe;
     profile.UpdatedAt     = DateTime.UtcNow;
+    profile.LifestyleQuestionnaireCompletedAt = DateTime.UtcNow;
 
     await db.SaveChangesAsync(ct);
-    await routineEngine.GenerateForProfileAsync(profile, ct);
 
-    return Results.Ok(new { success = true });
+    if (profile.AnalysisId.HasValue)
+    {
+        var hasSuggestions = await suggestionService.TryGenerateSuggestionsAsync(profile.AnalysisId.Value, profile, ct);
+        if (!hasSuggestions)
+            await routineEngine.GenerateForProfileAsync(profile, ct);
+    }
+    else
+    {
+        await routineEngine.GenerateForProfileAsync(profile, ct);
+    }
+
+    return Results.Ok(new { success = true, completedAt = profile.LifestyleQuestionnaireCompletedAt });
 });
+
+app.MapGet("/profile/lifestyle", async (
+    HttpContext ctx,
+    AppDbContext db,
+    CancellationToken ct) =>
+{
+    var userId = EndpointHelpers.GetAuthenticatedUserId(ctx.User);
+    if (userId is null)
+        return Results.Unauthorized();
+
+    var profile = await db.SkinProfiles
+        .AsNoTracking()
+        .Where(p => p.UserId == userId.Value && p.IsCurrent)
+        .Select(p => new { p.LifestyleQuestionnaireCompletedAt })
+        .FirstOrDefaultAsync(ct);
+
+    if (profile is null)
+        return Results.Ok(new { questionnaireCompletedAt = (DateTime?)null });
+
+    return Results.Ok(new { questionnaireCompletedAt = profile.LifestyleQuestionnaireCompletedAt });
+}).RequireAuthorization();
+
+// ── Account management ───────────────────────────────────────────────────────
+app.MapPost("/account/deactivate", async (
+    HttpContext ctx,
+    AppDbContext db,
+    CancellationToken ct) =>
+{
+    var userId = EndpointHelpers.GetAuthenticatedUserId(ctx.User);
+    if (userId is null) return Results.Unauthorized();
+
+    var user = await db.Users.FindAsync([userId.Value], ct);
+    if (user is null) return Results.NotFound(new { detail = "Usuário não encontrado." });
+
+    user.DeactivatedAt = DateTime.UtcNow;
+    await db.SaveChangesAsync(ct);
+
+    return Results.Ok(new { success = true, deactivatedAt = user.DeactivatedAt });
+}).RequireAuthorization();
 
 app.Run();
 

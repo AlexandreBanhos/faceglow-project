@@ -1,5 +1,6 @@
 import { assertSupabaseConfigured } from "@/lib/supabase";
 import { setAdminCache } from "@/lib/adminCache";
+import { apiBaseUrl } from "@/lib/api";
 
 export const getAccessToken = async (): Promise<string | null> => {
   const client = assertSupabaseConfigured();
@@ -101,7 +102,31 @@ export const updateProfileMetadata = async ({ fullName, avatarUrl, phoneNumber }
     ...(phoneNumber !== undefined ? { phone_number: phoneNumber } : {}),
   };
 
-  return client.auth.updateUser({
-    data: nextMetadata,
-  });
+  return client.auth.updateUser({ data: nextMetadata });
+};
+
+/** Envia e-mail de confirmação para o novo endereço. O e-mail só é atualizado após o usuário clicar no link. */
+export const updateEmail = async (newEmail: string) => {
+  const client = assertSupabaseConfigured();
+  return client.auth.updateUser({ email: newEmail });
+};
+
+/** Desativa a conta no backend (soft-delete). O logout deve ser chamado em seguida. */
+export const deactivateAccount = async (): Promise<{ ok: boolean; error?: string }> => {
+  const token = await getAccessToken();
+  if (!token) return { ok: false, error: "Sessão expirada." };
+
+  try {
+    const res = await fetch(`${apiBaseUrl}/account/deactivate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { detail?: string };
+      return { ok: false, error: body.detail ?? `Erro ${res.status}` };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Erro de conexão." };
+  }
 };

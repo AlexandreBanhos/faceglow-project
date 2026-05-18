@@ -36,8 +36,11 @@ const MeusProdutos  = lazy(() => import("./pages/MeusProdutos"));
 const NotFound      = lazy(() => import("./pages/NotFound"));
 const VerifyEmail   = lazy(() => import("./pages/VerifyEmail"));
 const EmailConfirmed = lazy(() => import("./pages/EmailConfirmed"));
-const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
-const TermsOfUse    = lazy(() => import("./pages/TermsOfUse"));
+const PrivacyPolicy  = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfUse     = lazy(() => import("./pages/TermsOfUse"));
+const ChangeEmail    = lazy(() => import("./pages/ChangeEmail"));
+const DeleteAccount  = lazy(() => import("./pages/DeleteAccount"));
+const Support        = lazy(() => import("./pages/Support"));
 
 const queryClient = new QueryClient();
 
@@ -61,6 +64,7 @@ const App = () => (
                   <Route path="/email-confirmed"  element={<EmailConfirmed />} />
                   <Route path="/privacidade"      element={<PrivacyPolicy />} />
                   <Route path="/termos"           element={<TermsOfUse />} />
+                  <Route path="/support"          element={<Support />} />
                   <Route path="/premium/success"  element={<BillingSuccess />} />
                   <Route path="/premium/cancel"   element={<BillingCancel />} />
                   <Route path="/premium/pending"  element={<BillingPending />} />
@@ -76,6 +80,8 @@ const App = () => (
                     <Route path="/profile"           element={<Profile />} />
                     <Route path="/profile/edit"      element={<EditProfile />} />
                     <Route path="/profile/password"  element={<ChangePassword />} />
+                    <Route path="/profile/email"     element={<ChangeEmail />} />
+                    <Route path="/profile/delete"    element={<DeleteAccount />} />
                     <Route path="/premium"           element={<Premium />} />
                     <Route element={<RequireAdmin />}>
                       <Route path="/admin/products"  element={<AdminProducts />} />

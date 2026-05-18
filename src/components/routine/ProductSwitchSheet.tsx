@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronRight, Loader2, Package, Search, X, Star } from "lucide-react";
+import { Check, ChevronRight, Loader2, Search, Star, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from "@/components/ui/sheet";
 import { fetchCatalogProducts, type CatalogProduct } from "@/lib/analysisClient";
 import { fetchMyProducts, type UserCatalogProduct } from "@/lib/userProducts";
 import { PeriodSelector, type Period } from "./PeriodSelector";
+import { StepIcon } from "@/components/routine/StepIcon";
+import { Mascot, SpeechBubble, useFloatAnimation } from "@/components/quiz/Mascot";
 
 type ProductOption = {
   key: string;
@@ -38,28 +37,37 @@ interface Props {
 }
 
 const STEP_TO_CATEGORY: Record<string, string> = {
-  cleanser: "Limpeza",
-  moisturizer: "Hidratante",
-  serum: "Sérum",
-  sunscreen: "Protetor Solar",
-  toner: "Tônico",
-  exfoliant: "Esfoliante",
-  mask: "Máscara",
-  eye_cream: "Contorno dos Olhos",
-  retinoid: "Retinol",
-  acid: "Ácido",
-  spot_treatment: "Tratamento Pontual",
-  oil: "Óleo",
+  cleanser: "Limpeza", moisturizer: "Hidratante", serum: "Sérum",
+  sunscreen: "Protetor Solar", toner: "Tônico", exfoliant: "Esfoliante",
+  mask: "Máscara", eye_cream: "Contorno dos Olhos", retinoid: "Retinol",
+  acid: "Ácido", spot_treatment: "Tratamento Pontual", oil: "Óleo",
 };
 
 const tierBadge: Record<string, { bg: string; text: string; label: string }> = {
-  primary:    { bg: "bg-primary/10",  text: "text-primary",   label: "Melhor para sua pele" },
-  alt_budget: { bg: "bg-green-50",    text: "text-green-700", label: "Custo-benefício" },
-  alt_rated:  { bg: "bg-amber-50",    text: "text-amber-700", label: "Mais avaliado" },
-  user_custom:{ bg: "bg-purple-50",   text: "text-purple-700",label: "Seu produto" },
+  primary:    { bg: "bg-rose-50",   text: "text-rose-700",   label: "Melhor para sua pele" },
+  alt_budget: { bg: "bg-green-50",  text: "text-green-700",  label: "Custo-benefício"      },
+  alt_rated:  { bg: "bg-amber-50",  text: "text-amber-700",  label: "Mais avaliado"        },
+  user_custom:{ bg: "bg-violet-50", text: "text-violet-700", label: "Seu produto"          },
 };
 
 const getTier = (key: string) => key.split("::").pop() ?? "primary";
+
+// Thumbnail de produto com StepIcon como fallback
+function ProductThumb({ imageUrl, stepCategory, size = 56 }: { imageUrl?: string; stepCategory: string; size?: number }) {
+  const [errored, setErrored] = useState(false);
+  return (
+    <div
+      className="rounded-xl overflow-hidden flex-shrink-0"
+      style={{ width: size, height: size, background: "#f5f1ff", border: "1px solid rgba(0,0,0,0.05)" }}
+    >
+      {imageUrl && !errored ? (
+        <img src={imageUrl} alt="" className="w-full h-full object-contain p-1" onError={() => setErrored(true)} />
+      ) : (
+        <StepIcon stepTypeKey={stepCategory} />
+      )}
+    </div>
+  );
+}
 
 export const ProductSwitchSheet = ({
   open, onClose,
@@ -71,23 +79,21 @@ export const ProductSwitchSheet = ({
   onSaveCustom,
   onAddCatalogProduct,
 }: Props) => {
-  const [showCustomForm, setShowCustomForm] = useState(false);
-  const [customName, setCustomName] = useState("");
+  useFloatAnimation();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<CatalogProduct[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customName, setCustomName]         = useState("");
+  const [searchQuery, setSearchQuery]       = useState("");
+  const [searchResults, setSearchResults]   = useState<CatalogProduct[]>([]);
+  const [isSearching, setIsSearching]       = useState(false);
+  const [userProducts, setUserProducts]     = useState<UserCatalogProduct[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [userProducts, setUserProducts] = useState<UserCatalogProduct[]>([]);
-
-  // Fetch user's saved products when sheet opens
   useEffect(() => {
     if (!open) return;
     fetchMyProducts().then(setUserProducts).catch(() => {});
   }, [open]);
 
-  // Debounced catalog search
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (searchQuery.trim().length < 2) { setSearchResults([]); return; }
@@ -102,288 +108,255 @@ export const ProductSwitchSheet = ({
 
   const activeKey = pendingKey ?? selectedKey;
   const hasCounterpart = stepCategory !== "sunscreen";
-
-  // Filter user's saved products by matching category
   const expectedCategory = STEP_TO_CATEGORY[stepCategory];
-  const matchingUserProducts = userProducts.filter(
-    p => !expectedCategory || p.category === expectedCategory
-  );
-
-  // Exclude products already shown as options (avoid duplicates)
+  const matchingUserProducts = userProducts.filter(p => !expectedCategory || p.category === expectedCategory);
   const optionNames = new Set(options.map(o => o.productName.toLowerCase()));
-  const filteredUserProducts = matchingUserProducts.filter(
-    p => !optionNames.has(p.name.toLowerCase())
-  );
+  const filteredUserProducts = matchingUserProducts.filter(p => !optionNames.has(p.name.toLowerCase()));
 
-  const reset = () => {
-    setShowCustomForm(false);
-    setCustomName("");
-    setSearchQuery("");
-    setSearchResults([]);
-  };
-
+  const reset = () => { setShowCustomForm(false); setCustomName(""); setSearchQuery(""); setSearchResults([]); };
   const handleClose = () => { reset(); onCancel(); onClose(); };
   const handleSave  = () => { reset(); onSave(); onClose(); };
-
   const handleSaveCustom = () => {
     if (!customName.trim()) return;
     onSaveCustom(customName.trim());
-    reset();
-    onClose();
+    reset(); onClose();
   };
-
   const handleCatalogPick = (p: CatalogProduct) => {
-    if (onAddCatalogProduct) {
-      onAddCatalogProduct(p.id, p.name, p.imageUrl ?? undefined);
-    } else {
-      onSaveCustom(p.name, p.imageUrl ?? undefined);
-    }
-    reset();
-    onClose();
+    if (onAddCatalogProduct) onAddCatalogProduct(p.id, p.name, p.imageUrl ?? undefined);
+    else onSaveCustom(p.name, p.imageUrl ?? undefined);
+    reset(); onClose();
   };
-
   const handleUserProductPick = (p: UserCatalogProduct) => {
     onSaveCustom(p.name, p.imageUrl ?? undefined);
-    reset();
-    onClose();
+    reset(); onClose();
   };
 
+  if (!open) return null;
+
   return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <SheetContent
-        side="bottom"
-        className="rounded-t-3xl px-0 pb-8 pt-0 max-h-[90vh] overflow-hidden flex flex-col"
-        style={{ background: "var(--bg-card, white)" }}
+    <AnimatePresence>
+      <motion.div
+        key="switch-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[990] flex items-end justify-center"
+        style={{ backgroundColor: "rgba(15,10,30,0.5)", backdropFilter: "blur(6px)" }}
+        onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       >
-        {/* Handle bar */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-border/60" />
-        </div>
+        <motion.div
+          key="switch-panel"
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", damping: 32, stiffness: 360 }}
+          className="w-full max-w-md flex flex-col rounded-t-3xl overflow-hidden"
+          style={{
+            background: "linear-gradient(170deg,#f4f2ff 0%,#f8f5ff 40%,#fff0f8 100%)",
+            height: "88svh",
+            maxHeight: "88svh",
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Handle */}
+          <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+            <div className="w-10 h-1 rounded-full bg-slate-300/60" />
+          </div>
 
-        {/* Header */}
-        <SheetHeader className="px-6 pb-3 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <SheetTitle className="text-lg font-bold leading-tight">{stepLabel}</SheetTitle>
-              <SheetDescription className="text-xs text-muted-foreground mt-0.5">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 pt-2 pb-3 flex-shrink-0">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 {period === "morning" ? "Rotina da manhã" : "Rotina da noite"}
-              </SheetDescription>
-            </div>
-            <button onClick={handleClose} className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center">
-              <X size={15} className="text-muted-foreground" />
-            </button>
-          </div>
-        </SheetHeader>
-
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-2">
-
-          {/* Search catalog */}
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar produto no catálogo…"
-              className="w-full h-10 rounded-xl border border-border/60 bg-muted/30 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            {isSearching && (
-              <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />
-            )}
-          </div>
-
-          {/* Catalog search results */}
-          <AnimatePresence>
-            {searchResults.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden space-y-2"
-              >
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
-                  Encontrados no catálogo
-                </p>
-                {searchResults.map((p) => (
-                  <motion.button
-                    key={p.id}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleCatalogPick(p)}
-                    className="w-full flex items-center gap-3 p-3 rounded-2xl border border-border/40 bg-background hover:border-primary/40 hover:bg-primary/5 text-left transition-all"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-muted/60 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                      {p.imageUrl ? (
-                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                      ) : (
-                        <Package size={18} className="text-muted-foreground/50" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{p.brand}{p.tagline ? ` · ${p.tagline}` : ""}</p>
-                    </div>
-                    <ChevronRight size={14} className="text-muted-foreground flex-shrink-0" />
-                  </motion.button>
-                ))}
-                <div className="h-px bg-border/30" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* IA-recommended options */}
-          {options.length > 0 && searchResults.length === 0 && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
-                Recomendados para você
               </p>
-              {options.map((opt) => {
-                const tier = getTier(opt.key);
-                const badge = tierBadge[tier] ?? tierBadge.primary;
-                const isActive = opt.key === activeKey;
-                return (
-                  <motion.button
-                    key={opt.key}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => onSelectOption(opt.key)}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 text-left transition-all ${
-                      isActive ? "border-primary bg-primary/5 shadow-sm" : "border-border/40 bg-background hover:border-border"
-                    }`}
-                  >
-                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted/60 flex-shrink-0 flex items-center justify-center">
-                      {opt.imageUrl ? (
-                        <img src={opt.imageUrl} alt={opt.productName} className="w-full h-full object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                      ) : (
-                        <Package size={22} className="text-muted-foreground/50" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold mb-1 ${badge.bg} ${badge.text}`}>
-                        {badge.label}
-                      </div>
-                      <p className="text-sm font-semibold text-foreground leading-tight truncate">{opt.productName}</p>
-                      {opt.reason && (
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{opt.reason}</p>
-                      )}
-                    </div>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                      isActive ? "bg-primary" : "bg-border/40"
-                    }`}>
-                      {isActive && <Check size={13} strokeWidth={3} className="text-white" />}
-                    </div>
-                  </motion.button>
-                );
-              })}
+              <p className="text-sm font-bold text-slate-800 truncate">Trocar produto</p>
             </div>
-          )}
-
-          {/* Meus Produtos salvos */}
-          {filteredUserProducts.length > 0 && searchResults.length === 0 && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                <Star size={10} className="text-amber-500" /> Meus produtos
-              </p>
-              {filteredUserProducts.map((p) => (
-                <motion.button
-                  key={p.id}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleUserProductPick(p)}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl border border-border/40 bg-amber-50/40 hover:border-amber-300 hover:bg-amber-50 text-left transition-all"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-muted/60 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                    {p.imageUrl ? (
-                      <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                    ) : (
-                      <Package size={18} className="text-muted-foreground/50" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
-                    {p.note && <p className="text-xs text-muted-foreground truncate">{p.note}</p>}
-                  </div>
-                  <ChevronRight size={14} className="text-muted-foreground flex-shrink-0" />
-                </motion.button>
-              ))}
-            </div>
-          )}
-
-          {/* Adicionar produto manual */}
-          <div className="space-y-2">
             <button
-              onClick={() => setShowCustomForm(!showCustomForm)}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all"
+              onClick={handleClose}
+              className="w-9 h-9 rounded-full bg-white/70 border border-white/60 flex items-center justify-center flex-shrink-0"
             >
-              <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center flex-shrink-0">
-                <Package size={18} className="text-muted-foreground" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold text-foreground">Usar outro produto</p>
-                <p className="text-xs text-muted-foreground">Digite o nome do produto que você usa</p>
-              </div>
-              <ChevronRight size={16} className={`text-muted-foreground transition-transform ${showCustomForm ? "rotate-90" : ""}`} />
+              <X size={14} className="text-slate-600" />
             </button>
+          </div>
 
+          <div className="h-px bg-white/50 flex-shrink-0 mx-4" />
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4 space-y-4" style={{ scrollbarWidth: "none" }}>
+
+            {/* Mascote */}
+            <div className="flex items-start gap-3">
+              <Mascot mood="thinking" size={60} />
+              <SpeechBubble
+                text={`Qual produto para ${stepLabel}?`}
+                highlight={stepLabel}
+                subtitle="Escolha uma das opções abaixo ou busque no catálogo"
+              />
+            </div>
+
+            {/* Busca catálogo */}
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-100 shadow-sm">
+              <Search size={14} className="text-slate-400 flex-shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar produto no catálogo…"
+                className="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 outline-none"
+              />
+              {isSearching && <Loader2 size={14} className="animate-spin text-slate-400 flex-shrink-0" />}
+            </div>
+
+            {/* Resultados do catálogo */}
             <AnimatePresence>
-              {showCustomForm && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-2 pt-1">
-                    <input
-                      type="text"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      placeholder="Nome do produto (ex: Sabonete Granado)"
-                      className="w-full h-11 rounded-xl border border-border/60 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      autoFocus
-                    />
+              {searchResults.length > 0 && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden space-y-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catálogo</p>
+                  {searchResults.map((p) => (
                     <button
-                      onClick={handleSaveCustom}
-                      disabled={!customName.trim()}
-                      className="w-full h-10 rounded-xl bg-primary text-white text-sm font-semibold disabled:opacity-40 transition-opacity"
+                      key={p.id}
+                      onClick={() => handleCatalogPick(p)}
+                      className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-sm text-left active:scale-[0.98] transition-transform"
                     >
-                      Usar este produto
+                      <ProductThumb imageUrl={p.imageUrl ?? undefined} stepCategory={stepCategory} size={44} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
+                        <p className="text-xs text-slate-500 truncate">{p.brand}{p.tagline ? ` · ${p.tagline}` : ""}</p>
+                      </div>
+                      <ChevronRight size={14} className="text-slate-400 flex-shrink-0" />
                     </button>
-                  </div>
+                  ))}
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Opções recomendadas pela IA */}
+            {options.length > 0 && searchResults.length === 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recomendados para você</p>
+                {options.map((opt) => {
+                  const tier = getTier(opt.key);
+                  const badge = tierBadge[tier] ?? tierBadge.primary;
+                  const isActive = opt.key === activeKey;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => onSelectOption(opt.key)}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 text-left transition-all active:scale-[0.98]"
+                      style={isActive ? { borderColor: "#e8a9c2", background: "rgba(232,169,194,0.08)", boxShadow: "0 0 0 3px rgba(232,169,194,0.15)" } : { borderColor: "#f1f5f9", background: "white" }}
+                    >
+                      <ProductThumb imageUrl={opt.imageUrl} stepCategory={stepCategory} size={52} />
+                      <div className="flex-1 min-w-0">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold mb-1 ${badge.bg} ${badge.text}`}>
+                          {badge.label}
+                        </span>
+                        <p className="text-sm font-bold text-slate-800 leading-tight truncate">{opt.productName}</p>
+                        {opt.reason && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{opt.reason}</p>}
+                      </div>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${isActive ? "" : "border-2 border-slate-200"}`}
+                        style={isActive ? { background: "var(--grad-coral)" } : undefined}>
+                        {isActive && <Check size={12} strokeWidth={3} className="text-white" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Meus produtos */}
+            {filteredUserProducts.length > 0 && searchResults.length === 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                  <Star size={9} className="text-amber-500" /> Meus produtos
+                </p>
+                {filteredUserProducts.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleUserProductPick(p)}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 shadow-sm text-left active:scale-[0.98] transition-transform"
+                  >
+                    <ProductThumb imageUrl={p.imageUrl} stepCategory={stepCategory} size={44} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{p.name}</p>
+                      {p.note && <p className="text-xs text-slate-500 truncate">{p.note}</p>}
+                    </div>
+                    <ChevronRight size={14} className="text-slate-400 flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Usar outro produto */}
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowCustomForm(!showCustomForm)}
+                className="w-full flex items-center gap-3 p-3.5 rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 text-left transition-all"
+              >
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0"
+                  style={{ background: "#f5f1ff" }}>
+                  <StepIcon stepTypeKey={stepCategory} size={28} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-slate-800">Usar outro produto</p>
+                  <p className="text-xs text-slate-500">Digite o nome do produto que você usa</p>
+                </div>
+                <ChevronRight size={15} className={`text-slate-400 transition-transform ${showCustomForm ? "rotate-90" : ""}`} />
+              </button>
+
+              <AnimatePresence>
+                {showCustomForm && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                    <div className="space-y-2 pt-1">
+                      <input
+                        type="text"
+                        value={customName}
+                        onChange={(e) => setCustomName(e.target.value)}
+                        placeholder="Nome do produto (ex: Sabonete Granado)"
+                        className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-primary/40"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleSaveCustom}
+                        disabled={!customName.trim()}
+                        className="w-full py-3 rounded-xl coral-button text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2"
+                      >
+                        <Check size={14} />
+                        Usar este produto
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Período */}
+            {hasCounterpart && options.length > 0 && !showCustomForm && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aplicar em</p>
+                <PeriodSelector value={pendingScope} onChange={onScopeChange} />
+              </div>
+            )}
           </div>
 
-          {/* Scope selector */}
-          {hasCounterpart && options.length > 0 && !showCustomForm && (
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Aplicar em</p>
-              <PeriodSelector value={pendingScope} onChange={onScopeChange} />
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 pt-3 flex gap-3 flex-shrink-0 border-t border-border/30">
-          <button
-            onClick={handleClose}
-            className="flex-1 h-12 rounded-2xl border border-border/60 bg-background text-foreground font-semibold text-sm"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!pendingKey || isSaving}
-            className="flex-1 h-12 rounded-2xl bg-primary text-white font-semibold text-sm shadow-sm disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
-          >
-            {isSaving ? (
-              <><Loader2 size={16} className="animate-spin" /> Salvando…</>
-            ) : "Confirmar"}
-          </button>
-        </div>
-      </SheetContent>
-    </Sheet>
+          {/* Footer */}
+          <div className="px-4 pt-3 pb-safe pb-4 flex gap-3 flex-shrink-0 border-t border-white/60">
+            <button
+              onClick={handleClose}
+              className="flex-1 h-12 rounded-2xl border border-slate-200 bg-white text-slate-700 font-semibold text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!pendingKey || isSaving}
+              className="flex-1 h-12 rounded-2xl coral-button font-bold text-sm shadow-sm disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
+            >
+              {isSaving ? <><Loader2 size={15} className="animate-spin" /> Salvando…</> : "Confirmar"}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };

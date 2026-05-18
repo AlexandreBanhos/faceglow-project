@@ -31,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.Email).HasMaxLength(320).IsRequired().HasColumnName("email");
             e.Property(x => x.IsAdmin).HasColumnName("is_admin");
+            e.Property(x => x.DeactivatedAt).HasColumnName("deactivated_at");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
         });
 
@@ -97,6 +98,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.BudgetRange).HasColumnName("budget_range");
             e.Property(x => x.PregnancySafe).HasColumnName("pregnancy_safe");
             e.Property(x => x.PrimaryConcerns).HasColumnName("primary_concerns").HasColumnType("text[]");
+            e.Property(x => x.LifestyleQuestionnaireCompletedAt).HasColumnName("lifestyle_questionnaire_completed_at");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             e.HasOne(x => x.User).WithMany(x => x.SkinProfiles).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);

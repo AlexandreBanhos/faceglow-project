@@ -5,6 +5,7 @@ public sealed class User
     public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
     public bool IsAdmin { get; set; }
+    public DateTime? DeactivatedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<SkinAnalysisRecord> SkinAnalyses { get; set; } = new List<SkinAnalysisRecord>();

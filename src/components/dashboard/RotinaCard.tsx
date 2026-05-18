@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
+import { StepIcon } from "@/components/routine/StepIcon";
 
 export interface RoutineThumb {
   id: string;
   productName: string;
   imageUrl?: string;
+  stepTypeKey?: string;
 }
 
 interface RotinaCardProps {
@@ -16,37 +19,38 @@ interface RotinaCardProps {
 
 const MAX_THUMBS = 4;
 
+function ThumbImg({ step }: { step: RoutineThumb }) {
+  const [errored, setErrored] = useState(false);
+  return (
+    <div
+      className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0"
+      style={{ border: "1px solid rgba(255,255,255,0.8)", background: "#f5f1ff" }}
+      title={step.productName}
+    >
+      {step.imageUrl && !errored ? (
+        <img
+          src={step.imageUrl}
+          alt={step.productName}
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={() => setErrored(true)}
+        />
+      ) : (
+        <StepIcon stepTypeKey={step.stepTypeKey} />
+      )}
+    </div>
+  );
+}
+
 function ThumbRow({ steps }: { steps: RoutineThumb[] }) {
   const visible = steps.slice(0, MAX_THUMBS);
   const overflow = steps.length - MAX_THUMBS;
 
   return (
     <div className="flex gap-1.5 mt-2 flex-wrap">
-      {visible.map((s, i) => {
-        const hue = (i * 53) % 360;
-        return (
-          <div
-            key={s.id}
-            className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0"
-            style={{ border: "1px solid rgba(255,255,255,0.8)", background: s.imageUrl ? "white" : `hsl(${hue}deg 45% 78%)` }}
-            title={s.productName}
-          >
-            {s.imageUrl ? (
-              <img
-                src={s.imageUrl}
-                alt={s.productName}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-              />
-            ) : (
-              <span className="text-[10px] font-bold text-white">
-                {(s.productName ?? "?").charAt(0).toUpperCase()}
-              </span>
-            )}
-          </div>
-        );
-      })}
+      {visible.map((s) => (
+        <ThumbImg key={s.id} step={s} />
+      ))}
       {overflow > 0 && (
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-bold"

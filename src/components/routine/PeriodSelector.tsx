@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Moon } from "lucide-react";
+import { Sun, Moon, Sparkles } from "lucide-react";
 
 export type Period = "morning" | "night" | "both";
 
@@ -17,22 +17,22 @@ interface Props {
 const PERIODS = [
   {
     value: "morning" as const,
-    emoji: "☀️",
+    Icon: Sun,
+    iconColor: "#92400e",
     label: "Manhã",
-    // card (lg)
     gradActive:  "linear-gradient(135deg,#fde68a 0%,#fdba74 100%)",
     bgInactive:  "bg-amber-50",
     borderActive:   "border-amber-300/70",
     borderInactive: "border-amber-200/60",
     textActive:   "text-amber-900",
     textInactive: "text-amber-600",
-    // pill (sm)
     pillActive: "linear-gradient(90deg,#fde68a 0%,#fbbf24 100%)",
     pillText:   "text-amber-900",
   },
   {
     value: "both" as const,
-    emoji: "✦",
+    Icon: Sparkles,
+    iconColor: "#6d28d9",
     label: "Ambos",
     gradActive:  "linear-gradient(135deg,#fde68a 0%,#f9a8d4 45%,#c4b5fd 100%)",
     bgInactive:  "bg-violet-50",
@@ -45,7 +45,8 @@ const PERIODS = [
   },
   {
     value: "night" as const,
-    emoji: "🌙",
+    Icon: Moon,
+    iconColor: "#3730a3",
     label: "Noite",
     gradActive:  "linear-gradient(135deg,#c7d2fe 0%,#ddd6fe 100%)",
     bgInactive:  "bg-indigo-50",
@@ -86,7 +87,7 @@ const PeriodPill = ({ value, onChange }: { value: Period; onChange: (p: Period) 
         }}
         transition={{ type: "spring", stiffness: 380, damping: 28 }}
       />
-      {PERIODS.map(({ value: opt, emoji, label, pillText, textInactive }) => {
+      {PERIODS.map(({ value: opt, Icon, iconColor, label, pillText, textInactive }) => {
         const isActive = value === opt;
         return (
           <motion.button
@@ -96,7 +97,7 @@ const PeriodPill = ({ value, onChange }: { value: Period; onChange: (p: Period) 
             whileTap={{ scale: 0.96 }}
             className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 h-10 z-10 rounded-xl transition-colors`}
           >
-            <span className="text-sm leading-none">{emoji}</span>
+            <Icon size={13} style={{ color: isActive ? iconColor : undefined }} className={isActive ? "" : textInactive} />
             <span className={`text-[9px] font-bold tracking-wide transition-colors ${isActive ? pillText : textInactive}`}>
               {label}
             </span>
@@ -110,7 +111,7 @@ const PeriodPill = ({ value, onChange }: { value: Period; onChange: (p: Period) 
 // ── Variante LG — cards animados ─────────────────────────────────────────────
 const PeriodCards = ({ value, onChange }: { value: Period; onChange: (p: Period) => void }) => (
   <div className="grid grid-cols-3 gap-2">
-    {PERIODS.map(({ value: opt, emoji, label, gradActive, bgInactive, borderActive, borderInactive, textActive, textInactive }) => {
+    {PERIODS.map(({ value: opt, Icon, iconColor, label, gradActive, bgInactive, borderActive, borderInactive, textActive, textInactive }) => {
       const isActive = value === opt;
       return (
         <motion.button
@@ -127,13 +128,11 @@ const PeriodCards = ({ value, onChange }: { value: Period; onChange: (p: Period)
           }`}
           style={isActive ? { background: gradActive, borderColor: "transparent" } : undefined}
         >
-          {/* Emoji grande */}
-          <span className="text-2xl leading-none select-none">{emoji}</span>
+          <Icon size={22} style={{ color: iconColor }} className="leading-none" />
           <span className={`text-[11px] font-bold tracking-wide ${isActive ? textActive : textInactive}`}>
             {label}
           </span>
 
-          {/* Halo de brilho quando ativo */}
           {isActive && (
             <motion.div
               className="absolute inset-[-4px] rounded-[18px] pointer-events-none"

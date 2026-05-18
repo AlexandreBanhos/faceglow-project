@@ -8,6 +8,7 @@ export interface AccountItem {
   onClick: () => void;
   badge?: string;
   value?: string;
+  danger?: boolean;
 }
 
 interface AccountCardProps {
@@ -28,14 +29,14 @@ export function AccountCard({ items }: AccountCardProps) {
           onClick={item.onClick}
           className={`w-full flex items-center gap-4 px-5 py-4 active:bg-muted/50 transition-colors text-left ${
             i < items.length - 1 ? "border-b border-border/40" : ""
-          } ${item.badge === "Admin" ? "bg-orange-500/5" : ""}`}
+          } ${item.badge === "Admin" ? "bg-orange-500/5" : ""} ${item.danger ? "bg-red-500/5" : ""}`}
         >
           <span className="w-5 flex items-center justify-center flex-shrink-0">
             {item.icon}
           </span>
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-semibold text-foreground">{item.label}</span>
-            {item.badge && (
+            <span className={`text-sm font-semibold ${item.danger ? "text-red-600" : "text-foreground"}`}>{item.label}</span>
+            {item.badge && !item.danger && (
               <p className="text-xs text-orange-600 font-bold mt-0.5">{item.badge}</p>
             )}
           </div>

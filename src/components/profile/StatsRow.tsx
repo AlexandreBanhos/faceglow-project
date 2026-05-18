@@ -10,10 +10,10 @@ interface StatsRowProps {
 
 export function StatsRow({ totalAnalyses, bestScore, creditsRemaining, streakDays }: StatsRowProps) {
   const stats = [
-    { label: "Análises",  value: totalAnalyses,     Icon: TrendingUp, color: "text-primary"   },
-    { label: "Score",     value: bestScore,           Icon: Trophy,     color: "text-amber-500" },
-    { label: "Créditos",  value: creditsRemaining,   Icon: Coins,      color: "text-emerald-500" },
-    { label: "Sequência", value: streakDays,          Icon: Flame,      color: "text-orange-400" },
+    { label: "Análises",  value: totalAnalyses,   display: totalAnalyses > 0 ? String(totalAnalyses) : "0",    Icon: TrendingUp, color: "text-primary"    },
+    { label: "Score",     value: bestScore,         display: bestScore > 0     ? String(bestScore)     : "—",    Icon: Trophy,     color: "text-amber-500"  },
+    { label: "Créditos",  value: creditsRemaining, display: String(creditsRemaining),                           Icon: Coins,      color: "text-emerald-500"},
+    { label: "Sequência", value: streakDays,        display: streakDays > 0    ? `${streakDays}d`      : "—",   Icon: Flame,      color: "text-orange-400" },
   ];
 
   return (
@@ -23,7 +23,7 @@ export function StatsRow({ totalAnalyses, bestScore, creditsRemaining, streakDay
       transition={{ delay: 0.25 }}
       className="grid grid-cols-4 gap-2"
     >
-      {stats.map(({ label, value, Icon, color }, i) => (
+      {stats.map(({ label, display, Icon, color }, i) => (
         <motion.div
           key={label}
           initial={{ opacity: 0, scale: 0.9 }}
@@ -32,7 +32,7 @@ export function StatsRow({ totalAnalyses, bestScore, creditsRemaining, streakDay
           className="lg-surface p-3 rounded-2xl flex flex-col items-center text-center"
         >
           <Icon size={16} className={`${color} mb-1.5`} />
-          <p className="text-lg font-extrabold text-foreground leading-none">{value}</p>
+          <p className="text-lg font-extrabold text-foreground leading-none">{display}</p>
           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide mt-1 leading-tight">{label}</p>
         </motion.div>
       ))}

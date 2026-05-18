@@ -55,6 +55,13 @@ public static class RoutineStepEndpoints
             .RequireAuthorization()
             .WithTags("Routine Steps")
             .WithOpenApi();
+
+        // List version history for a routine
+        app.MapGet("/routines/{routineId:guid}/versions", ListVersionsHandler)
+            .WithName("ListRoutineVersions")
+            .RequireAuthorization()
+            .WithTags("Routine Steps")
+            .WithOpenApi();
     }
 
     private static (Guid userId, bool valid) GetUserId(ClaimsPrincipal user)
@@ -426,6 +433,37 @@ public static class RoutineStepEndpoints
         cache.Remove($"v2_steps_{id}_{userId}");
 
         return Results.Ok(new { stepId, selectedSlotId = targetSlot.Id, tier = targetSlot.Tier });
+    }
+
+    // ── GET /routines/{routineId}/versions ────────────────────────────────
+    private static async Task<IResult> ListVersionsHandler(
+        Guid routineId, ClaimsPrincipal user,
+        AppDbContext db, CancellationToken ct)
+    {
+        var (userId, valid) = GetUserId(user);
+        if (!valid) return Results.Unauthorized();
+
+        var owned = await db.Routines
+            .AsNoTracking()
+            .AnyAsync(r => r.Id == routineId && r.UserId == userId, ct);
+        if (!owned) return Results.NotFound(new { error = "Rotina não encontrada." });
+
+        var versions = await db.RoutineVersions
+            .AsNoTracking()
+            .Where(v => v.RoutineId == routineId)
+            .OrderByDescending(v => v.Version)
+            .Take(20)
+            .Select(v => new
+            {
+                v.Version,
+                v.ChangedBy,
+                v.ChangeType,
+                v.ChangeSummary,
+                v.CreatedAt,
+            })
+            .ToListAsync(ct);
+
+        return Results.Ok(versions);
     }
 
     // ── POST /routines/{routineId}/restore/{version} ──────────────────────

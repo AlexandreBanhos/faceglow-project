@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { type AnalysisResponse, type AnalysisRecommendation } from "@/lib/analysis";
 import { fetchRoutineSteps, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
-import SerumSvg from "@/assets/serum-svg.svg";
+import SerumSvg from "@/assets/icones/serum-svg.svg";
 
 interface RoutineSummaryCardProps {
   analysis: AnalysisResponse;

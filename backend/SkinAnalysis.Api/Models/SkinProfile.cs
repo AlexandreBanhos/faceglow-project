@@ -28,6 +28,8 @@ public sealed class SkinProfile
 
     public string[] PrimaryConcerns { get; set; } = [];
 
+    public DateTime? LifestyleQuestionnaireCompletedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

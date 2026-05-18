@@ -1,9 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import SkinQuiz from "@/components/quiz/SkinQuiz";
 import { FULL_QUESTIONS, quizToLifestyle } from "@/components/quiz/quizQuestions";
-import { updateLifestyle } from "@/lib/lifestyle";
+import {
+  updateLifestyle, getLifestyleStatus, fetchRoutineVersions, restoreRoutineVersion,
+  type RoutineVersionItem,
+} from "@/lib/lifestyle";
 import { motion } from "framer-motion";
-import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen, Loader2, Package, ChevronRight } from "lucide-react";
+import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen, Loader2, Package, ChevronRight, History, RotateCcw } from "lucide-react";
 import { GradientSpinner } from "@/components/LoadingSpinner";
 import { normalizeAnalysis, type AnalysisRecommendation, type AnalysisResponse } from "@/lib/analysis";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -34,6 +37,7 @@ import { PeriodSelector } from "@/components/routine/PeriodSelector";
 import { SortableRoutineList, SortableRoutineItem, RoutineDragHandle } from "@/components/routine/SortableRoutineList";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
+import { StepIcon } from "@/components/routine/StepIcon";
 
 const weekDays = [
   { key: "mon", label: "Seg" },
@@ -59,6 +63,7 @@ type RoutineItem = {
   stepLabel: string;
   title: string;
   type: string;
+  stepTypeKey?: string;
   recurrence: string;
   note: string;
   imageUrl?: string;
@@ -170,7 +175,6 @@ const getMyProductsStorageKey = (analysisId?: string) =>
 
 const allDays = weekDays.map((day) => day.key);
 
-const fallbackCardImage = "/product-placeholder.svg";
 
 const normalizeCategory = (value: string) =>
   value
@@ -379,6 +383,11 @@ const Routine = () => {
   const [showRefineQuiz, setShowRefineQuiz] = useState(false);
   const [refineLoading, setRefineLoading] = useState(false);
   const [refineSuccess, setRefineSuccess] = useState(false);
+  const [questionnaireCompletedAt, setQuestionnaireCompletedAt] = useState<string | null | undefined>(undefined);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyVersions, setHistoryVersions] = useState<{ morning: RoutineVersionItem[]; night: RoutineVersionItem[] }>({ morning: [], night: [] });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
   const [shakingDay, setShakingDay] = useState<string | null>(null);
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
@@ -447,6 +456,10 @@ const Routine = () => {
 
     loadAnalysisFromAPI();
   }, [loadedAnalysis, isLoadingAnalysis]);
+
+  useEffect(() => {
+    getLifestyleStatus().then((s) => setQuestionnaireCompletedAt(s.questionnaireCompletedAt));
+  }, []);
 
   // Declarado cedo pois useEffects abaixo dependem dele
   const todayStr = useMemo(() => {
@@ -551,6 +564,7 @@ const Routine = () => {
           stepLabel: s.categoryDisplayName ?? s.category,
           title: displayName,
           type: s.category,
+          stepTypeKey: s.stepTypeKey,
           recurrence: s.recurrence,
           note: displayReason,
           imageUrl: displayImage ?? undefined,
@@ -1638,12 +1652,9 @@ const Routine = () => {
     return rec?.reason || item.note;
   };
 
-  const getDisplayImage = (item: RoutineItem) => {
-    // IMPORTANTE: usar resolvedProductByItem que fica atualizado quando produto é selecionado
+  const getDisplayImage = (item: RoutineItem): string | null => {
     const resolved = resolvedProductByItem.get(item.key);
-    const imageUrl = resolved?.imageUrl;
-    
-    return imageUrl || fallbackCardImage;
+    return resolved?.imageUrl ?? item.imageUrl ?? null;
   };
 
 
@@ -1922,6 +1933,29 @@ const Routine = () => {
               aria-label="Abrir calendário"
             >
               <CalendarDays size={16} className={showCalendar ? "text-white" : "text-[var(--fg-ink)]"} />
+            </button>
+            <button
+              onClick={async () => {
+                setShowHistory(true);
+                if (historyVersions.morning.length === 0 && historyVersions.night.length === 0) {
+                  setHistoryLoading(true);
+                  try {
+                    const morningId = apiSteps.find((s) => s.period === "morning" && s.routineId)?.routineId;
+                    const nightId = apiSteps.find((s) => s.period === "night" && s.routineId)?.routineId;
+                    const [morning, night] = await Promise.all([
+                      morningId ? fetchRoutineVersions(morningId) : Promise.resolve([]),
+                      nightId ? fetchRoutineVersions(nightId) : Promise.resolve([]),
+                    ]);
+                    setHistoryVersions({ morning, night });
+                  } finally {
+                    setHistoryLoading(false);
+                  }
+                }
+              }}
+              className="w-10 h-10 rounded-full liquiglass-button flex items-center justify-center transition-colors"
+              aria-label="Histórico de versões"
+            >
+              <History size={16} className="text-[var(--fg-ink)]" />
             </button>
           </div>
         </div>
@@ -2415,19 +2449,23 @@ const Routine = () => {
                       <div className={`flex items-center gap-3 p-3 ${isEditing ? "wiggle-editing" : ""}`}>
                         {/* Imagem com ícone de busca sobreposto no canto inferior direito */}
                         <div
-                          className="relative w-[120px] h-[120px] rounded-xl bg-white border border-border/40 flex-shrink-0 overflow-hidden flex items-center justify-center"
+                          className="relative w-[120px] h-[120px] rounded-xl border border-border/40 flex-shrink-0 overflow-hidden flex items-center justify-center"
+                          style={{ background: "#f5f1ff" }}
                           key={`img-container-${item.key}`}
                         >
-                          <img
-                            key={`img-${item.key}-${getDisplayImage(item)}`}
-                            src={getDisplayImage(item)}
-                            alt={getDisplayProductName(item)}
-                            loading="lazy"
-                            decoding="async"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => { e.currentTarget.src = fallbackCardImage; }}
-                            className="w-full h-full object-contain bg-white p-1.5"
-                          />
+                          {getDisplayImage(item) ? (
+                            <ProgressiveImage
+                              src={getDisplayImage(item)!}
+                              alt={getDisplayProductName(item)}
+                              loading="lazy"
+                              objectFit="contain"
+                              stepTypeKey={item.stepTypeKey}
+                              className="w-full h-full p-1.5 bg-white"
+                              containerClassName="w-full h-full bg-white"
+                            />
+                          ) : (
+                            <StepIcon stepTypeKey={item.stepTypeKey} className="w-full h-full" />
+                          )}
                           {/* Ícone de pesquisa — sempre visível, sobreposto à imagem */}
                           <button
                             onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(getDisplayProductName(item))}`, "_blank", "noopener,noreferrer")}
@@ -3092,6 +3130,7 @@ const Routine = () => {
           initialPeriod={wizardItem?.period}
           currentProductName={wizardItem ? getDisplayProductName(wizardItem) : undefined}
           currentProductImage={wizardItem ? getDisplayImage(wizardItem) : undefined}
+          isCurrentUserProduct={wizardItem?.isCustom ?? false}
           recommendations={wizardItem
             ? (productOptionsByItem.get(wizardItem.key) ?? []).map((o): WizardProductOption => ({
                 key:         o.key,
@@ -3522,17 +3561,23 @@ const Routine = () => {
 
       <RoutineSuggestionsPanel onApplied={() => reloadApiSteps(true)} />
 
-      {/* ── Card "Refinar minha rotina" ── */}
-      <div className="mx-auto max-w-md px-5 pb-6">
-        {refineSuccess ? (
+      {/* ── Card "Refinar minha rotina" + Histórico ── */}
+      <div className="mx-auto max-w-md px-5 pb-6 space-y-3">
+        {(refineSuccess || questionnaireCompletedAt) ? (
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
             <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-emerald-800">Rotina refinada com sucesso!</p>
-              <p className="text-xs text-emerald-600">Seus dados foram atualizados e a rotina foi regenerada.</p>
+              <p className="text-sm font-semibold text-emerald-800">
+                {refineSuccess ? "Sugestões geradas!" : "Questionário já respondido"}
+              </p>
+              <p className="text-xs text-emerald-600">
+                {refineSuccess
+                  ? "Verifique as sugestões acima para aplicar à sua rotina."
+                  : "As sugestões foram geradas com base nas suas respostas."}
+              </p>
             </div>
           </div>
-        ) : (
+        ) : questionnaireCompletedAt === null ? (
           <button
             type="button"
             onClick={() => setShowRefineQuiz(true)}
@@ -3551,8 +3596,187 @@ const Routine = () => {
               <ChevronRight size={16} className="text-slate-400 flex-shrink-0" />
             </div>
           </button>
-        )}
+        ) : null}
+
       </div>
+
+      {/* ── Modal de histórico ── */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-[990] flex items-end justify-center"
+            style={{ backgroundColor: "rgba(15,10,30,0.5)", backdropFilter: "blur(6px)" }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowHistory(false); }}
+          >
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 32, stiffness: 360 }}
+              className="w-full max-w-md flex flex-col rounded-t-3xl overflow-hidden"
+              style={{ background: "linear-gradient(170deg,#f4f2ff 0%,#f8f5ff 40%,#fff0f8 100%)", height: "82svh", maxHeight: "82svh" }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+                <div className="w-10 h-1 rounded-full bg-slate-300/60" />
+              </div>
+
+              {/* Header */}
+              <div className="flex items-center gap-3 px-4 pt-2 pb-3 flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-white/70 border border-white/60 flex items-center justify-center flex-shrink-0">
+                  <History size={15} className="text-slate-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Controle de versões</p>
+                  <p className="text-sm font-bold text-slate-800">Histórico da rotina</p>
+                </div>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="w-9 h-9 rounded-full bg-white/70 border border-white/60 flex items-center justify-center flex-shrink-0"
+                >
+                  <X size={14} className="text-slate-600" />
+                </button>
+              </div>
+
+              <div className="h-px bg-white/50 flex-shrink-0 mx-4" />
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6 space-y-4" style={{ scrollbarWidth: "none" }}>
+                {/* Explicação */}
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-100 shadow-sm space-y-1.5">
+                  <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <History size={12} className="text-slate-500" />
+                    O que é o histórico?
+                  </p>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Toda vez que sua rotina é modificada — seja por você, pela IA ou ao aplicar sugestões — uma versão é salva automaticamente. Você pode voltar a qualquer versão anterior a qualquer momento.
+                  </p>
+                </div>
+
+                {/* Aviso */}
+                <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-amber-50 border border-amber-200">
+                  <AlertTriangle size={13} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    Ao <strong>restaurar</strong> uma versão anterior, sua rotina atual será substituída pelos passos daquela versão. Essa ação pode ser revertida restaurando a versão mais recente.
+                  </p>
+                </div>
+
+                {historyLoading ? (
+                  <div className="flex justify-center py-10">
+                    <GradientSpinner size={32} />
+                  </div>
+                ) : (
+                  <>
+                    {(["morning", "night"] as const).map((period) => {
+                      const versions = historyVersions[period];
+                      if (versions.length === 0) return null;
+                      const morningId = apiSteps.find((s) => s.period === "morning" && s.routineId)?.routineId;
+                      const nightId   = apiSteps.find((s) => s.period === "night"   && s.routineId)?.routineId;
+                      const routineId = period === "morning" ? morningId : nightId;
+                      return (
+                        <div key={period}>
+                          <div className="flex items-center gap-2 mb-2">
+                            {period === "morning"
+                              ? <Sun size={13} className="text-amber-500" />
+                              : <Moon size={13} className="text-indigo-500" />}
+                            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                              {period === "morning" ? "Rotina da manhã" : "Rotina da noite"}
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            {versions.map((v, idx) => {
+                              const isCurrentVersion = idx === 0;
+                              const isRestored = v.changeSummary?.startsWith("restored from");
+                              const changeLabel =
+                                isCurrentVersion     ? "Versão atual"
+                                : v.changeType === "initial_generation" ? "Criação da rotina"
+                                : v.changeType === "ai_regeneration"    ? "Atualizada pela análise"
+                                : isRestored                            ? "Restaurada de versão anterior"
+                                : "Editada por você";
+                              const changeIcon =
+                                isCurrentVersion     ? <CheckCircle2 size={13} className="text-emerald-500" />
+                                : v.changeType === "initial_generation" ? <Sparkles size={13} className="text-violet-500" />
+                                : v.changeType === "ai_regeneration"    ? <Sparkles size={13} className="text-rose-400" />
+                                : isRestored                            ? <RotateCcw size={13} className="text-indigo-400" />
+                                : <RefreshCw size={13} className="text-amber-500" />;
+
+                              return (
+                                <div
+                                  key={v.version}
+                                  className="flex items-center gap-3 p-3.5 rounded-2xl border"
+                                  style={isCurrentVersion
+                                    ? { background: "rgba(255,255,255,0.9)", borderColor: "#ddd6fe", boxShadow: "0 0 0 2px rgba(167,139,250,0.12)" }
+                                    : { background: "rgba(255,255,255,0.6)", borderColor: "#f1f5f9" }}
+                                >
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                    style={{ background: isCurrentVersion ? "#ede9fe" : "#f8f9fa" }}>
+                                    {changeIcon}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-xs font-bold text-slate-800 truncate">{changeLabel}</p>
+                                      {isCurrentVersion && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0">ATUAL</span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">
+                                      {new Date(v.createdAt).toLocaleDateString("pt-BR", {
+                                        day: "2-digit", month: "short", year: "numeric",
+                                        hour: "2-digit", minute: "2-digit",
+                                      })}
+                                    </p>
+                                  </div>
+                                  {!isCurrentVersion && routineId && (
+                                    <button
+                                      type="button"
+                                      disabled={restoringVersion === v.version}
+                                      onClick={async () => {
+                                        setRestoringVersion(v.version);
+                                        try {
+                                          await restoreRoutineVersion(routineId, v.version);
+                                          await reloadApiSteps(true);
+                                          setShowHistory(false);
+                                          toast.success("Rotina restaurada com sucesso!");
+                                        } catch (err) {
+                                          toast.error(err instanceof Error ? err.message : "Erro ao restaurar");
+                                        } finally {
+                                          setRestoringVersion(null);
+                                        }
+                                      }}
+                                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-violet-700 bg-violet-50 border border-violet-200 disabled:opacity-50 flex-shrink-0"
+                                    >
+                                      {restoringVersion === v.version
+                                        ? <Loader2 size={12} className="animate-spin" />
+                                        : <RotateCcw size={12} />}
+                                      Restaurar
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {historyVersions.morning.length === 0 && historyVersions.night.length === 0 && (
+                      <div className="flex flex-col items-center py-10 gap-3 text-center">
+                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                          <History size={20} className="text-slate-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">Nenhum histórico ainda</p>
+                          <p className="text-xs text-slate-500 mt-1">As versões serão registradas à medida que você editar sua rotina.</p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Overlay do quiz de refinamento — z-[200] garante estar acima do BottomNav ── */}
       {showRefineQuiz && (
@@ -3569,9 +3793,9 @@ const Routine = () => {
                   pregnancySafe: answers.hormonalConditions.some((c) => c === "pregnancy" || c === "breastfeed"),
                   lifestyleData: answers,
                 });
+                setQuestionnaireCompletedAt(new Date().toISOString());
                 setRefineSuccess(true);
                 setShowRefineQuiz(false);
-                setTimeout(() => reloadApiSteps(true), 800);
               } catch (err) {
                 const msg = err instanceof Error ? err.message : "Erro ao salvar preferências";
                 toast.error(msg);
@@ -3586,7 +3810,7 @@ const Routine = () => {
             <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
               <div className="flex flex-col items-center gap-3">
                 <GradientSpinner size={40} />
-                <p className="text-sm font-semibold text-slate-700">Atualizando sua rotina…</p>
+                <p className="text-sm font-semibold text-slate-700">Gerando sugestões…</p>
               </div>
             </div>
           )}
