@@ -65,3 +65,17 @@ SETUP_DOCKER_POSTGRES.ps1
 *.njsproj
 *.sln
 *.sw?
+
+# Windows system files
+desktop.ini
+Thumbs.db
+
+# Vite build artifacts
+vite.config.ts.timestamp-*
+
+# Script logs and generated CSV files
+scripts/enrich_log_*.csv
+scripts/*.log
+
+# Claude Code local config (backend only — root .claude/ is tracked)
+backend/SkinAnalysis.Api/.claude/
