@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
   LogOut, Pencil, Lock, Shield, HelpCircle, Settings,
-  Mail, Trash2, Instagram, Globe,
+  Mail, Instagram, Globe,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
@@ -11,17 +11,14 @@ import { fetchProfileSummary, fetchDashboardSummary, invalidateAnalysisCache } f
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { AuroraBackdrop } from "@/components/shared";
-import type { LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
 import type { AnalysisResponse } from "@/lib/analysis";
 import { SkinCard } from "@/components/profile/SkinCard";
-import { LifestyleCard } from "@/components/profile/LifestyleCard";
+import { SkincareInsights } from "@/components/profile/SkincareInsights";
 import { StatsRow } from "@/components/profile/StatsRow";
 import { SubscriptionCard } from "@/components/profile/SubscriptionCard";
 import { AccountCard } from "@/components/profile/AccountCard";
 import logoUrl from "@/assets/logo-faceglow.svg";
 
-const QUIZ_ANSWERS_KEY   = "faceglow-quiz-answers";
-const QUIZ_COMPLETED_KEY = "faceglow-quiz-completed";
 
 const APP_VERSION = "1.0.0";
 
@@ -51,8 +48,6 @@ const Profile = () => {
   const [lastAnalysisDate, setLastAnalysisDate] = useState<string | undefined>();
   const [latestAnalysis, setLatestAnalysis]     = useState<AnalysisResponse | null>(null);
 
-  // ── Quiz / lifestyle ─────────────────────────────────────────────────────
-  const [quizAnswers, setQuizAnswers] = useState<LifestyleAnswers | null>(null);
 
   // ── Efeito 1: dados do usuário ───────────────────────────────────────────
   useEffect(() => {
@@ -110,10 +105,6 @@ const Profile = () => {
       }
     } catch { /* ignora */ }
 
-    try {
-      const raw = localStorage.getItem(QUIZ_ANSWERS_KEY);
-      if (raw) setQuizAnswers(JSON.parse(raw) as LifestyleAnswers);
-    } catch { /* ignora */ }
   }, []);
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -175,13 +166,6 @@ const Profile = () => {
       onClick: () => navigate("/admin/products"),
       badge: "Admin",
     }] : []),
-    {
-      label: "Excluir conta",
-      icon: <Trash2 size={17} className="text-red-500" />,
-      onClick: () => navigate("/profile/delete"),
-      badge: undefined,
-      danger: true,
-    },
   ];
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -247,14 +231,8 @@ const Profile = () => {
           isFullAccess={isFullAccess}
         />
 
-        {/* 2. Perfil de Pele */}
-        <LifestyleCard
-          answers={quizAnswers}
-          onUpdate={() => {
-            localStorage.removeItem(QUIZ_COMPLETED_KEY);
-            navigate("/analyze");
-          }}
-        />
+        {/* 2. Aprenda sobre skincare */}
+        <SkincareInsights skinType={lastSkinType} />
 
         {/* 3. Estatísticas */}
         <StatsRow

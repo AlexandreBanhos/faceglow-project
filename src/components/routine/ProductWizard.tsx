@@ -146,9 +146,7 @@ export function ProductWizard({
 
   useFloatAnimation();
 
-  const firstStep: Step =
-    isCurrentUserProduct && mode === "swap" ? "edit_name" :
-    mode === "swap" ? "source" : "category";
+  const firstStep: Step = mode === "swap" ? "source" : "category";
 
   const [step, setStep]       = useState<Step>(firstStep);
   const [history, setHistory] = useState<Step[]>([]);
@@ -184,7 +182,7 @@ export function ProductWizard({
   const [regDays, setRegDays]       = useState<string[]>(WEEK_DAYS.map(d => d.key));
   const [regUploading, setRegUploading] = useState(false);
   const [regSaving, setRegSaving]   = useState(false);
-  const [isEditMode, setIsEditMode]     = useState(isCurrentUserProduct && mode === "swap");
+  const [isEditMode, setIsEditMode]     = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [customBrandInput, setCustomBrandInput] = useState("");
   const imageInputRef                   = useRef<HTMLInputElement>(null);
@@ -192,8 +190,7 @@ export function ProductWizard({
   // Reset ao abrir
   useEffect(() => {
     if (open) {
-      const editMode = isCurrentUserProduct && mode === "swap";
-      setStep(editMode ? "edit_name" : mode === "swap" ? "source" : "category");
+      setStep(mode === "swap" ? "source" : "category");
       setHistory([]);
       setDir(1);
       setSelectedCategory(WIZARD_CATEGORIES.find(c => c.key === initialCategory) ?? null);
@@ -201,11 +198,9 @@ export function ProductWizard({
       setSelectedSource(null);
       setPeriod(initialPeriod === "morning" ? "morning" : initialPeriod === "night" ? "night" : "both");
       setCatalogQuery(""); setCatalogResults([]); setCatalogSearched(false);
-      setRegName(editMode ? (currentProductName ?? "") : "");
-      setRegBrand(""); setRegImageUrl(editMode ? (currentProductImage ?? undefined) : undefined);
-      setRegImageFile(null);
+      setRegName(""); setRegBrand(""); setRegImageUrl(undefined); setRegImageFile(null);
       setRegIsDaily(true); setRegDays(WEEK_DAYS.map(d => d.key));
-      setIsEditMode(editMode); setEditingProductId(null);
+      setIsEditMode(false); setEditingProductId(null);
       setCustomBrandInput("");
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -521,6 +516,23 @@ export function ProductWizard({
                     </div>
                   )}
 
+                  {/* Editar este produto — destaque no topo quando é produto do usuário */}
+                  {isCurrentUserProduct && mode === "swap" && (
+                    <button
+                      onClick={startEditCurrentProduct}
+                      className="w-full flex items-center gap-3 p-4 rounded-2xl text-left bg-amber-50 border-2 border-amber-200 shadow-sm active:scale-[0.98] transition-transform"
+                    >
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#fef3c7" }}>
+                        <FontAwesomeIcon icon={faPenToSquare} style={{ fontSize: 16, color: "#d97706" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-amber-800 leading-tight">Editar este produto</p>
+                        <p className="text-xs text-amber-600 mt-0.5">Atualizar nome, categoria, marca ou foto</p>
+                      </div>
+                      <FontAwesomeIcon icon={faChevronRight} style={{ fontSize: 11, color: "#d97706", flexShrink: 0 }} />
+                    </button>
+                  )}
+
                   {recommendations.length > 0 && (
                     <SourceOption
                       faIcon={faWandMagicSparkles}
@@ -550,17 +562,6 @@ export function ProductWizard({
                     sub="Produtos que você já cadastrou"
                     onClick={() => goTo("my_products")}
                   />
-
-                  {isCurrentUserProduct && mode === "swap" && (
-                    <SourceOption
-                      faIcon={faPenToSquare}
-                      iconBg="#fffbeb"
-                      iconColor="#d97706"
-                      title="Editar este produto"
-                      sub="Atualizar nome, foto ou marca"
-                      onClick={startEditCurrentProduct}
-                    />
-                  )}
 
                   {mode === "swap" && (
                     <SourceOption
@@ -680,7 +681,7 @@ export function ProductWizard({
                     </div>
                   ) : (
                     <p className="text-sm text-slate-500 text-center py-8">
-                      Nenhum produto desta categoria ainda.
+                      Você não possui nenhum produto cadastrado na categoria {selectedCategory?.label ?? "selecionada"}.
                     </p>
                   )}
 

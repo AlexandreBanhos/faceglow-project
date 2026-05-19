@@ -96,7 +96,9 @@ const resolveUploadUrl = async (
 
 export const uploadAnalysisImage = async (dataUrl: string, userId: string) => {
   const timestamp = Date.now();
-  const file = dataUrlToFile(dataUrl, `analysis-${timestamp}.jpg`);
+  const raw = dataUrlToFile(dataUrl, `analysis-${timestamp}.jpg`);
+  // Comprime para max 1024px, qualidade 0.88 antes de enviar
+  const file = await compressImage(raw, 1024, 0.88).catch(() => raw);
   const path = `${userId}/${timestamp}-${Math.random().toString(36).slice(2, 10)}.jpg`;
   await uploadFileToBucket(analysisBucket, path, file);
 
@@ -137,7 +139,7 @@ export const uploadProductImage = async (file: File, userId?: string): Promise<s
     throw new Error("Usuário não autenticado. Faça login para enviar imagens.");
   }
 
-  const compressed = await compressImage(file, 1200, 0.85);
+  const compressed = await compressImage(file, 800, 0.82);
   const timestamp = Date.now();
   const path = `${resolvedUserId}/${timestamp}-${Math.random().toString(36).slice(2, 8)}.webp`;
   await uploadFileToBucket(productsBucket, path, compressed);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Droplets, ChevronDown, ChevronUp, AlertCircle, Eye, Zap, Wind, Sun } from "lucide-react";
+import { TrendingUp, Droplets, ChevronDown, ChevronUp, AlertCircle, Eye, Zap, Wind, Sun, Sparkles, ScanFace, ListChecks } from "lucide-react";
+import logoUrl from "@/assets/logo-faceglow.svg";
 import { useNavigate, useLocation } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import SkinTypeInfoSection from "@/components/SkinTypeInfoSection";
@@ -391,6 +392,11 @@ const Dashboard = () => {
     return <LoadingSpinnerFullScreen message="Carregando seu dashboard..." />;
   }
 
+  // Tela de boas-vindas quando não há análise
+  if (!latestAnalysis) {
+    return <DashboardWelcome navigate={navigate} />;
+  }
+
   return (
     <div className="relative w-full min-h-screen pb-28 overflow-hidden"
          style={{ background: "var(--grad-aurora)" }}>
@@ -610,5 +616,99 @@ const Dashboard = () => {
     </div>
   );
 };
+
+function DashboardWelcome({ navigate }: { navigate: ReturnType<typeof useNavigate> }) {
+  const BENEFITS = [
+    { Icon: ScanFace, color: "#E8547A", label: "Análise de pele com IA em segundos" },
+    { Icon: ListChecks, color: "#8b5cf6", label: "Rotina personalizada para o seu tipo de pele" },
+    { Icon: Sparkles,  color: "#0ea5e9", label: "Recomendações de produtos curados" },
+  ];
+
+  return (
+    <div className="relative w-full min-h-screen pb-28 flex flex-col" style={{ background: "var(--grad-aurora)" }}>
+      <AuroraBackdrop tone="warm" className="-z-10" />
+      <div className="flex flex-col items-center justify-center flex-1 px-6 pt-16 pb-8">
+
+        {/* Logo */}
+        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <img src={logoUrl} alt="FaceGlow" className="h-9 object-contain" />
+        </motion.div>
+
+        {/* Orb vazio / placeholder */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1, type: "spring", stiffness: 280, damping: 22 }}
+          className="w-36 h-36 rounded-full flex items-center justify-center mb-6 relative"
+          style={{
+            background: "linear-gradient(135deg, rgba(232,84,122,0.12) 0%, rgba(232,169,194,0.08) 100%)",
+            border: "2px dashed rgba(232,84,122,0.25)",
+          }}
+        >
+          <ScanFace size={52} style={{ color: "var(--grad-coral, #E8547A)", opacity: 0.5 }} />
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            animate={{ scale: [1, 1.06, 1], opacity: [0.3, 0.1, 0.3] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            style={{ border: "2px solid rgba(232,84,122,0.25)" }}
+          />
+        </motion.div>
+
+        {/* Título */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18 }}
+          className="text-center mb-2"
+        >
+          <h1 className="text-2xl font-black text-foreground">Bem-vindo ao FaceGlow</h1>
+          <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto leading-relaxed">
+            Faça sua primeira análise de pele para desbloquear uma rotina personalizada com produtos ideais para você.
+          </p>
+        </motion.div>
+
+        {/* Benefícios */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.26 }}
+          className="w-full max-w-sm mt-5 space-y-2.5"
+        >
+          {BENEFITS.map(({ Icon, color, label }) => (
+            <div key={label} className="flex items-center gap-3 px-4 py-3 rounded-2xl lg-surface">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: `${color}18` }}>
+                <Icon size={16} style={{ color }} />
+              </div>
+              <p className="text-sm font-medium text-foreground">{label}</p>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* CTA */}
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.34 }}
+          onClick={() => navigate("/analyze")}
+          className="mt-7 w-full max-w-sm h-14 rounded-2xl coral-button font-bold text-base flex items-center justify-center gap-2.5 shadow-glow"
+        >
+          <ScanFace size={20} />
+          Fazer minha análise gratuita
+        </motion.button>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="text-xs text-muted-foreground mt-3 text-center"
+        >
+          Sua primeira análise é gratuita · Leva menos de 30 segundos
+        </motion.p>
+      </div>
+      <BottomNav />
+    </div>
+  );
+}
 
 export default Dashboard;

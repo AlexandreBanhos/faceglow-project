@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronDown, Mail, MessageCircle, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronDown, Mail, MessageCircle, FileText, Sparkles, Trash2, AlertTriangle } from "lucide-react";
 
 interface FAQ {
   q: string;
@@ -159,6 +159,33 @@ const Support = () => {
             {FAQS.map((faq) => (
               <FAQItem key={faq.q} faq={faq} />
             ))}
+          </div>
+        </motion.div>
+
+        {/* Excluir conta — zona de perigo no final */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <div className="p-4 rounded-2xl bg-red-50 border border-red-100 space-y-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-red-800">Zona de perigo</p>
+                <p className="text-xs text-red-600 mt-0.5 leading-relaxed">
+                  A exclusão de conta é permanente. Todos os seus dados, análises e rotinas serão removidos e não poderão ser recuperados.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate("/profile/delete")}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-red-200 text-left active:scale-[0.98] transition-transform"
+            >
+              <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                <Trash2 size={16} className="text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-red-700">Excluir minha conta</p>
+                <p className="text-xs text-red-400">Ação irreversível</p>
+              </div>
+            </button>
           </div>
         </motion.div>
 
