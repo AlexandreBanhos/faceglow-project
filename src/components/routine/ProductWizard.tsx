@@ -87,7 +87,10 @@ const WEEK_DAYS = [
   { key: "sun", label: "Dom" },
 ];
 
-type Step = "category" | "source" | "recommendations" | "catalog" | "my_products" | "register" | "period";
+type Step =
+  | "category" | "source" | "recommendations" | "catalog"
+  | "my_products" | "register" | "period"
+  | "edit_name" | "edit_category" | "edit_brand" | "edit_photo";
 
 const STEP_TITLES: Partial<Record<Step, string>> = {
   category:        "Qual passo?",
@@ -97,6 +100,10 @@ const STEP_TITLES: Partial<Record<Step, string>> = {
   my_products:     "Meus produtos",
   register:        "Cadastrar produto",
   period:          "Para qual rotina?",
+  edit_name:       "Nome do produto",
+  edit_category:   "Categoria",
+  edit_brand:      "Marca",
+  edit_photo:      "Foto",
 };
 
 const slideVariants = {
@@ -114,6 +121,10 @@ const STEP_MASCOT: Record<Step, StepMeta> = {
   my_products:     { text: "Aqui estão seus produtos!",            highlight: "seus produtos",   mood: "happy"    },
   register:        { text: "Cadastrar produto",                    highlight: "Cadastrar",       mood: "happy"    },
   period:          { text: "Para qual momento da sua rotina?",     highlight: "momento",         mood: "happy"    },
+  edit_name:       { text: "Como se chama o produto?",             highlight: "produto",         subtitle: "Confirme ou edite o nome", mood: "thinking" },
+  edit_category:   { text: "Qual a categoria?",                    highlight: "categoria",       subtitle: "Selecione a que melhor descreve", mood: "thinking" },
+  edit_brand:      { text: "Qual a marca?",                        highlight: "marca",           subtitle: "Selecione, adicione ou pule", mood: "happy" },
+  edit_photo:      { text: "Tem foto do produto?",                 highlight: "foto",            subtitle: "Opcional, mas fica mais bonito!", mood: "happy" },
 };
 
 // ── Estilos base reutilizáveis ─────────────────────────────────────────────
@@ -135,7 +146,9 @@ export function ProductWizard({
 
   useFloatAnimation();
 
-  const firstStep: Step = mode === "swap" ? "source" : "category";
+  const firstStep: Step =
+    isCurrentUserProduct && mode === "swap" ? "edit_name" :
+    mode === "swap" ? "source" : "category";
 
   const [step, setStep]       = useState<Step>(firstStep);
   const [history, setHistory] = useState<Step[]>([]);
@@ -171,14 +184,16 @@ export function ProductWizard({
   const [regDays, setRegDays]       = useState<string[]>(WEEK_DAYS.map(d => d.key));
   const [regUploading, setRegUploading] = useState(false);
   const [regSaving, setRegSaving]   = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode]     = useState(isCurrentUserProduct && mode === "swap");
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const imageInputRef               = useRef<HTMLInputElement>(null);
+  const [customBrandInput, setCustomBrandInput] = useState("");
+  const imageInputRef                   = useRef<HTMLInputElement>(null);
 
   // Reset ao abrir
   useEffect(() => {
     if (open) {
-      setStep(firstStep);
+      const editMode = isCurrentUserProduct && mode === "swap";
+      setStep(editMode ? "edit_name" : mode === "swap" ? "source" : "category");
       setHistory([]);
       setDir(1);
       setSelectedCategory(WIZARD_CATEGORIES.find(c => c.key === initialCategory) ?? null);
@@ -186,9 +201,12 @@ export function ProductWizard({
       setSelectedSource(null);
       setPeriod(initialPeriod === "morning" ? "morning" : initialPeriod === "night" ? "night" : "both");
       setCatalogQuery(""); setCatalogResults([]); setCatalogSearched(false);
-      setRegName(""); setRegBrand(""); setRegImageUrl(undefined); setRegImageFile(null);
+      setRegName(editMode ? (currentProductName ?? "") : "");
+      setRegBrand(""); setRegImageUrl(editMode ? (currentProductImage ?? undefined) : undefined);
+      setRegImageFile(null);
       setRegIsDaily(true); setRegDays(WEEK_DAYS.map(d => d.key));
-      setIsEditMode(false); setEditingProductId(null);
+      setIsEditMode(editMode); setEditingProductId(null);
+      setCustomBrandInput("");
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -214,9 +232,9 @@ export function ProductWizard({
     fetchMyProducts().then(setMyProducts).catch(() => {}).finally(() => setMyProductsLoading(false));
   }, [step]);
 
-  // Marcas para o form
+  // Marcas para o form (register ou edit_brand)
   useEffect(() => {
-    if (step !== "register") return;
+    if (step !== "register" && step !== "edit_brand") return;
     fetchCatalogProducts(selectedCategory?.key ?? "", "")
       .then(products => {
         const b = [...new Set(products.map(p => p.brand).filter((x): x is string => !!x && x.length > 0))].sort();
@@ -266,7 +284,10 @@ export function ProductWizard({
     setRegBrand(p.brand ?? "");
     setRegImageUrl(p.imageUrl);
     setRegImageFile(null);
-    goTo("register");
+    setCustomBrandInput("");
+    const matching = WIZARD_CATEGORIES.find(c => c.label.toLowerCase() === p.category.toLowerCase());
+    if (matching) setSelectedCategory(matching);
+    goTo("edit_name");
   };
 
   const startEditCurrentProduct = () => {
@@ -276,7 +297,8 @@ export function ProductWizard({
     setRegBrand("");
     setRegImageUrl(currentProductImage ?? undefined);
     setRegImageFile(null);
-    goTo("register");
+    setCustomBrandInput("");
+    goTo("edit_name");
   };
 
   const toggleDay = (key: string) =>
@@ -803,6 +825,149 @@ export function ProductWizard({
                       ? <Loader2 size={16} className="animate-spin" />
                       : <FontAwesomeIcon icon={faCheck} style={{ fontSize: 14 }} />}
                     {regUploading ? "Enviando foto..." : regSaving ? "Salvando..." : isEditMode ? "Salvar alterações" : "Continuar"}
+                  </button>
+                </div>
+              )}
+
+              {/* ── EDITAR: NOME ─────────────────────────────────────────── */}
+              {step === "edit_name" && (
+                <div className="space-y-4">
+                  <input
+                    autoFocus
+                    value={regName}
+                    onChange={e => setRegName(e.target.value)}
+                    placeholder="Nome do produto"
+                    className="w-full px-4 py-4 rounded-2xl bg-white border border-slate-200 text-base font-semibold text-slate-800 placeholder:text-slate-400 outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                  />
+                  <button
+                    onClick={() => goTo("edit_category")}
+                    disabled={!regName.trim()}
+                    className={`${BTN_PRIMARY} disabled:opacity-40`}
+                  >
+                    Confirmar nome
+                    <FontAwesomeIcon icon={faChevronRight} style={{ fontSize: 13 }} />
+                  </button>
+                </div>
+              )}
+
+              {/* ── EDITAR: CATEGORIA ────────────────────────────────────── */}
+              {step === "edit_category" && (
+                <div className="grid grid-cols-3 gap-2.5">
+                  {WIZARD_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.key}
+                      onClick={() => { setSelectedCategory(cat); goTo("edit_brand"); }}
+                      className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white border-2 text-center transition-all active:scale-95"
+                      style={selectedCategory?.key === cat.key ? {
+                        borderColor: "#e8a9c2",
+                        boxShadow: "0 0 0 3px rgba(232,169,194,0.18)",
+                      } : { borderColor: "rgba(255,255,255,0.9)" }}
+                    >
+                      <div className="w-9 h-9 flex items-center justify-center">
+                        <StepIcon stepTypeKey={cat.key} size={32} />
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-700 leading-tight">{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* ── EDITAR: MARCA ────────────────────────────────────────── */}
+              {step === "edit_brand" && (
+                <div className="space-y-4">
+                  {/* Marcas em pills */}
+                  <div className="flex flex-wrap gap-2">
+                    {brands.map(b => (
+                      <button
+                        key={b}
+                        onClick={() => { setRegBrand(b); setCustomBrandInput(""); goTo("edit_photo"); }}
+                        className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border active:scale-95 ${
+                          regBrand === b
+                            ? "coral-button border-transparent"
+                            : "bg-white border-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                    {/* Nenhuma */}
+                    <button
+                      onClick={() => { setRegBrand(""); setCustomBrandInput(""); goTo("edit_photo"); }}
+                      className="px-4 py-2 rounded-full text-sm font-semibold border bg-white border-slate-200 text-slate-500 active:scale-95"
+                    >
+                      Nenhuma
+                    </button>
+                  </div>
+
+                  {/* Adicionar marca customizada */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500">Adicionar marca:</p>
+                    <div className="flex gap-2">
+                      <input
+                        value={customBrandInput}
+                        onChange={e => setCustomBrandInput(e.target.value)}
+                        placeholder="Nome da marca"
+                        className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-800 placeholder:text-slate-400 outline-none"
+                      />
+                      <button
+                        onClick={() => {
+                          if (customBrandInput.trim()) {
+                            setRegBrand(customBrandInput.trim());
+                            goTo("edit_photo");
+                          }
+                        }}
+                        disabled={!customBrandInput.trim()}
+                        className="px-4 py-2.5 rounded-xl coral-button text-sm font-bold disabled:opacity-40"
+                      >
+                        Usar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── EDITAR: FOTO ─────────────────────────────────────────── */}
+              {step === "edit_photo" && (
+                <div className="space-y-4">
+                  {/* Preview */}
+                  <div className="flex justify-center">
+                    <div className="relative w-32 h-32 rounded-3xl overflow-hidden bg-slate-50 border border-slate-200 flex items-center justify-center">
+                      {regImageUrl ? (
+                        <>
+                          <img src={regImageUrl} alt="preview" className="w-full h-full object-contain p-2" />
+                          <button
+                            onClick={() => { setRegImageUrl(undefined); setRegImageFile(null); }}
+                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-slate-800/60 flex items-center justify-center"
+                          >
+                            <FontAwesomeIcon icon={faXmark} style={{ fontSize: 10, color: "white" }} />
+                          </button>
+                        </>
+                      ) : (
+                        <StepIcon stepTypeKey={selectedCategory?.key} size={48} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Selecionar */}
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    className={BTN_SECONDARY}
+                  >
+                    <FontAwesomeIcon icon={faCamera} style={{ fontSize: 14 }} />
+                    {regImageUrl ? "Trocar foto" : "Selecionar da galeria"}
+                  </button>
+                  <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+
+                  {/* Pular */}
+                  <button
+                    onClick={handleRegister}
+                    disabled={regSaving}
+                    className={`${BTN_PRIMARY} disabled:opacity-50`}
+                  >
+                    {regSaving
+                      ? <Loader2 size={16} className="animate-spin" />
+                      : <FontAwesomeIcon icon={faCheck} style={{ fontSize: 14 }} />}
+                    {regUploading ? "Enviando…" : regSaving ? "Salvando…" : regImageUrl ? "Salvar e continuar" : "Continuar sem foto"}
                   </button>
                 </div>
               )}

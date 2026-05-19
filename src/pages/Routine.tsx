@@ -388,6 +388,7 @@ const Routine = () => {
   const [historyVersions, setHistoryVersions] = useState<{ morning: RoutineVersionItem[]; night: RoutineVersionItem[] }>({ morning: [], night: [] });
   const [historyLoading, setHistoryLoading] = useState(false);
   const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
+  const [makeupToday, setMakeupToday]   = useState(false);
   const [shakingDay, setShakingDay] = useState<string | null>(null);
   const [stepPendingDelete, setStepPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingStep, setIsDeletingStep] = useState(false);
@@ -466,6 +467,11 @@ const Routine = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(`faceglow-makeup-today-${todayStr}`);
+    setMakeupToday(stored === "true");
+  }, [todayStr]);
 
   // Carrega progresso de hoje do DB e hidrata checkedByDayItem
   useEffect(() => {
@@ -1533,8 +1539,25 @@ const Routine = () => {
     return [...uniqueByName.values()];
   };
 
+  const hasMakeupRemoverStep = apiSteps.some(
+    (s) => s.period === "night" && (s.stepTypeKey === "makeup_remover" || s.stepTypeKey === "demaquilante")
+  );
+
+  const toggleMakeup = () => {
+    const next = !makeupToday;
+    setMakeupToday(next);
+    localStorage.setItem(`faceglow-makeup-today-${todayStr}`, String(next));
+  };
+
   const activePeriodItems = selectedPeriod === "morning" ? orderedItems.morning : orderedItems.night;
-  const visiblePeriodItems = activePeriodItems.filter((item) => isScheduledForDay(item.key, selectedWeekDay));
+  const visiblePeriodItems = activePeriodItems
+    .filter((item) => isScheduledForDay(item.key, selectedWeekDay))
+    .filter((item) => {
+      if (selectedPeriod === "night" && !makeupToday) {
+        return item.stepTypeKey !== "makeup_remover" && item.stepTypeKey !== "demaquilante";
+      }
+      return true;
+    });
   const coreItems = visiblePeriodItems.filter((item) => !isExtraItem(item));
   // Extras: from routineItems directly (orderedItems is core-only), deduped, not overlapping with core
   const extraItems = (() => {
@@ -2323,6 +2346,28 @@ const Routine = () => {
             <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: "#FEF9EE", border: "1px solid #F59E0B33" }}>
               <span className="text-lg">🔒</span>
               <p className="text-xs font-semibold" style={{ color: "#92400E" }}>Rotinas futuras não podem ser marcadas.</p>
+            </div>
+          )}
+
+          {/* ── Toggle maquiagem (rotina noturna) ── */}
+          {selectedPeriod === "night" && hasMakeupRemoverStep && !isEditing && (
+            <div className="mb-3">
+              <button
+                onClick={toggleMakeup}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 ${
+                  makeupToday
+                    ? "bg-rose-100 text-rose-700 border border-rose-200 shadow-sm"
+                    : "liquiglass-button text-muted-foreground"
+                }`}
+              >
+                <Droplets size={14} className={makeupToday ? "text-rose-500" : ""} />
+                {makeupToday ? "Usei maquiagem hoje ✓" : "Estou maquiada hoje?"}
+              </button>
+              {makeupToday && (
+                <p className="text-[11px] text-muted-foreground mt-1.5 ml-1">
+                  Passo de remoção de maquiagem ativado na rotina.
+                </p>
+              )}
             </div>
           )}
 

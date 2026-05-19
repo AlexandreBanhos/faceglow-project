@@ -40,7 +40,6 @@ const Profile = () => {
 
   // ── Estatísticas ─────────────────────────────────────────────────────────
   const [totalAnalyses, setTotalAnalyses]   = useState(0);
-  const [bestScore, setBestScore]           = useState(0);
   const [streakDays, setStreakDays]         = useState(0);
   const [statsLoading, setStatsLoading]     = useState(true);
 
@@ -84,7 +83,6 @@ const Profile = () => {
       if (!mounted) return;
       if (summary?.stats) {
         setTotalAnalyses(summary.stats.totalAnalyses ?? 0);
-        setBestScore(summary.stats.bestScore ?? 0);
         setStreakDays(summary.stats.streakDays ?? 0);
       }
       const latest = dashboard?.latest as AnalysisResponse | null | undefined;
@@ -117,6 +115,14 @@ const Profile = () => {
       if (raw) setQuizAnswers(JSON.parse(raw) as LifestyleAnswers);
     } catch { /* ignora */ }
   }, []);
+
+  // ── Derived ──────────────────────────────────────────────────────────────
+  const activeProducts = useMemo(() => {
+    if (!latestAnalysis) return 0;
+    const m = latestAnalysis.routine?.morning?.length ?? 0;
+    const n = latestAnalysis.routine?.night?.length ?? 0;
+    return m + n;
+  }, [latestAnalysis]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const avatarLetter = useMemo(() => {
@@ -187,8 +193,11 @@ const Profile = () => {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center px-6 pt-12 pb-6"
+        className="flex flex-col items-center px-6 pt-10 pb-6"
       >
+        {/* Logo FaceGlow como marca no topo */}
+        <img src={logoUrl} alt="FaceGlow" className="h-6 object-contain mb-5 opacity-70" />
+
         {/* Avatar */}
         <div className="relative w-[88px] h-[88px] rounded-full gradient-primary flex items-center justify-center shadow-glow overflow-hidden flex-shrink-0">
           <span className="text-2xl font-extrabold text-primary-foreground select-none">{avatarLetter}</span>
@@ -250,8 +259,8 @@ const Profile = () => {
         {/* 3. Estatísticas */}
         <StatsRow
           totalAnalyses={statsLoading ? 0 : totalAnalyses}
-          bestScore={statsLoading ? 0 : bestScore}
-          creditsRemaining={creditsRemaining}
+          currentScore={statsLoading ? 0 : (lastScore > 0 ? lastScore : 0)}
+          activeProducts={statsLoading ? 0 : activeProducts}
           streakDays={statsLoading ? 0 : streakDays}
         />
 

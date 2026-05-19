@@ -30,6 +30,7 @@ const ICON_MAP: Record<string, string> = {
   treatment:       treatmentUrl,
   tratamento:      treatmentUrl,
   demaquilante:    demaquilanteUrl,
+  makeup_remover:  demaquilanteUrl,
 };
 
 // Gradiente do sistema aplicado diretamente ao SVG via CSS mask

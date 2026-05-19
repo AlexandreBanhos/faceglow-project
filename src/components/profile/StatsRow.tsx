@@ -3,17 +3,17 @@ import { TrendingUp, Trophy, Coins, Flame } from "lucide-react";
 
 interface StatsRowProps {
   totalAnalyses: number;
-  bestScore: number;
-  creditsRemaining: number;
+  currentScore: number;
+  activeProducts: number;
   streakDays: number;
 }
 
-export function StatsRow({ totalAnalyses, bestScore, creditsRemaining, streakDays }: StatsRowProps) {
+export function StatsRow({ totalAnalyses, currentScore, activeProducts, streakDays }: StatsRowProps) {
   const stats = [
-    { label: "Análises",  value: totalAnalyses,   display: totalAnalyses > 0 ? String(totalAnalyses) : "0",    Icon: TrendingUp, color: "text-primary"    },
-    { label: "Score",     value: bestScore,         display: bestScore > 0     ? String(bestScore)     : "—",    Icon: Trophy,     color: "text-amber-500"  },
-    { label: "Créditos",  value: creditsRemaining, display: String(creditsRemaining),                           Icon: Coins,      color: "text-emerald-500"},
-    { label: "Sequência", value: streakDays,        display: streakDays > 0    ? `${streakDays}d`      : "—",   Icon: Flame,      color: "text-orange-400" },
+    { label: "Análises",  display: totalAnalyses > 0   ? String(totalAnalyses) : "0",  Icon: TrendingUp, color: "text-primary"    },
+    { label: "Score",     display: currentScore > 0    ? String(currentScore)  : "—",  Icon: Trophy,     color: "text-amber-500"  },
+    { label: "Ativos",    display: activeProducts > 0  ? String(activeProducts): "—",  Icon: Coins,      color: "text-emerald-500"},
+    { label: "Concluídos", display: streakDays > 0      ? `${streakDays}d`      : "—",  Icon: Flame,      color: "text-orange-400" },
   ];
 
   return (

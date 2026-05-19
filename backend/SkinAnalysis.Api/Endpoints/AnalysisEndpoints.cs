@@ -69,39 +69,27 @@ public static class AnalysisEndpoints
             .Select(g => new { Total = g.Count() })
             .FirstOrDefaultAsync(cancellationToken);
 
-        var streakDays = 0;
+        var completedDays = 0;
         try
         {
             await dbContext.Database.OpenConnectionAsync(cancellationToken);
             var connection = dbContext.Database.GetDbConnection();
+            // Total de dias distintos com pelo menos 1 conclusão de rotina (manhã OU noite)
             const string sql = """
-                SELECT DISTINCT completed_date
+                SELECT COUNT(DISTINCT completed_date)
                 FROM step_completions
                 WHERE user_id = @userId
-                ORDER BY completed_date DESC
-                LIMIT 365
                 """;
-            var days = (await connection.QueryAsync<DateOnly>(
-                new CommandDefinition(sql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken))).ToList();
-            if (days.Count > 0)
-            {
-                var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3));
-                var streak = 0; var expected = today;
-                foreach (var day in days)
-                {
-                    if (day == expected) { streak++; expected = expected.AddDays(-1); }
-                    else if (day < expected) break;
-                }
-                streakDays = streak;
-            }
+            completedDays = await connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(sql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken));
         }
-        catch { streakDays = 0; }
+        catch { completedDays = 0; }
 
         return Results.Ok(new AnalysisStatsResponseDto
         {
             TotalAnalyses = row?.Total ?? 0,
             BestScore = 0,
-            StreakDays = streakDays,
+            StreakDays = completedDays,
         });
     }
 

@@ -582,7 +582,7 @@ export default function MeusProdutos() {
                     <div className="space-y-1.5">
                       {analysisRoutine.morning.map((name, idx) => {
                         const usagePeriod = inRoutine(name);
-                        const recId = `morning-${name}`;
+                        const recId = `morning-${name}-${idx}`;
                         return (
                           <motion.div key={recId}
                             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
@@ -631,7 +631,7 @@ export default function MeusProdutos() {
                     <div className="space-y-1.5">
                       {analysisRoutine.night.map((name, idx) => {
                         const usagePeriod = inRoutine(name);
-                        const recId = `night-${name}`;
+                        const recId = `night-${name}-${idx}`;
                         return (
                           <motion.div key={recId}
                             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
