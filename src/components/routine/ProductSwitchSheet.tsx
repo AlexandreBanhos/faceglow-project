@@ -37,10 +37,19 @@ interface Props {
 }
 
 const STEP_TO_CATEGORY: Record<string, string> = {
-  cleanser: "Limpeza", moisturizer: "Hidratante", serum: "Sérum",
-  sunscreen: "Protetor Solar", toner: "Tônico", exfoliant: "Esfoliante",
-  mask: "Máscara", eye_cream: "Contorno dos Olhos", retinoid: "Retinol",
-  acid: "Ácido", spot_treatment: "Tratamento Pontual", oil: "Óleo",
+  cleanser:       "Limpeza",
+  moisturizer:    "Hidratante",
+  serum:          "Sérum",
+  sunscreen:      "Protetor Solar",
+  toner:          "Tônico",
+  exfoliant:      "Esfoliante",
+  mask:           "Máscara Facial",
+  eye_cream:      "Contorno dos Olhos",
+  retinoid:       "Retinol",
+  acid:           "Ácido",
+  spot_treatment: "Tratamento Pontual",
+  oil:            "Óleo Facial",
+  makeup_remover: "Removedor de Maquiagem",
 };
 
 const tierBadge: Record<string, { bg: string; text: string; label: string }> = {

@@ -261,7 +261,7 @@ export const FULL_QUESTIONS: QuizQuestion[] = [
       { id: "cleanser",       label: "Limpador facial",   faIcon: faPumpSoap     },
       { id: "moisturizer",    label: "Hidratante",        faIcon: faBottleWater  },
       { id: "toner",          label: "Tônico",            faIcon: faFlask        },
-      { id: "makeup_remover", label: "Demaquilante",      faIcon: faLeaf         },
+      { id: "makeup_remover", label: "Removedor de Maquiagem", sublabel: "Demaquilante ou cleansing oil", faIcon: faLeaf },
       { id: "serum",          label: "Sérum",             faIcon: faSyringe      },
       { id: "sunscreen",      label: "Protetor solar",    faIcon: faSun          },
       { id: "exfoliant",      label: "Esfoliante",        faIcon: faSprayCan     },

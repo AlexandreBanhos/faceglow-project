@@ -251,7 +251,7 @@ const PAGES: Page[] = [
           { value: "cleanser",      label: "Limpador facial" },
           { value: "moisturizer",   label: "Hidratante" },
           { value: "toner",         label: "Tônico" },
-          { value: "makeup_remover",label: "Demaquilante" },
+          { value: "makeup_remover",label: "Removedor de Maquiagem (demaquilante ou cleansing oil)" },
           { value: "serum",         label: "Sérum" },
           { value: "sunscreen",     label: "Protetor solar" },
           { value: "exfoliant",     label: "Esfoliante" },
