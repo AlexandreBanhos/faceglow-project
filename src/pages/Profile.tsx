@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
-import { fetchProfileSummary, fetchDashboardSummary, invalidateAnalysisCache } from "@/lib/analysisClient";
+import { fetchProfileSummary, fetchDashboardSummary, fetchRoutineSteps, invalidateAnalysisCache } from "@/lib/analysisClient";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { AuroraBackdrop } from "@/components/shared";
@@ -37,7 +37,9 @@ const Profile = () => {
 
   // ── Estatísticas ─────────────────────────────────────────────────────────
   const [totalAnalyses, setTotalAnalyses]   = useState(0);
+  const [bestScore, setBestScore]           = useState(0);
   const [streakDays, setStreakDays]         = useState(0);
+  const [activeProducts, setActiveProducts] = useState(0);
   const [statsLoading, setStatsLoading]     = useState(true);
 
   // ── Análise mais recente ─────────────────────────────────────────────────
@@ -74,10 +76,11 @@ const Profile = () => {
     Promise.all([
       fetchProfileSummary().catch(() => null),
       fetchDashboardSummary(false).catch(() => null),
-    ]).then(([summary, dashboard]) => {
+    ]).then(async ([summary, dashboard]) => {
       if (!mounted) return;
       if (summary?.stats) {
         setTotalAnalyses(summary.stats.totalAnalyses ?? 0);
+        setBestScore(summary.stats.bestScore ?? 0);
         setStreakDays(summary.stats.streakDays ?? 0);
       }
       const latest = dashboard?.latest as AnalysisResponse | null | undefined;
@@ -87,6 +90,11 @@ const Profile = () => {
         setLastAnalysisDate(latest.createdAtUtc);
         setLatestAnalysis(latest);
         if (!isCustomAvatar && latest.imageUrl) setAvatarUrl(latest.imageUrl);
+        // Busca contagem real de passos ativos via v2 API
+        try {
+          const steps = await fetchRoutineSteps(latest.id);
+          if (mounted) setActiveProducts(steps.length);
+        } catch { /* mantém 0 */ }
       }
       setStatsLoading(false);
     });
@@ -106,14 +114,6 @@ const Profile = () => {
     } catch { /* ignora */ }
 
   }, []);
-
-  // ── Derived ──────────────────────────────────────────────────────────────
-  const activeProducts = useMemo(() => {
-    if (!latestAnalysis) return 0;
-    const m = latestAnalysis.routine?.morning?.length ?? 0;
-    const n = latestAnalysis.routine?.night?.length ?? 0;
-    return m + n;
-  }, [latestAnalysis]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const avatarLetter = useMemo(() => {
@@ -237,7 +237,7 @@ const Profile = () => {
         {/* 3. Estatísticas */}
         <StatsRow
           totalAnalyses={statsLoading ? 0 : totalAnalyses}
-          currentScore={statsLoading ? 0 : (lastScore > 0 ? lastScore : 0)}
+          currentScore={statsLoading ? 0 : bestScore}
           activeProducts={statsLoading ? 0 : activeProducts}
           streakDays={statsLoading ? 0 : streakDays}
         />

@@ -375,8 +375,16 @@ const Analyze = () => {
         : undefined;
       const status = Number.isFinite(maybeStatus) ? maybeStatus : undefined;
 
-      // 503 = banco lento → mensagem específica com sugestão de retry
-      const message = status === 503
+      // 402 = sem créditos → redireciona para premium
+      if (status === 402) {
+        navigate("/premium");
+        return;
+      }
+
+      // 429 = muitas requisições → mensagem específica
+      const message = status === 429
+        ? "Muitas análises em pouco tempo. Aguarde alguns minutos e tente novamente."
+        : status === 503
         ? "O servidor está temporariamente sobrecarregado. Aguarde alguns segundos e tente novamente."
         : getFriendlyErrorMessage(error, { detail, status });
 
@@ -534,9 +542,19 @@ const Analyze = () => {
       <div className="flex-1 px-5 pb-6 space-y-3">
         {/* Error */}
         {analysisError && (
-          <div className="flex items-start gap-3 p-4 rounded-2xl" style={{ background: "rgba(232,116,138,0.08)", border: "1px solid rgba(232,116,138,0.25)" }}>
-            <AlertCircle size={17} style={{ color: "#E8748A", flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: 13, color: "#E8748A", fontWeight: 500, lineHeight: 1.5 }}>{analysisError}</p>
+          <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(232,116,138,0.08)", border: "1px solid rgba(232,116,138,0.25)" }}>
+            <div className="flex items-start gap-3 p-4">
+              <AlertCircle size={17} style={{ color: "#E8748A", flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontSize: 13, color: "#E8748A", fontWeight: 500, lineHeight: 1.5 }}>{analysisError}</p>
+            </div>
+            {faceValidation !== "invalid" && (
+              <button
+                onClick={() => { setAnalysisError(null); void startAnalysis(); }}
+                style={{ width: "100%", padding: "10px 16px", background: "rgba(232,116,138,0.12)", borderTop: "1px solid rgba(232,116,138,0.2)", fontSize: 13, fontWeight: 700, color: "#E8748A", cursor: "pointer", border: "none" }}
+              >
+                Tentar novamente
+              </button>
+            )}
           </div>
         )}
 

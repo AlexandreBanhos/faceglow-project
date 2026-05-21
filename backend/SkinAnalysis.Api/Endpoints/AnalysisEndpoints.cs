@@ -62,19 +62,23 @@ public static class AnalysisEndpoints
         var parsedUserId = EndpointHelpers.GetAuthenticatedUserId(user);
         if (!parsedUserId.HasValue) return Results.Unauthorized();
 
-        var row = await dbContext.SkinAnalyses
+        var totalAnalyses = await dbContext.SkinAnalyses
             .AsNoTracking()
             .Where(a => a.UserId == parsedUserId.Value)
-            .GroupBy(_ => 1)
-            .Select(g => new { Total = g.Count() })
-            .FirstOrDefaultAsync(cancellationToken);
+            .CountAsync(cancellationToken);
+
+        var bestScore = await dbContext.SkinAnalyses
+            .AsNoTracking()
+            .Where(a => a.UserId == parsedUserId.Value)
+            .Select(a => (int?)(100 - (int)Math.Round(
+                (a.AcneScore + a.OilinessScore + a.DarkSpotsScore + a.SensitivityScore) / 4.0 * 10)))
+            .MaxAsync(cancellationToken);
 
         var completedDays = 0;
         try
         {
             await dbContext.Database.OpenConnectionAsync(cancellationToken);
             var connection = dbContext.Database.GetDbConnection();
-            // Total de dias distintos com pelo menos 1 conclusão de rotina (manhã OU noite)
             const string sql = """
                 SELECT COUNT(DISTINCT completed_date)
                 FROM step_completions
@@ -87,8 +91,8 @@ public static class AnalysisEndpoints
 
         return Results.Ok(new AnalysisStatsResponseDto
         {
-            TotalAnalyses = row?.Total ?? 0,
-            BestScore = 0,
+            TotalAnalyses = totalAnalyses,
+            BestScore = Math.Clamp(bestScore ?? 0, 0, 100),
             StreakDays = completedDays,
         });
     }
@@ -158,20 +162,40 @@ public static class AnalysisEndpoints
             .Select(c => (int?)c.CreditsRemaining)
             .FirstOrDefaultAsync(cancellationToken) ?? 0;
 
-        var stats = await dbContext.SkinAnalyses
+        var totalAnalysesSummary = await dbContext.SkinAnalyses
             .AsNoTracking()
             .Where(a => a.UserId == parsedUserId.Value)
-            .GroupBy(_ => 1)
-            .Select(g => new { Total = g.Count(), Best = 0 })
-            .FirstOrDefaultAsync(cancellationToken);
+            .CountAsync(cancellationToken);
+
+        var bestRaw = await dbContext.SkinAnalyses
+            .AsNoTracking()
+            .Where(a => a.UserId == parsedUserId.Value)
+            .Select(a => (int?)(100 - (int)Math.Round(
+                (a.AcneScore + a.OilinessScore + a.DarkSpotsScore + a.SensitivityScore) / 4.0 * 10)))
+            .MaxAsync(cancellationToken);
+
+        var completedDaysForSummary = 0;
+        try
+        {
+            await dbContext.Database.OpenConnectionAsync(cancellationToken);
+            var conn = dbContext.Database.GetDbConnection();
+            const string daysSql = """
+                SELECT COUNT(DISTINCT completed_date)
+                FROM step_completions
+                WHERE user_id = @userId
+                """;
+            completedDaysForSummary = await conn.ExecuteScalarAsync<int>(
+                new CommandDefinition(daysSql, new { userId = parsedUserId.Value }, cancellationToken: cancellationToken));
+        }
+        catch { completedDaysForSummary = 0; }
 
         var result = new
         {
             stats = new AnalysisStatsResponseDto
             {
-                TotalAnalyses = stats?.Total ?? 0,
-                BestScore = stats?.Best ?? 0,
-                StreakDays = 0,
+                TotalAnalyses = totalAnalysesSummary,
+                BestScore = Math.Clamp(bestRaw ?? 0, 0, 100),
+                StreakDays = completedDaysForSummary,
             },
             credits = new { creditsRemaining },
         };

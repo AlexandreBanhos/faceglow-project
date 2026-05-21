@@ -1,11 +1,73 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2, Check, X as XIcon } from "lucide-react";
 import { sendPasswordReset, signInWithEmail, signUpWithEmail, updatePassword } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { AuroraBackdrop, FGGradientText } from "@/components/shared";
 import logoFaceglow from "@/assets/logo-faceglow.svg";
+
+function getPasswordChecks(pwd: string) {
+  return [
+    { label: "Mínimo 8 caracteres",   ok: pwd.length >= 8 },
+    { label: "Letra maiúscula (A-Z)", ok: /[A-Z]/.test(pwd) },
+    { label: "Letra minúscula (a-z)", ok: /[a-z]/.test(pwd) },
+    { label: "Número (0-9)",          ok: /\d/.test(pwd) },
+    { label: "Caractere especial",    ok: /[^a-zA-Z0-9]/.test(pwd) },
+  ];
+}
+function getPasswordStrength(score: number) {
+  if (score <= 1) return { label: "fraca",      color: "#ef4444" };
+  if (score <= 2) return { label: "média",      color: "#f59e0b" };
+  if (score <= 3) return { label: "forte",      color: "#3b82f6" };
+  return              { label: "muito forte", color: "#22c55e" };
+}
+function PasswordStrengthCard({ password }: { password: string }) {
+  const checks   = getPasswordChecks(password);
+  const score    = checks.filter((c) => c.ok).length;
+  const strength = getPasswordStrength(score);
+  return (
+    <AnimatePresence>
+      {password.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.2 }}
+          className="overflow-hidden"
+        >
+          <div className="rounded-2xl border border-border/40 bg-white/70 p-4 space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-semibold text-muted-foreground">Força da senha</p>
+                <span className="text-xs font-bold capitalize" style={{ color: strength.color }}>{strength.label}</span>
+              </div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex-1 h-1.5 rounded-full transition-all duration-300"
+                    style={{ background: i <= score ? strength.color : "#e2e8f0" }} />
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-1.5">
+              {checks.map((c) => (
+                <div key={c.label} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                    style={{ background: c.ok ? "#22c55e" : "#e2e8f0" }}>
+                    {c.ok
+                      ? <Check size={9} className="text-white" strokeWidth={3} />
+                      : <XIcon size={8} className="text-slate-400" strokeWidth={3} />}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{c.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 const PASSWORD_RESET_COOLDOWN_KEY = "faceglow-password-reset-next-at";
 const PASSWORD_RESET_COOLDOWN_SECONDS = 60;
@@ -375,6 +437,8 @@ const Auth = () => {
               </button>
             </div>
 
+            {isRecoveryMode && <PasswordStrengthCard password={form.password} />}
+
             {isRecoveryMode && (
               <div className="relative">
                 <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)]" />
@@ -383,7 +447,7 @@ const Auth = () => {
                   placeholder="Confirmar senha"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full py-3 pl-12 pr-12 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                  className="w-full py-3 pl-12 pr-12 lg-surface rounded-2xl text-[var(--fg-ink)]
                            placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
                 />
                 <button
