@@ -3,6 +3,7 @@ import { useUserContext } from "./useUserContext";
 import { getAccessToken } from "@/lib/auth";
 import { apiClient } from "@/shared/services/api/ApiClient";
 import { UserStatus } from "@/contexts/UserContextTypes";
+import { writeUserStatusCache } from "@/contexts/UserContext";
 
 interface BillingStatusResponse {
   isActive?: boolean;
@@ -114,6 +115,7 @@ export const useUserStatus = (enabled = true) => {
       };
 
       setUserStatus(newStatus);
+      writeUserStatusCache(newStatus); // persiste para evitar flash na próxima navegação
     } catch (error) {
       console.warn("[useUserStatus] Erro ao carregar status:", error);
       // Mantém estado anterior — não sobrescreve isPremium com false em caso de falha de rede

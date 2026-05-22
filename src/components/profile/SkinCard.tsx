@@ -130,13 +130,16 @@ export function SkinCard({
               <div style={{ position: "absolute", inset: 0, background: GRAD }} />
             )}
 
-            {/* Camada 2: overlay escuro para contraste do texto */}
+            {/* Camada 2: gradiente coral do sistema + overlay escuro */}
             <div style={{
               position: "absolute", inset: 0,
               background: hasPhoto
-                ? "rgba(0,0,0,0.42)"
+                ? "linear-gradient(135deg, rgba(221,182,147,0.45) 0%, rgba(232,169,194,0.38) 55%, rgba(239,143,184,0.32) 100%)"
                 : "linear-gradient(to top, rgba(0,0,0,0.25) 0%, transparent 60%)",
             }} />
+            {hasPhoto && (
+              <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)" }} />
+            )}
 
             {/* Camada 3: círculo centralizado com a foto nítida */}
             {hasPhoto && (

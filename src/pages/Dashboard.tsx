@@ -242,10 +242,11 @@ const Dashboard = () => {
   const [userReady, setUserReady] = useState(false);
   const [expandMetrics, setExpandMetrics] = useState(false);
   const [activeMetricKey, setActiveMetricKey] = useState<string>("overall");
-  const { isPremium, isConfirmedNonPremium } = useIsPremium();
+  const { isPremium, isConfirmedNonPremium, isLoading: isPremiumLoading } = useIsPremium();
   const isPremiumBlocked = isConfirmedNonPremium;
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
   const [routineSteps, setRoutineSteps] = useState<Array<{ id: string; period: string; productName: string }>>([]);
+  const [stepsLoaded, setStepsLoaded] = useState(false);
 
   // Efeito 1: Carregar dados do usuário
   useEffect(() => {
@@ -323,11 +324,20 @@ const Dashboard = () => {
 
   // Efeito 2.6a: Carregar steps — apenas premium. Free usa analysis.routine + freeRoutine.ts
   useEffect(() => {
-    if (!latestAnalysis?.id || isPremiumBlocked) return;
+    if (!latestAnalysis?.id || isPremiumBlocked) {
+      setStepsLoaded(true);
+      return;
+    }
     let cancelled = false;
+    setStepsLoaded(false);
     fetchRoutineSteps(latestAnalysis.id)
-      .then(steps => { if (!cancelled) setRoutineSteps(steps.map(s => ({ id: s.id, period: s.period, productName: s.productName }))); })
-      .catch(() => {});
+      .then(steps => {
+        if (!cancelled) {
+          setRoutineSteps(steps.map(s => ({ id: s.id, period: s.period, productName: s.productName })));
+          setStepsLoaded(true);
+        }
+      })
+      .catch(() => { if (!cancelled) setStepsLoaded(true); });
     return () => { cancelled = true; };
   }, [latestAnalysis?.id, isPremiumBlocked]);
 
@@ -407,6 +417,22 @@ const Dashboard = () => {
       return { total: 0, pending: 0, done: 0, items: [] as Array<{ title: string; done: boolean }> };
     }
 
+    // Enquanto premium status ou steps ainda carregam, usa analysis.routine como fallback seguro
+    // para evitar flash de "sem rotina". Isso afeta apenas o primeiro carregamento sem cache.
+    const stillLoading = isPremiumLoading || (!isPremiumBlocked && !stepsLoaded);
+    if (stillLoading && latestAnalysis.routine) {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      const freeChecked = getFreeStepsForDay(latestAnalysis.id, dateStr);
+      const steps = (latestAnalysis.routine[currentPeriod] ?? []).filter(s => !isExtraRoutineStep(s));
+      const items = steps.map(step => {
+        const label = getStepLabel(step);
+        return { title: label, done: Boolean(freeChecked[`${currentPeriod}::${label.toLowerCase().trim()}`]) };
+      });
+      const done = items.filter(i => i.done).length;
+      return { total: items.length, done, pending: Math.max(items.length - done, 0), items };
+    }
+
     const completedSet = new Set(completedStepIds);
 
     // Lê localStorage para respeitar desmarques feitos na página Routine
@@ -474,7 +500,7 @@ const Dashboard = () => {
     const done = items.filter(i => i.done).length;
     const total = items.length;
     return { total, done, pending: Math.max(total - done, 0), items };
-  }, [currentPeriod, latestAnalysis, completedStepIds, routineSteps, isPremiumBlocked]);
+  }, [currentPeriod, latestAnalysis, completedStepIds, routineSteps, isPremiumBlocked, isPremiumLoading, stepsLoaded]);
 
   const motivationText = (() => {
     if (!latestAnalysis) {
@@ -726,7 +752,7 @@ const Dashboard = () => {
         periodLabel={periodLabel}
         routineSummary={routineSummary}
         motivationText={motivationText}
-        isLoading={isLoading}
+        isLoading={isLoading || isPremiumLoading}
         delay={0.45}
       />
 
