@@ -286,7 +286,14 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
         transition={{ delay }}
         className="px-6 mt-4"
       >
-        <button onClick={goToRoutine} className="w-full text-left">
+        {/* div clicável em vez de button — evita button dentro de button (inner badges são buttons) */}
+        <div
+          onClick={goToRoutine}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && goToRoutine()}
+          className="w-full text-left cursor-pointer"
+        >
           <div
             className="rounded-3xl p-5 border border-white/30"
             style={{
@@ -363,7 +370,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
               </motion.div>
             )}
           </div>
-        </button>
+        </div>
       </motion.div>
 
       <AnimatePresence>
