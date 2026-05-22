@@ -38,21 +38,21 @@ export const useUserStatus = (enabled = true) => {
         return;
       }
 
-      // Timeout global para o carregamento todo (não deixar ficar mais de 12s)
+      // Timeout global para o carregamento todo (não deixar ficar mais de 6s)
       const promise = Promise.allSettled([
         apiClient.get<BillingStatusResponse>("/billing/status", {
-          timeout: 5000, // Timeout individual de 5s
+          timeout: 4000, // Timeout individual de 4s
         }),
         apiClient.get<CreditsResponse>("/analysis/credits", {
-          timeout: 5000, // Timeout individual de 5s
+          timeout: 4000, // Timeout individual de 4s
         }),
       ]);
 
-      // Aguarda com timeout global de 12s
+      // Aguarda com timeout global de 6s
       const results = await Promise.race([
         promise,
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout ao carregar status")), 12000)
+          setTimeout(() => reject(new Error("Timeout ao carregar status")), 6000)
         ),
       ]);
 

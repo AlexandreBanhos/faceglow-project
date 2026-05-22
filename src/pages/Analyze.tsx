@@ -9,7 +9,7 @@ import { invalidateAnalysisCache } from "@/lib/analysisClient";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useUserStatus } from "@/hooks/useUserStatus";
-import { AlertCircle, CheckCircle2, Sparkles, RotateCcw } from "lucide-react";
+import { AlertCircle, CheckCircle2, Sparkles, RotateCcw, Loader2 } from "lucide-react";
 import ScanningView from "@/components/analyze/ScanningView";
 import LoadingAnalysisView from "@/components/analyze/LoadingAnalysisView";
 import { AnalysisInfoPage } from "@/components/analyze/AnalysisInfoPage";
@@ -143,6 +143,7 @@ const Analyze = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   useUserStatus(isAuthenticated);
   const [phase, setPhase] = useState<AnalyzePhase>("info");
+  const [isStarting, setIsStarting] = useState(false);
   const [preAnswers, setPreAnswers] = useState<LifestyleAnswers | null>(null);
   const [routineAnswers, setRoutineAnswers] = useState<LifestyleAnswers | null>(null);
   // Se já fez o quiz completo antes, não mostra o quiz de rotina durante o loading
@@ -277,12 +278,14 @@ const Analyze = () => {
   const handleAnalysisError = (message: string) => {
     setAnalysisError(message);
     setPhase("preview");
+    setIsStarting(false);
   };
 
   const startAnalysis = async () => {
-    if (!image) {
+    if (!image || isStarting) {
       return;
     }
+    setIsStarting(true);
 
     // Se não está autenticado, redirecionar para cadastro com redirect back para /analyze
     const user = await getSessionUser();
@@ -390,6 +393,8 @@ const Analyze = () => {
 
       setAnalysisError(message);
       setPhase("preview");
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -480,7 +485,7 @@ const Analyze = () => {
 
         {/* Quiz de rotina — aparece sobre o loading apenas na primeira análise */}
         {!routineQuizDone && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 40 }}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 40, overflow: "hidden" }}>
             <SkinQuiz
               questions={ROUTINE_QUESTIONS}
               analysisInProgress={!analysisResult}
@@ -588,13 +593,17 @@ const Analyze = () => {
       <div className="px-5 pb-8 pt-3 space-y-3" style={{ borderTop: "1px solid #F0EDE8", background: "#FAFAF8" }}>
         {faceValidation !== "invalid" && (
           <button
-            onClick={startAnalysis}
-            disabled={faceValidation === "checking" || (isAuthenticated && !canAnalyze)}
+            onClick={() => { void startAnalysis(); }}
+            disabled={faceValidation === "checking" || (isAuthenticated && !canAnalyze) || isStarting}
             className="w-full flex items-center justify-center gap-2 font-bold text-white"
-            style={{ height: 54, borderRadius: 14, background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)", fontSize: 16, border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(232,116,138,0.3)", opacity: (faceValidation === "checking" || (isAuthenticated && !canAnalyze)) ? 0.6 : 1 }}
+            style={{ height: 54, borderRadius: 14, background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)", fontSize: 16, border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(232,116,138,0.3)", opacity: (faceValidation === "checking" || (isAuthenticated && !canAnalyze) || isStarting) ? 0.75 : 1, transition: "opacity 200ms" }}
           >
-            <Sparkles size={18} />
-            {faceValidation === "checking" ? "Validando rosto..." : "Iniciar análise"}
+            {isStarting ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Sparkles size={18} />
+            )}
+            {isStarting ? "Iniciando..." : faceValidation === "checking" ? "Validando rosto..." : "Iniciar análise"}
           </button>
         )}
         <button

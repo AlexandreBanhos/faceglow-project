@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sun, Moon, ChevronRight, Check, Flame, Lock } from "lucide-react";
+import { Sun, Moon, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { type AnalysisResponse } from "@/lib/analysis";
 
@@ -51,68 +51,7 @@ const DailyRoutineSection = ({
   const navigate = useNavigate();
   const periodGradient = PERIOD_GRADIENTS[currentPeriod];
 
-  if (isPremiumBlocked) {
-    return (
-      // Premium Upsell Banner
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay }}
-        className="px-6 mt-6 mb-6"
-      >
-        <div className="lg-surface-strong p-6 rounded-3xl relative overflow-hidden">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 h-24"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0) 100%)",
-            }}
-          />
-          <div className="relative z-10">
-          {/* Header */}
-          <div className="flex items-start gap-4 mb-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-coral/30 to-pink/30 flex items-center justify-center flex-shrink-0">
-              <Flame size={20} className="text-[#ef8fb8]" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-bold text-[var(--fg-ink)]">
-                Desbloqueie sua análise completa
-              </h2>
-              <p className="text-sm text-[var(--fg-ink-3)] mt-1 leading-relaxed">
-                Assine Premium para ver todos os produtos e sua rotina personalizada.
-              </p>
-            </div>
-          </div>
-
-          {/* Features */}
-          <div className="space-y-2 mb-6">
-            <div className="flex items-center gap-2.5">
-              <Check size={16} className="text-green-500 flex-shrink-0" />
-              <span className="text-sm text-[var(--fg-ink)]">Todos os produtos recomendados</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <Check size={16} className="text-green-500 flex-shrink-0" />
-              <span className="text-sm text-[var(--fg-ink)]">Rotina personalizada (manhã e noite)</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <Check size={16} className="text-green-500 flex-shrink-0" />
-              <span className="text-sm text-[var(--fg-ink)]">Análise completa com detalhes</span>
-            </div>
-          </div>
-
-          {/* CTA Button */}
-          <button
-            onClick={() => navigate("/premium")}
-            className="coral-button w-full py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2"
-          >
-            <Lock size={16} />
-            Desbloquear Premium
-          </button>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
+  // isPremiumBlocked: exibe os passos da rotina (sem produtos), sem banner de upsell
 
   return (
     // Normal Routine Display
@@ -156,7 +95,10 @@ const DailyRoutineSection = ({
           </h2>
         </div>
         <button
-          onClick={() => navigate("/routine", analysis ? { state: { analysis } } : undefined)}
+          onClick={() => navigate("/routine", analysis
+            ? { state: { analysis, ...(isPremiumBlocked ? { simpleMode: true } : {}) } }
+            : undefined
+          )}
           className="flex items-center gap-1 text-xs font-bold text-[var(--fg-ink-2)] hover:text-[var(--fg-ink)]"
         >
           Ver tudo

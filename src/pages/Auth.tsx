@@ -138,6 +138,7 @@ const Auth = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [emailAlreadyExists, setEmailAlreadyExists] = useState(false);
 
   const hashType = useMemo(() => {
     if (!window.location.hash) {
@@ -189,6 +190,13 @@ const Auth = () => {
     };
   }, []);
 
+  // Scroll to top whenever switching to signup mode
+  useEffect(() => {
+    if (!isLogin && !isRecoveryMode) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [isLogin, isRecoveryMode]);
+
   useEffect(() => {
     const readCooldown = () => {
       const raw = localStorage.getItem(PASSWORD_RESET_COOLDOWN_KEY);
@@ -218,6 +226,7 @@ const Auth = () => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
+    setEmailAlreadyExists(false);
 
     const email = form.email.trim();
     const password = form.password;
@@ -299,6 +308,17 @@ const Auth = () => {
     } catch (error) {
       const message = getFriendlyAuthMessage(error, "Nao foi possivel autenticar agora. Tente novamente em instantes.");
       setErrorMessage(message);
+      // E-mail já cadastrado — oferece recuperação de senha
+      const isAlreadyRegistered =
+        message.toLowerCase().includes("já está cadastrado") ||
+        message.toLowerCase().includes("ja esta cadastrado") ||
+        (error instanceof Error && (
+          error.message.toLowerCase().includes("user already registered") ||
+          error.message.toLowerCase().includes("already registered")
+        ));
+      if (!isLogin && isAlreadyRegistered) {
+        setEmailAlreadyExists(true);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -480,9 +500,35 @@ const Auth = () => {
             )}
 
             {errorMessage && (
-              <div className="lg-surface px-4 py-3 rounded-2xl flex items-start gap-3 border border-red-200/50">
-                <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700 font-semibold leading-relaxed">{errorMessage}</p>
+              <div className="lg-surface px-4 py-3 rounded-2xl flex flex-col gap-2 border border-red-200/50">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700 font-semibold leading-relaxed">{errorMessage}</p>
+                </div>
+                {emailAlreadyExists && (
+                  <div className="flex gap-2 pl-7 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => { setIsLogin(true); setEmailAlreadyExists(false); setErrorMessage(null); }}
+                      className="text-xs font-bold text-primary underline bg-transparent border-none cursor-pointer"
+                    >
+                      Fazer login com este e-mail
+                    </button>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailAlreadyExists(false);
+                        setErrorMessage(null);
+                        setIsLogin(true);
+                        void handleForgotPassword();
+                      }}
+                      className="text-xs font-bold text-primary underline bg-transparent border-none cursor-pointer"
+                    >
+                      Esqueceu sua senha?
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

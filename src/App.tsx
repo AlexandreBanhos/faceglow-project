@@ -12,6 +12,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoadingScreen } from "./components/LoadingScreen";
 import RequireAuth from "./components/RequireAuth";
 import RequireAdmin from "./components/RequireAdmin";
+import RequirePremium from "./components/RequirePremium";
 import { UserProvider } from "./contexts/UserContext";
 
 // ── Lazy-loaded pages — carregam apenas quando a rota for acessada ────────────
@@ -41,6 +42,7 @@ const TermsOfUse     = lazy(() => import("./pages/TermsOfUse"));
 const ChangeEmail    = lazy(() => import("./pages/ChangeEmail"));
 const DeleteAccount  = lazy(() => import("./pages/DeleteAccount"));
 const Support        = lazy(() => import("./pages/Support"));
+const SkincareLearn  = lazy(() => import("./pages/SkincareLearn"));
 
 const queryClient = new QueryClient();
 
@@ -83,10 +85,13 @@ const App = () => (
                     <Route path="/profile/email"     element={<ChangeEmail />} />
                     <Route path="/profile/delete"    element={<DeleteAccount />} />
                     <Route path="/premium"           element={<Premium />} />
+                    <Route path="/aprenda"           element={<SkincareLearn />} />
                     <Route element={<RequireAdmin />}>
                       <Route path="/admin/products"  element={<AdminProducts />} />
                     </Route>
-                    <Route path="/meus-produtos"     element={<MeusProdutos />} />
+                    <Route element={<RequirePremium />}>
+                      <Route path="/meus-produtos"   element={<MeusProdutos />} />
+                    </Route>
                   </Route>
                   <Route path="*" element={<NotFound />} />
                 </Routes>

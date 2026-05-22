@@ -214,7 +214,12 @@ function QuestionText({ question, highlight }: { question: string; highlight?: s
   return (
     <>
       {question.slice(0, idx)}
-      <span style={{ color: "#6366f1" }}>{highlight}</span>
+      <span style={{
+        background: "linear-gradient(135deg, #E8748A 0%, #F4A8C7 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+      }}>{highlight}</span>
       {question.slice(idx + highlight.length)}
     </>
   );
@@ -350,11 +355,13 @@ export default function SkinQuiz({ questions, onComplete, onBack, analysisInProg
 
   return (
     <div style={{
-      minHeight: "100svh",
+      height: "100svh",
+      minHeight: "-webkit-fill-available",
       background: "linear-gradient(160deg, #f4f2ff 0%, #ede8ff 30%, #f8f4ff 60%, #fff0f8 100%)",
       fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
       display: "flex",
       flexDirection: "column",
+      overflow: "hidden",
     }}>
 
       {/* ── Banner: análise em andamento ── */}
@@ -363,21 +370,22 @@ export default function SkinQuiz({ questions, onComplete, onBack, analysisInProg
           position: "sticky",
           top: 0,
           zIndex: 30,
-          background: "linear-gradient(135deg, #f97316, #f472b6)",
-          padding: "10px 20px",
+          background: "rgba(232,116,138,0.08)",
+          borderBottom: "1px solid rgba(232,116,138,0.18)",
+          padding: "8px 20px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "10px",
+          gap: "8px",
         }}>
           <span style={{
-            width: 8, height: 8, borderRadius: "50%",
-            background: "white", opacity: 0.9,
-            animation: "_quiz_float 1.2s ease-in-out infinite",
+            width: 6, height: 6, borderRadius: "50%",
+            background: "linear-gradient(135deg, #E8748A, #F4A8C7)",
             flexShrink: 0,
+            animation: "_quiz_float 1.2s ease-in-out infinite",
           }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "white", letterSpacing: "-0.01em" }}>
-            Analisando sua pele em paralelo — responda enquanto aguarda
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#E8748A", letterSpacing: "-0.01em" }}>
+            Analisando sua pele em paralelo
           </span>
         </div>
       )}
@@ -450,7 +458,7 @@ export default function SkinQuiz({ questions, onComplete, onBack, analysisInProg
           maxWidth: "430px",
           margin: "0 auto",
           width: "100%",
-          padding: "28px 20px 160px",
+          padding: "28px 20px 200px",
         }}>
           <QuizPage
             question={question}

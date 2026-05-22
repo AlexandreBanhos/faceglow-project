@@ -13,7 +13,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { AuroraBackdrop } from "@/components/shared";
 import type { AnalysisResponse } from "@/lib/analysis";
 import { SkinCard } from "@/components/profile/SkinCard";
-import { SkincareInsights } from "@/components/profile/SkincareInsights";
+import { BookOpen } from "lucide-react";
 import { StatsRow } from "@/components/profile/StatsRow";
 import { SubscriptionCard } from "@/components/profile/SubscriptionCard";
 import { AccountCard } from "@/components/profile/AccountCard";
@@ -232,7 +232,27 @@ const Profile = () => {
         />
 
         {/* 2. Aprenda sobre skincare */}
-        <SkincareInsights skinType={lastSkinType} />
+        <motion.button
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+          onClick={() => navigate("/aprenda")}
+          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl lg-surface active:scale-[0.98] transition-transform"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #E8748A 0%, #F4A8C7 100%)", boxShadow: "0 4px 12px rgba(232,116,138,0.3)" }}>
+              <BookOpen size={18} color="white" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold text-foreground leading-tight">Aprenda sobre Skincare</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Guias, ingredientes, mitos e rotinas</p>
+            </div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-muted-foreground flex-shrink-0">
+            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </motion.button>
 
         {/* 3. Estatísticas */}
         <StatsRow

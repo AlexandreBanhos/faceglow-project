@@ -1,9 +1,8 @@
 import { useRef, useLayoutEffect, useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Home, Clock, User, Camera, Sparkles, ListChecks } from "lucide-react";
+import { Home, Clock, User, Camera, ListChecks } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useIsPremium } from "@/hooks/useIsPremium";
 import { normalizeAnalysis } from "@/lib/analysis";
 import { getCachedLatestAnalysis, fetchAnalysisWithRecommendations } from "@/lib/analysisClient";
 
@@ -83,18 +82,13 @@ const getLastAnalysis = () => {
 const BottomNav = () => {
   const location = useNavigate ? useLocation() : { pathname: "/" };
   const navigate = useNavigate();
-  const { isPremium, isLoading: premiumLoading, statusUnknown } = useIsPremium();
-  const showRoutine = isPremium || premiumLoading || statusUnknown;
-
   const leftTabs: Tab[]  = [
     { path: "/dashboard", icon: Home,       label: "Início"    },
     { path: "/history",   icon: Clock,      label: "Histórico" },
   ];
   const rightTabs: Tab[] = [
-    showRoutine
-      ? { path: "/routine",  icon: ListChecks, label: "Rotina"   }
-      : { path: "/premium",  icon: Sparkles,   label: "Premium"  },
-    { path: "/profile",   icon: User,       label: "Perfil"    },
+    { path: "/routine",  icon: ListChecks, label: "Rotina"   },
+    { path: "/profile",  icon: User,       label: "Perfil"   },
   ];
   const allTabs   = [...leftTabs, ...rightTabs];
   const activeIdx = allTabs.findIndex(t => location.pathname === t.path);

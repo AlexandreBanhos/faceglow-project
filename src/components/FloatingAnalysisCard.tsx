@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
-import MetricGlassCard from "@/components/analyze/MetricGlassCard";
+import { ArrowLeft, ChevronRight } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
 import type { AnalysisPoints } from "@/lib/analysis";
 
 type LandmarkPoint = { x: number; y: number };
@@ -38,21 +37,109 @@ const METRIC_LABELS_PT: Record<string, string> = {
   linhasfinas: "Linhas finas",
   linhas_finas: "Linhas finas",
   vermelhidao: "Vermelhidão",
-  espinhasativas: "Espinhas ativas",
-  espinhas_ativas: "Espinhas ativas",
+  espinhasativas: "Espinhas",
+  espinhas_ativas: "Espinhas",
   cravos: "Cravos",
-  ressecamento: "Ressecamento",
+  ressecamento: "Ressec.",
 };
 
 const normalizeMetricLabel = (label: string) => {
   const key = label
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/\s+/g, "");
-
   return METRIC_LABELS_PT[key] ?? label;
 };
+
+// ─── Slider ──────────────────────────────────────────────────────────────────
+
+function SlideToView({ onAction }: { onAction: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [handleX, setHandleX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [triggered, setTriggered] = useState(false);
+
+  const HANDLE_W = 48;
+  const PAD = 4;
+
+  const getProgress = useCallback((rawX: number) => {
+    const w = containerRef.current?.offsetWidth ?? 300;
+    const max = w - HANDLE_W - PAD * 2;
+    return Math.max(0, Math.min(1, rawX / max));
+  }, []);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDragging(true);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || triggered) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const rawX = e.clientX - rect.left - HANDLE_W / 2 - PAD;
+    const max = rect.width - HANDLE_W - PAD * 2;
+    const clamped = Math.max(0, Math.min(max, rawX));
+    setHandleX(clamped);
+    if (getProgress(clamped) >= 0.85) {
+      setTriggered(true);
+      onAction();
+      setTimeout(() => { setHandleX(0); setTriggered(false); setIsDragging(false); }, 500);
+    }
+  };
+
+  const onPointerUp = () => {
+    if (triggered) return;
+    setIsDragging(false);
+    setHandleX(0);
+  };
+
+  const textOpacity = Math.max(0, 1 - getProgress(handleX) * 2);
+
+  return (
+    <div
+      ref={containerRef}
+      onClick={onAction}
+      style={{
+        position: "relative", width: "100%", height: 56, borderRadius: 999,
+        background: "var(--grad-coral)",
+        overflow: "hidden", cursor: "pointer", userSelect: "none",
+      }}
+    >
+      <div style={{
+        position: "absolute", inset: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 14, fontWeight: 600, color: "white",
+        opacity: textOpacity, pointerEvents: "none", letterSpacing: "-0.01em",
+      }}>
+        Ver análise completa →
+      </div>
+
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        style={{
+          position: "absolute",
+          left: handleX + PAD, top: PAD, bottom: PAD,
+          width: HANDLE_W, borderRadius: 999,
+          background: "white",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: isDragging ? "grabbing" : "grab",
+          touchAction: "none",
+          transition: isDragging ? "none" : "left 300ms ease",
+          zIndex: 1,
+        }}
+      >
+        <ChevronRight size={20} color="#ef8fb8" strokeWidth={2.5} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 export const FloatingAnalysisCard = ({
   imageUrl,
@@ -64,169 +151,186 @@ export const FloatingAnalysisCard = ({
 }: FloatingAnalysisCardProps) => {
   if (!isOpen) return null;
 
-  const [centerIndex, setCenterIndex] = useState(2);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  const featuredMetrics = metricCards
-    .slice(0, 5)
-    .map((metric) => ({
-      ...metric,
-      label: normalizeMetricLabel(metric.label),
-    }))
-    .sort((a, b) => b.value - a.value);
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const cardWidth = 100; // tamanho md (88px) + gap (12px)
-      const containerCenter = container.scrollLeft + container.clientWidth / 2;
-      const newCenterIndex = Math.round(containerCenter / cardWidth);
-      setCenterIndex(newCenterIndex);
-    };
-
-    container.addEventListener("scroll", handleScroll);
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, []);
+  const allMetrics = metricCards
+    .filter(m => m.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .map(m => ({ ...m, label: normalizeMetricLabel(m.label) }));
 
   return (
-    <>
-      <style>{`
-        [data-scroll-container]::-webkit-scrollbar {
-          display: none !important;
-        }
-        [data-scroll-container] {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-      `}</style>
-      <motion.div
-        initial={{ opacity: 0, y: 80 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 80 }}
-        transition={{ type: "spring", damping: 28, stiffness: 300 }}
-        className="fixed inset-0 z-[999] bg-[#fbf6f1]"
-        onClick={onClose}
+    <motion.div
+      initial={{ opacity: 0, y: 80 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 80 }}
+      transition={{ type: "spring", damping: 28, stiffness: 300 }}
+      className="fixed inset-0 z-[999]"
+      onClick={onClose}
+    >
+      <div
+        className="relative h-[100svh] w-full overflow-hidden pointer-events-auto"
+        style={{ background: "#fbf6f1" }}
+        onClick={e => e.stopPropagation()}
       >
-      <motion.div
-        className="relative h-[100svh] w-full overflow-hidden bg-[#fbf6f1] pointer-events-auto"
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          overflowY: "hidden",
-          overflowX: "hidden",
-        }}
-      >
+        {/* Foto de fundo */}
         <img
           src={imageUrl}
           alt="Foto analisada"
           className="absolute inset-0 h-full w-full object-cover saturate-[0.96]"
-          onError={(event) => {
-            event.currentTarget.src =
+          onError={e => {
+            e.currentTarget.src =
               "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=1200&h=1600&fit=crop";
           }}
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#fbf6f1]/82 via-[#fbf6f1]/8 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[36svh] bg-[linear-gradient(0deg,rgba(251,246,241,0.98)_0%,rgba(245,236,242,0.94)_42%,rgba(248,232,238,0.62)_72%,rgba(251,246,241,0)_100%)]" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[32svh] bg-[radial-gradient(85%_90%_at_50%_100%,rgba(232,169,194,0.54)_0%,rgba(221,182,147,0.42)_44%,rgba(251,246,241,0)_84%)]" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[30svh] backdrop-blur-[20px] [mask-image:linear-gradient(to_top,black_38%,transparent_100%)]" />
-        <div className="pointer-events-none absolute -bottom-16 left-1/2 h-[34svh] w-[125vw] -translate-x-1/2 rounded-[999px] bg-[var(--grad-coral-soft)] opacity-70 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-10 right-[-18vw] h-[26svh] w-[70vw] rounded-[999px] bg-white/80 blur-3xl" />
-        <div className="pointer-events-none absolute inset-x-8 -top-24 h-56 rounded-full bg-white/55 blur-3xl" />
+        {/* Overlay topo */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-[#fbf6f1]/80 to-transparent" />
 
+        {/* Header */}
         <div className="relative z-20 grid grid-cols-[40px_1fr_40px] items-center px-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fff7ea]/58 text-[var(--fg-ink-2)] shadow-[0_10px_30px_-22px_rgba(80,40,60,0.45)] backdrop-blur-2xl transition hover:bg-white/70"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fff7ea]/58 text-[var(--fg-ink-2)] backdrop-blur-2xl transition hover:bg-white/70"
+            style={{ boxShadow: "0 10px 30px -22px rgba(80,40,60,0.45)" }}
             aria-label="Voltar"
           >
             <ArrowLeft size={17} strokeWidth={1.8} />
           </button>
 
-          <div className="mx-auto rounded-full bg-[#fff7ea]/68 px-4 py-2 text-center text-[12px] font-semibold tracking-[-0.01em] text-[var(--fg-ink)] shadow-[0_12px_34px_-24px_rgba(80,40,60,0.42)] backdrop-blur-2xl">
+          <div
+            className="mx-auto rounded-full px-4 py-2 text-center text-[12px] font-semibold tracking-[-0.01em] text-[var(--fg-ink)] backdrop-blur-2xl"
+            style={{
+              background: "rgba(255,247,234,0.68)",
+              boxShadow: "0 12px 34px -24px rgba(80,40,60,0.42)",
+            }}
+          >
             Idade da pele: {skinAge ?? "--"}
           </div>
 
           <div />
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 z-30 h-auto px-4 sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-4 sm:pt-6 flex flex-col items-center gap-3 sm:gap-4">
-          {/* Carrossel de Metrics */}
-          <motion.div
-            ref={scrollContainerRef}
-            data-scroll-container
-            className="flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 sm:-mx-6 px-4 sm:px-6 [scrollbar-width:none] [-ms-overflow-style:none]"
+        {/* Painel inferior — altura automática baseada nas métricas */}
+        <motion.div
+          className="absolute inset-x-0 bottom-0 z-30 flex flex-col"
+          style={{
+            maxHeight: "86svh",
+            background: "rgba(251,246,241,0.94)",
+            backdropFilter: "blur(28px)",
+            WebkitBackdropFilter: "blur(28px)",
+            borderRadius: "28px 28px 0 0",
+            boxShadow: "0 -8px 40px rgba(80,40,60,0.14), inset 0 1px 0 rgba(255,255,255,0.72)",
+          }}
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.42, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* Handle */}
+          <div className="mx-auto mt-3 mb-3 h-1 w-9 flex-shrink-0 rounded-full bg-black/10" />
+
+          {/* Lista de métricas — scroll se overflow */}
+          <div
+            className="px-4 pb-2"
             style={{
-              scrollBehavior: "smooth",
-              WebkitOverflowScrolling: "touch",
-              scrollPaddingLeft: "max(0.5rem, calc((100vw - 110px) / 2))",
-            } as any}
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+              overflowY: "auto",
+              maxHeight: "calc(86svh - 148px)",
+              scrollbarWidth: "none",
+            }}
           >
-            {/* Padding inicial */}
-            <div className="w-[max(0.5rem,calc((100vw-110px)/2))] shrink-0" />
+            <div className="flex flex-col gap-2">
+              {allMetrics.map((metric, i) => (
+                <motion.div
+                  key={metric.label}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.28, delay: 0.18 + i * 0.04 }}
+                  style={{
+                    position: "relative",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    background: "rgba(255,255,255,0.55)",
+                    border: "1px solid rgba(255,255,255,0.65)",
+                  }}
+                >
+                  {/* Barra de preenchimento proporcional */}
+                  <motion.div
+                    style={{
+                      position: "absolute",
+                      top: 0, left: 0, bottom: 0,
+                      width: `${metric.value}%`,
+                      background: "linear-gradient(90deg, rgba(221,182,147,0.28) 0%, rgba(232,169,194,0.22) 60%, rgba(239,143,184,0.18) 100%)",
+                      transformOrigin: "left center",
+                    }}
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    transition={{ duration: 0.65, delay: 0.22 + i * 0.04, ease: "easeOut" }}
+                  />
 
-            {featuredMetrics.map((metric, index) => (
-              <motion.div
-                key={metric.label}
-                className="snap-center shrink-0"
-                initial={{ opacity: 0, y: 30, scale: 0.8 }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                }}
-                whileInView={{
-                  scale: index === centerIndex ? 1.1 : 0.95,
-                  opacity: 1,
-                }}
-                transition={{ duration: 0.4, delay: index * 0.08, ease: "easeOut" }}
-              >
-                <MetricGlassCard
-                  label={metric.label}
-                  value={metric.value}
-                  featured={index === centerIndex}
-                  size="md"
-                />
-              </motion.div>
-            ))}
+                  {/* Conteúdo */}
+                  <div
+                    style={{
+                      position: "relative",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "12px 16px",
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--fg-ink)" }}>
+                      {metric.label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        background: "var(--grad-coral)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                      }}
+                    >
+                      {metric.value}%
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
 
-            {/* Padding final */}
-            <div className="w-[max(0.5rem,calc((100vw-110px)/2))] shrink-0" />
-          </motion.div>
+              {allMetrics.length === 0 && (
+                <div className="flex h-14 items-center justify-center text-sm text-[var(--fg-ink-3)]">
+                  Métricas não disponíveis
+                </div>
+              )}
+            </div>
+          </div>
 
-          {/* Info Badge */}
-          <motion.div
-            className="flex items-center justify-center gap-2 rounded-full bg-[#fffaf2]/72 px-3 py-2 text-[11px] font-medium text-[var(--fg-ink-3)] shadow-[0_12px_30px_-24px_rgba(80,40,60,0.35)] backdrop-blur-2xl"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.5, ease: "easeOut" }}
+          {/* Footer fixo: confiança + slider */}
+          <div
+            className="flex flex-shrink-0 flex-col gap-2.5 px-4 pt-3"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 14px)" }}
           >
-            <motion.span
-              className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))]"
-              animate={{ opacity: [0.35, 1, 0.35], scale: [0.85, 1.15, 0.85] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-            />
-            Analisando pele... {confidence ? `${confidence}% de confiança` : ""}
-          </motion.div>
+            <motion.div
+              className="flex items-center justify-center gap-2 text-[11px] font-medium text-[var(--fg-ink-3)]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <motion.span
+                className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--accent))]"
+                animate={{ opacity: [0.35, 1, 0.35], scale: [0.85, 1.15, 0.85] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+              />
+              Analisando pele...{confidence ? ` ${confidence}% de confiança` : ""}
+            </motion.div>
 
-          {/* Botão Ver resultado completo */}
-          <motion.button
-            onClick={onClose}
-            className="rounded-full bg-[linear-gradient(135deg,#ddb693_0%,#e8a9c2_55%,#ef8fb8_100%)] px-6 py-3 text-[13px] font-semibold text-white shadow-[0_12px_34px_-24px_rgba(80,40,60,0.42)] backdrop-blur-2xl transition hover:shadow-[0_16px_40px_-20px_rgba(80,40,60,0.5)]"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.6, ease: "easeOut" }}
-          >
-            Ver resultado completo
-          </motion.button>
-        </div>
-      </motion.div>
-      </motion.div>
-    </>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.52 }}
+            >
+              <SlideToView onAction={onClose} />
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
   );
 };

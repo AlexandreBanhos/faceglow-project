@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Droplets, ChevronDown, ChevronUp, AlertCircle, Eye, Zap, Wind, Sun, Sparkles, ScanFace, ListChecks } from "lucide-react";
+import { TrendingUp, Droplets, ChevronDown, ChevronUp, AlertCircle, Eye, Zap, Wind, Sun, Sparkles, ScanFace, ListChecks, Target, Clock, Flame, CircleDot, ShieldAlert } from "lucide-react";
 import logoUrl from "@/assets/logo-faceglow.svg";
 import { useNavigate, useLocation } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
@@ -8,14 +8,105 @@ import SkinTypeInfoSection from "@/components/SkinTypeInfoSection";
 import RoutineSummaryCard from "@/components/RoutineSummaryCard";
 import DailyRoutineSection from "@/components/DailyRoutineSection";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
+import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 import { type AnalysisResponse } from "@/lib/analysis";
 import { fetchDashboardSummary, fetchRoutineSteps } from "@/lib/analysisClient";
 import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { staleWhileRevalidate } from "@/shared/services/cache/CacheService";
+import { getFreeStepsForDay } from "@/lib/freeRoutine";
 import { AuroraBackdrop, FGScoreOrb } from "@/components/shared";
+import { LearnCard } from "@/components/LearnCard";
+import { LEARN_CARDS, type LearnCard as LearnCardData } from "@/data/skincareLearn";
+
+// ─── Personaliza cards de aprendizado com base na análise do usuário ──────────
+function getPersonalizedLearnCards(analysis: AnalysisResponse | null): LearnCardData[] {
+  const byId = (id: string) => LEARN_CARDS.find(c => c.id === id);
+
+  if (!analysis) {
+    // Sem análise: um de cada categoria exceto tipos-de-pele
+    return [
+      byId("ativo-spf"),
+      byId("rotina-limpeza"),
+      byId("mitos-limpeza"),
+      byId("prob-acne"),
+      byId("ativo-niacinamida"),
+      byId("mitos-protetor"),
+    ].filter(Boolean) as LearnCardData[];
+  }
+
+  const s = analysis.scores;
+  const c = analysis.conditions ?? {};
+
+  // ── 1. Problema mais relevante ─────────────────────────────────────────────
+  const probScore = (score: number | undefined, cond?: boolean) =>
+    (score ?? 0) * 10 + (cond ? 30 : 0);
+
+  const probRanked = [
+    { id: "prob-acne",        v: probScore(s.acne,           c.acne) },
+    { id: "prob-manchas",     v: probScore(s.darkSpots,      c.manchas) },
+    { id: "prob-oleosidade",  v: probScore(s.oiliness) },
+    { id: "prob-poros",       v: probScore(s.poros,          c.poros) },
+    { id: "prob-olheiras",    v: probScore(s.olheiras,       c.olheiras) },
+    { id: "prob-rugas",       v: probScore(s.linhasFinas,    c.linhasFinas) },
+    { id: "prob-vermelhidao", v: probScore(s.vermelhidao,    c.vermelhidao) },
+    { id: "prob-ressecamento",v: (s.hydration ?? 5) < 4 ? (4 - (s.hydration ?? 5)) * 20 + (c.ressecamento ? 30 : 0) : 0 },
+  ].sort((a, b) => b.v - a.v);
+
+  const topProb = probRanked[0].id;
+  const secondProb = probRanked[1]?.v > 0 ? probRanked[1].id : null;
+
+  // ── 2. Ingrediente mais relevante para o problema ──────────────────────────
+  const ingredientFor: Record<string, string> = {
+    "prob-acne":        "ativo-bha",
+    "prob-manchas":     "ativo-vitamina-c",
+    "prob-oleosidade":  "ativo-niacinamida",
+    "prob-poros":       "ativo-bha",
+    "prob-olheiras":    "ativo-hialuronico",
+    "prob-rugas":       "ativo-retinol",
+    "prob-vermelhidao": "ativo-niacinamida",
+    "prob-ressecamento":"ativo-ceramidas",
+  };
+  const topIngredient = ingredientFor[topProb] ?? "ativo-spf";
+  const secondIngredient = secondProb ? (ingredientFor[secondProb] ?? "ativo-spf") : "ativo-spf";
+
+  // ── 3. Mito relacionado ────────────────────────────────────────────────────
+  const mythFor: Record<string, string> = {
+    "prob-acne":        "mitos-acne",
+    "prob-manchas":     "mitos-protetor",
+    "prob-rugas":       "mitos-protetor",
+    "prob-oleosidade":  "mitos-ingredientes",
+    "prob-poros":       "mitos-limpeza",
+    "prob-olheiras":    "mitos-ingredientes",
+    "prob-vermelhidao": "mitos-ingredientes",
+    "prob-ressecamento":"mitos-limpeza",
+  };
+  const topMyth = mythFor[topProb] ?? "mitos-limpeza";
+
+  // ── 4. Passo de rotina relevante ───────────────────────────────────────────
+  const routineFor: Record<string, string> = {
+    "prob-manchas":     "rotina-protetor",
+    "prob-rugas":       "rotina-protetor",
+    "prob-oleosidade":  "rotina-esfoliacao",
+    "prob-poros":       "rotina-double-cleanse",
+    "prob-ressecamento":"rotina-hidratante",
+    "prob-acne":        "rotina-limpeza",
+    "prob-olheiras":    "rotina-manha-noite",
+    "prob-vermelhidao": "rotina-hidratante",
+  };
+  const topRoutine = routineFor[topProb] ?? "rotina-limpeza";
+
+  // ── 5. Monta lista priorizando 1 por categoria, sem tipos-de-pele ──────────
+  const ids = [topProb, topIngredient, topMyth, topRoutine];
+  if (secondProb && !ids.includes(secondProb)) ids.push(secondProb);
+  if (!ids.includes(secondIngredient)) ids.push(secondIngredient);
+  if (!ids.includes("ativo-spf")) ids.push("ativo-spf"); // SPF sempre relevante
+
+  return ids
+    .map(byId)
+    .filter(Boolean) as LearnCardData[];
+}
 
 type RoutineSchedule = {
   daysByItem?: Record<string, string[]>;
@@ -32,10 +123,17 @@ const getTodayWeekDay = () => {
   return keys[day] ?? "mon";
 };
 
+// Extrai o nome do produto (após ":") — usado para usuários premium
 const getRoutineTitle = (step: string) => {
   const separatorIndex = step.indexOf(":");
   const raw = separatorIndex >= 0 ? step.slice(separatorIndex + 1).trim() : step.trim();
   return raw.replace(/\(([^)]+)\)\s*$/, "").trim();
+};
+
+// Extrai só o rótulo do passo (antes de ":") — usado para usuários free
+const getStepLabel = (step: string) => {
+  const separatorIndex = step.indexOf(":");
+  return separatorIndex >= 0 ? step.slice(0, separatorIndex).trim() : step.trim();
 };
 
 const isExtraRoutineStep = (step: string) => /^extras?\s*:/i.test(step.trim());
@@ -143,6 +241,7 @@ const Dashboard = () => {
   const [avatarLetter, setAvatarLetter] = useState("U");
   const [userReady, setUserReady] = useState(false);
   const [expandMetrics, setExpandMetrics] = useState(false);
+  const [activeMetricKey, setActiveMetricKey] = useState<string>("overall");
   const { isPremium, isConfirmedNonPremium } = useIsPremium();
   const isPremiumBlocked = isConfirmedNonPremium;
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
@@ -189,15 +288,12 @@ const Dashboard = () => {
 
     const loadAnalyses = async () => {
       try {
-        // Aguarda um ciclo de renderizacao para garantir token pronto
-        await new Promise(resolve => setTimeout(resolve, 0));
-
-        // Usa padrao stale-while-revalidate
-        // Retorna dados em cache imediatamente, revalida em background
+        // Usa stale-while-revalidate: retorna cache imediatamente se disponível,
+        // revalida em background quando stale (5min). Não força re-fetch toda navegação.
         const summary = await staleWhileRevalidate(
           'dashboard-summary',
           () => fetchDashboardSummary(true),
-          true // força refresh a cada navegação para refletir alterações de rotina
+          false // usa cache se disponível para evitar spinner desnecessário
         );
 
         if (!mounted) return;
@@ -225,15 +321,15 @@ const Dashboard = () => {
 
   // Premium status é lido diretamente do UserContext (já hidratado pelo RequireAuth)
 
-  // Efeito 2.6a: Carregar steps da rotina (muda apenas quando análise muda)
+  // Efeito 2.6a: Carregar steps — apenas premium. Free usa analysis.routine + freeRoutine.ts
   useEffect(() => {
-    if (!latestAnalysis?.id) return;
+    if (!latestAnalysis?.id || isPremiumBlocked) return;
     let cancelled = false;
     fetchRoutineSteps(latestAnalysis.id)
       .then(steps => { if (!cancelled) setRoutineSteps(steps.map(s => ({ id: s.id, period: s.period, productName: s.productName }))); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [latestAnalysis?.id]);
+  }, [latestAnalysis?.id, isPremiumBlocked]);
 
   // Efeito 2.6b: Progresso do dia — recarrega TODA VEZ que o usuário navega ao Dashboard
   useEffect(() => {
@@ -332,7 +428,22 @@ const Dashboard = () => {
       }
     } catch { /* ignora erros de localStorage */ }
 
-    // Fonte primária: steps estruturados da API v2 (mais confiável que string-parsing)
+    // ── FREE: usa analysis.routine strings + freeRoutine localStorage ──────────
+    if (isPremiumBlocked) {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      const freeChecked = getFreeStepsForDay(latestAnalysis.id, dateStr);
+      const steps = (latestAnalysis.routine[currentPeriod] ?? []).filter(s => !isExtraRoutineStep(s));
+      const items = steps.map(step => {
+        const label = getStepLabel(step);
+        const doneKey = `${currentPeriod}::${label.toLowerCase().trim()}`;
+        return { title: label, done: Boolean(freeChecked[doneKey]) };
+      });
+      const done = items.filter(i => i.done).length;
+      return { total: items.length, done, pending: Math.max(items.length - done, 0), items };
+    }
+
+    // ── PREMIUM: steps estruturados da API v2 ────────────────────────────────
     const periodSteps = routineSteps.filter(s => s.period === currentPeriod);
     if (periodSteps.length > 0) {
       const items = periodSteps.map(s => {
@@ -344,7 +455,7 @@ const Dashboard = () => {
       return { total: items.length, done, pending: Math.max(items.length - done, 0), items };
     }
 
-    // Fallback legado: string-parsing de latestAnalysis.routine
+    // Fallback legado premium: string-parsing
     const todayWeekDay = getTodayWeekDay();
     const rawDisplay = localStorage.getItem(getRoutineDisplayStorageKey(latestAnalysis.id));
     const rawSelection = !rawDisplay ? localStorage.getItem(getRoutineSelectionStorageKey(latestAnalysis.id)) : null;
@@ -353,7 +464,6 @@ const Dashboard = () => {
     if (rawToParse) {
       try { selectedByItem = JSON.parse(rawToParse) as Record<string, string>; } catch { selectedByItem = {}; }
     }
-
     const stepByKey = new Map(routineSteps.map(s => [`${s.period}::${s.productName.toLowerCase()}`, s.id]));
     const items = parseRoutineForPeriod(latestAnalysis, currentPeriod, todayWeekDay).map((item) => {
       const title = selectedByItem[`${currentPeriod}::${item.title.toLowerCase()}`] || item.title;
@@ -361,11 +471,10 @@ const Dashboard = () => {
       const doneFromBackend = stepId ? completedSet.has(stepId) : false;
       return { title, done: doneFromBackend || item.done };
     });
-
     const done = items.filter(i => i.done).length;
     const total = items.length;
     return { total, done, pending: Math.max(total - done, 0), items };
-  }, [currentPeriod, latestAnalysis, completedStepIds, routineSteps]);
+  }, [currentPeriod, latestAnalysis, completedStepIds, routineSteps, isPremiumBlocked]);
 
   const motivationText = (() => {
     if (!latestAnalysis) {
@@ -387,9 +496,9 @@ const Dashboard = () => {
     return `Voce tem ${routineSummary.pending} passos pendentes nesta ${periodLabel.toLowerCase()}. Complete agora e mantenha o progresso.`;
   })();
 
-  // Se ainda está carregando e não tem dados, mostra spinner
+  // Se ainda está carregando e não tem dados em cache, mostra skeleton
   if (isLoading && !latestAnalysis) {
-    return <LoadingSpinnerFullScreen message="Carregando seu dashboard..." />;
+    return <DashboardSkeleton />;
   }
 
   // Tela de boas-vindas quando não há análise
@@ -453,141 +562,163 @@ const Dashboard = () => {
         </motion.div>
       </div>
 
-      {/* Score Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="mx-6 mt-6 lg-surface-strong p-6 rounded-3xl relative"
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 space-y-3">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-5 w-16 rounded-full" />
-              </div>
-              <Skeleton className="h-10 w-28" />
-              <Skeleton className="h-4 w-36" />
-            </div>
-            <Skeleton className="w-[110px] h-[110px] rounded-full flex-shrink-0" />
-          </div>
-        ) : (
-          <>
-            {/* Score Orb + Pontuação — FIXO no canto superior direito */}
-            <div className="absolute top-6 right-6 flex flex-col items-center gap-1.5">
-              <div className="relative">
-                <FGScoreOrb score={latestAnalysis?.overallScore ?? 0} size={116} variant="compact" />
-                {scoreChange !== null && (
-                  <motion.div
-                    className="absolute bottom-5 left-1/4 -translate-x-1/2 text-center"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.35 }}
-                  >
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded block" 
-                      style={{ 
-                        color: "var(--fg-ink-3)"
-                      }}>
-                      {scoreChange > 0 ? "+" : ""}{scoreChange} pts
-                    </span>
-                  </motion.div>
-                )}
-              </div>
-              <span className="fg-mono uppercase text-center mt-2"
-                style={{ fontSize: 9, letterSpacing: "0.08em", color: "var(--fg-ink-3)", lineHeight: 1.2 }}>
-                Pontuação
-              </span>
-            </div>
+      {/* Score Card — gradiente coral → rosa → lavanda */}
+      {(() => {
+        // ── Mapeamento de ícones por chave de métrica ──────────────────────
+        const METRIC_ICONS: Record<string, React.ReactNode> = {
+          overall:       <Target size={20} />,
+          acne:          <Zap size={20} />,
+          oiliness:      <Droplets size={20} />,
+          hydration:     <Sun size={20} />,
+          darkSpots:     <CircleDot size={20} />,
+          sensitivity:   <ShieldAlert size={20} />,
+          poros:         <Wind size={20} />,
+          olheiras:      <Eye size={20} />,
+          linhasFinas:   <Clock size={20} />,
+          vermelhidao:   <Flame size={20} />,
+          espinhasAtivas:<Zap size={20} />,
+          cravos:        <AlertCircle size={20} />,
+        };
 
-            {/* Container esquerdo — Pele + Top 3 Metrics + Expandidas */}
-            <motion.div 
-              layout
-              className="flex flex-col gap-3 pr-32"
-            >
-              {/* Pele + Top 3 Metrics */}
-              <div>
-                {skinTypeMeta && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="flex flex-col gap-0.5 mb-2"
-                  >
-                    <p className="text-xs font-semibold text-[var(--fg-ink-3)]">
-                      Sua pele está:
-                    </p>
-                    <p className="text-2xl font-black" style={{
-                      background: "linear-gradient(135deg, #E8547A 0%, #E8A882 100%)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                    }}>
-                      {skinTypeMeta.label.toUpperCase()}
-                    </p>
-                  </motion.div>
-                )}
-                <div className="flex gap-3.5">
-                  {sortedMetrics.top3.map((metric, idx) => (
-                    <MetricRing
-                      key={metric.key}
-                      value={metric.value}
-                      label={metric.label}
-                      icon={metric.icon}
-                      delay={0.12 + idx * 0.08}
-                    />
-                  ))}
+        // ── Monta lista de métricas: score geral primeiro, depois as demais ──
+        const allScoreMetrics = [
+          {
+            key: "overall",
+            label: "Pontuação geral",
+            value: latestAnalysis?.overallScore ?? 0,
+            icon: METRIC_ICONS.overall,
+          },
+          ...[...sortedMetrics.top3, ...sortedMetrics.others].map(m => ({
+            key: m.key,
+            label: m.label,
+            value: m.value,
+            icon: METRIC_ICONS[m.key] ?? <AlertCircle size={20} />,
+          })),
+        ];
+
+        const activeMet = allScoreMetrics.find(m => m.key === activeMetricKey) ?? allScoreMetrics[0];
+
+        // Tamanho do texto do tipo de pele (adaptativo)
+        const skinLabel = skinTypeMeta?.label ?? "—";
+        const skinFontSize = skinLabel.length <= 5 ? 48 : skinLabel.length <= 7 ? 36 : 26;
+
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            style={{
+              marginInline: 24,
+              marginTop: 24,
+              borderRadius: 20,
+              background: "var(--grad-coral)",
+              padding: "22px 22px 18px",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Bolhas decorativas */}
+            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.12)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -20, left: 10, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+
+            {isLoading ? (
+              /* Skeleton */
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ width: 110, height: 13, borderRadius: 6, background: "rgba(255,255,255,0.25)" }} />
+                  <div style={{ width: 75, height: 52, borderRadius: 8, background: "rgba(255,255,255,0.2)" }} />
+                  <div style={{ width: 120, height: 12, borderRadius: 6, background: "rgba(255,255,255,0.18)" }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
+                  <div style={{ width: 80, height: 13, borderRadius: 6, background: "rgba(255,255,255,0.25)" }} />
+                  <div style={{ width: 65, height: 48, borderRadius: 8, background: "rgba(255,255,255,0.2)" }} />
                 </div>
               </div>
+            ) : (
+              <>
+                {/* ── TOPO: métrica ativa (esq) ↔ tipo de pele (dir) ── */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: allScoreMetrics.length > 1 ? 20 : 0 }}>
+                  {/* Esquerda — intercalável */}
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.82)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      {activeMet.label}
+                    </p>
+                    <motion.p
+                      key={activeMetricKey}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ margin: "2px 0 0", fontSize: 52, fontWeight: 800, color: "white", lineHeight: 1, letterSpacing: "-2px" }}
+                    >
+                      {activeMet.value}
+                    </motion.p>
+                    {activeMetricKey === "overall" && scoreChange !== null && (
+                      <p style={{ margin: "5px 0 0", fontSize: 12, color: "rgba(255,255,255,0.78)", fontWeight: 600 }}>
+                        {scoreChange > 0 ? "↑" : scoreChange < 0 ? "↓" : "—"} {Math.abs(scoreChange)} pts vs. anterior
+                      </p>
+                    )}
+                  </div>
 
-              {/* Métricas expandidas */}
-              {expandMetrics && sortedMetrics.others.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="flex gap-3 flex-wrap pt-2 border-t border-[var(--fg-ink-2)]/10"
-                >
-                  {sortedMetrics.others.map((metric, idx) => (
-                    <MetricRing
-                      key={metric.key}
-                      value={metric.value}
-                      label={metric.label}
-                      icon={metric.icon}
-                      delay={0.48 + idx * 0.06}
-                    />
-                  ))}
-                </motion.div>
-              )}
-            </motion.div>
+                  {/* Direita — tipo de pele (nunca muda) */}
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.82)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Tipo de pele
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontSize: skinFontSize, fontWeight: 800, color: "white", lineHeight: 1, letterSpacing: "-1px" }}>
+                      {skinLabel}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Ícone Chevron no canto inferior esquerdo — só apareça se houver mais de 3 métricas */}
-            {sortedMetrics.others.length > 0 && (
-              <motion.button
-                onClick={() => setExpandMetrics(!expandMetrics)}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.40 }}
-                className="absolute bottom-3 left-6 text-[var(--fg-ink-3)] hover:text-[var(--fg-ink)] transition p-1.5"
-              >
-                <motion.div
-                  animate={{ rotate: expandMetrics ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {expandMetrics ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </motion.div>
-              </motion.button>
+                {/* ── CARROSSEL DE ÍCONES — scroll horizontal, sem quebra ── */}
+                {allScoreMetrics.length > 1 && (
+                  <div style={{
+                    display: "flex",
+                    gap: 8,
+                    overflowX: "auto",
+                    scrollbarWidth: "none",
+                    WebkitOverflowScrolling: "touch",
+                    paddingBottom: 2,
+                    marginInline: -2,
+                    paddingInline: 2,
+                  }}>
+                    {allScoreMetrics.map(m => {
+                      const isActive = m.key === activeMetricKey;
+                      return (
+                        <motion.button
+                          key={m.key}
+                          whileTap={{ scale: 0.88 }}
+                          onClick={() => setActiveMetricKey(m.key)}
+                          style={{
+                            flexShrink: 0,
+                            width: 44, height: 44, borderRadius: "50%",
+                            background: isActive ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.22)",
+                            border: isActive ? "none" : "1px solid rgba(255,255,255,0.25)",
+                            cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            transition: "background 180ms, border 180ms",
+                            color: isActive ? "#e8a9c2" : "rgba(255,255,255,0.9)",
+                          }}
+                          title={m.label}
+                        >
+                          {m.icon}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
-      </motion.div>
+          </motion.div>
+        );
+      })()}
 
-      {/* Routine Summary Card */}
+      {/* Routine Summary Card — premium */}
       {latestAnalysis && !isPremiumBlocked && (
         <RoutineSummaryCard analysis={latestAnalysis} delay={0.38} />
       )}
 
-      {/* Daily Routine Section */}
+      {/* Daily Routine Section — visível para todos; free vê passos, premium vê produtos */}
       <DailyRoutineSection
         analysis={latestAnalysis}
         isPremiumBlocked={isPremiumBlocked}
@@ -610,6 +741,44 @@ const Dashboard = () => {
           <SkinTypeInfoSection currentSkinType={latestAnalysis.skinType} showAllTypes={false} delay={0.42} />
         </motion.div>
       )}
+
+      {/* Aprenda sobre Skincare — personalizado pela análise */}
+      {(() => {
+        const learnCards = getPersonalizedLearnCards(latestAnalysis);
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.52 }}
+            className="px-6 mt-8"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-base font-extrabold text-foreground leading-tight">Aprenda sobre Skincare</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {latestAnalysis ? "Selecionado para o seu perfil de pele" : "Guias práticos para cuidar melhor da sua pele"}
+                </p>
+              </div>
+              <button
+                onClick={() => navigate("/aprenda")}
+                className="text-xs font-bold"
+                style={{ color: "#E8748A", background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}
+              >
+                Ver tudo
+              </button>
+            </div>
+
+            {/* Carrossel horizontal */}
+            <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", paddingBottom: 4 }}>
+              {learnCards.map((card, i) => (
+                <div key={card.id} style={{ scrollSnapAlign: "start", flexShrink: 0, width: "72vw", maxWidth: 280 }}>
+                  <LearnCard card={card} delay={0.54 + i * 0.05} />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        );
+      })()}
 
       <BottomNav />
       </div>

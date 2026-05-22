@@ -69,6 +69,7 @@ export const PRE_ANALYSIS_QUESTIONS: QuizQuestion[] = [
       { id: "oleosidade",  label: "Oleosidade excessiva",  faIcon: faSprayCan        },
       { id: "firmeza",     label: "Firmeza / contorno",    faIcon: faArrowUp         },
       { id: "marcas_acne", label: "Marcas pós-acne",       faIcon: faBandage         },
+      { id: "descobrir",   label: "Quero descobrir com FaceGlow", faIcon: faStar     },
     ],
   },
 ];
@@ -86,10 +87,11 @@ export const ROUTINE_QUESTIONS: QuizQuestion[] = [
     type: "single",
     columns: 2,
     options: [
-      { id: "low",     label: "Econômico",     sublabel: "Até R$ 100 por mês",        faIcon: faTag    },
-      { id: "medium",  label: "Intermediário", sublabel: "R$ 100 a R$ 250 por mês",   faIcon: faStar   },
-      { id: "high",    label: "Premium",       sublabel: "R$ 250 a R$ 500 por mês",   faIcon: faGem    },
-      { id: "premium", label: "Sem restrição", sublabel: "O que funcionar para mim!", faIcon: faCrown  },
+      { id: "super_low", label: "Super econômico", sublabel: "Produtos até R$ 50",            faIcon: faTag    },
+      { id: "low",       label: "Econômico",       sublabel: "Até R$ 100 por mês",            faIcon: faTag    },
+      { id: "medium",    label: "Intermediário",   sublabel: "R$ 100 a R$ 250 por mês",       faIcon: faStar   },
+      { id: "high",      label: "Premium",         sublabel: "R$ 250 a R$ 500 por mês",       faIcon: faGem    },
+      { id: "premium",   label: "Sem restrição",   sublabel: "O que funcionar para mim!",     faIcon: faCrown  },
     ],
   },
   {
@@ -215,10 +217,11 @@ export const FULL_QUESTIONS: QuizQuestion[] = [
     type: "single",
     columns: 2,
     options: [
-      { id: "low",     label: "Econômico",     sublabel: "Até R$ 100 por mês",        faIcon: faTag   },
-      { id: "medium",  label: "Intermediário", sublabel: "R$ 100 a R$ 250 por mês",   faIcon: faStar  },
-      { id: "high",    label: "Premium",       sublabel: "R$ 250 a R$ 500 por mês",   faIcon: faGem   },
-      { id: "premium", label: "Sem restrição", sublabel: "O que funcionar para mim!", faIcon: faCrown },
+      { id: "super_low", label: "Super econômico", sublabel: "Produtos até R$ 50",        faIcon: faTag   },
+      { id: "low",       label: "Econômico",       sublabel: "Até R$ 100 por mês",        faIcon: faTag   },
+      { id: "medium",    label: "Intermediário",   sublabel: "R$ 100 a R$ 250 por mês",   faIcon: faStar  },
+      { id: "high",      label: "Premium",         sublabel: "R$ 250 a R$ 500 por mês",   faIcon: faGem   },
+      { id: "premium",   label: "Sem restrição",   sublabel: "O que funcionar para mim!", faIcon: faCrown },
     ],
   },
   {

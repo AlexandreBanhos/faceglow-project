@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Ellipsis, BookOpen, AlertTriangle, Lock, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Ellipsis, BookOpen, AlertTriangle, Lock, Sparkles, CheckCircle2, Info } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun, faDroplet, faSprayCan, faMicroscope, faMapLocation, faStar, faShieldHalved, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import { FloatingAnalysisCard } from "@/components/FloatingAnalysisCard";
@@ -48,6 +48,22 @@ const parseStoredAnalysis = () => {
   }
 };
 
+// ── Dados informativos por condição ─────────────────────────────────────────
+const CONDITION_INFO: Record<string, { cause: string; tip: string; ingredient: string }> = {
+  "Acne":            { cause: "Produção excessiva de sebo, bactérias e células mortas obstruindo os poros.", tip: "Limpeza suave 2x/dia e uso de protetor solar oil-free são fundamentais.", ingredient: "Ácido salicílico (BHA) e niacinamida" },
+  "Oleosidade":      { cause: "Hiperprodução das glândulas sebáceas, que pode ser agravada por calor, estresse e hormônios.", tip: "Evite produtos com álcool — eles estimulam ainda mais a produção de sebo.", ingredient: "Niacinamida e ácido azelaico" },
+  "Manchas":         { cause: "Hiperpigmentação causada por sol, inflamação ou alterações hormonais.", tip: "Protetor solar diário é o item mais importante no controle de manchas.", ingredient: "Vitamina C, niacinamida e ácido kójico" },
+  "Sensibilidade":   { cause: "Barreira cutânea comprometida que reage a produtos, temperatura e estresse.", tip: "Prefira fórmulas sem fragrância e introduza ativos novos um por vez.", ingredient: "Centella asiatica e alantoína" },
+  "Hidratação":      { cause: "Falta de água na camada córnea, que pode deixar a pele seca, opaca e propensa a rugas.", tip: "Use hidratante logo após o banho para selar a umidade enquanto a pele ainda está úmida.", ingredient: "Ácido hialurônico e ceramidas" },
+  "Poros dilatados": { cause: "Acúmulo de sebo e queratina que aumenta visivelmente os poros, especialmente na zona T.", tip: "Esfoliação química semanal ajuda a desobstruir os poros sem irritar a pele.", ingredient: "BHA (ácido salicílico) e retinol" },
+  "Olheiras":        { cause: "Vasos sanguíneos visíveis, perda de volume ou hiperpigmentação sob os olhos.", tip: "Compressa fria pela manhã reduz inchaço; use protetor solar ao redor dos olhos.", ingredient: "Cafeína, vitamina K e retinol" },
+  "Linhas finas":    { cause: "Perda de colágeno e elastina acelerada por sol, tabaco, estresse e envelhecimento.", tip: "Protetor solar diário é a medida preventiva mais eficaz contra linhas finas.", ingredient: "Retinol, peptídeos e vitamina C" },
+  "Vermelhidão":     { cause: "Vasos dilatados, rosacea ou sensibilidade — inflamação na superfície da pele.", tip: "Produtos com cores neutras e fórmulas antiinflamatórias ajudam a reduzir o vermelho.", ingredient: "Centella asiatica, azuleno e aloé vera" },
+  "Espinhas ativas": { cause: "Poros obstruídos com bactérias causando inflamação aguda na pele.", tip: "Não esprema — aumenta cicatrizes. Use tratamento pontual com ácido salicílico.", ingredient: "Ácido salicílico, peróxido de benzoíla" },
+  "Cravos":          { cause: "Queratina e sebo oxidados obstruindo os poros (cravos pretos) ou fechados (brancos).", tip: "Esfoliação química regular com BHA mantém os poros limpos.", ingredient: "BHA (ácido salicílico) e retinol" },
+  "Ressecamento":    { cause: "Barreira cutânea comprometida que não retém umidade suficiente, causando sensação de repuxamento.", tip: "Aplique hidratante imediatamente após o banho, ainda com a pele levemente úmida para selar a umidade.", ingredient: "Ácido hialurônico, ceramidas e ureia" },
+};
+
 const Results = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,6 +77,7 @@ const Results = () => {
   const [showFloatingCard, setShowFloatingCard] = useState(true);
   const [isPremiumBlocked, setIsPremiumBlocked] = useState(true);
   const [showRoutineModal, setShowRoutineModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"tipo" | "melhoria" | "fortes">("melhoria");
 
   useEffect(() => {
     fetchBillingStatus({ forceRefresh: true })
@@ -277,7 +294,19 @@ const Results = () => {
     { key: "ressecamento", label: "Ressecamento", active: analysis.conditions?.ressecamento },
   ];
 
-  const activeConditions = detectedConditions.filter((item) => Boolean(item.active));
+  // Only show condition tags where score is > 0 to avoid discrepancy with improvement bars
+  const activeConditions = detectedConditions.filter((item) => {
+    const scoreKey = item.key === "olheiras" ? "olheiras"
+      : item.key === "poros" ? "poros"
+      : item.key === "manchas" ? "darkSpots"
+      : item.key === "linhas_finas" ? "linhasFinas"
+      : item.key === "vermelhidao" ? "vermelhidao"
+      : item.key === "espinhas_ativas" ? "espinhasAtivas"
+      : item.key === "cravos" ? "cravos"
+      : null;
+    const score = scoreKey ? (analysis.scores as Record<string, number | undefined>)[scoreKey] : undefined;
+    return Boolean(item.active) && (score === undefined || (score ?? 0) > 0);
+  });
   const skinTypeLabel = analysis.skinType.trim().toLowerCase() === "mista"
     ? "PELE MISTA"
     : analysis.skinType.trim().charAt(0).toUpperCase() + analysis.skinType.trim().slice(1).toLowerCase();
@@ -294,7 +323,7 @@ const Results = () => {
     if (analysis.scores.acne && analysis.scores.acne > 0) issuesList.push("acne");
     if (analysis.scores.darkSpots && analysis.scores.darkSpots > 0) issuesList.push("manchas");
     if (analysis.scores.linhasFinas && analysis.scores.linhasFinas > 0) issuesList.push("linhas finas");
-    if (analysis.scores.hydration && analysis.scores.hydration < 3) issuesList.push("ressecamento");
+    if ((analysis.scores.hydration ?? 10) < 4) issuesList.push("ressecamento");
     if (analysis.scores.sensitivity && analysis.scores.sensitivity > 5) issuesList.push("sensibilidade");
     if (analysis.scores.vermelhidao && analysis.scores.vermelhidao > 0) issuesList.push("vermelhidão");
     
@@ -310,24 +339,40 @@ const Results = () => {
 
   const insight = generateInsight();
 
-  // ── S2: barras de melhoria — fonte de verdade única ─────────────────────
-  // "É problema" = score > 0 OU condição booleana detectada pela IA.
-  // Usamos a união dos dois para evitar divergências entre score e conditions.
+  // ── S2: barras de melhoria — todos os itens, incluindo 0% ────────────────
   const isAProblem = (score: number | undefined, cond: boolean | undefined) =>
     (score ?? 0) > 0 || Boolean(cond);
 
-  const improvementMetrics = [
-    { label: "Acne",           value: Math.round((analysis.scores.acne         ?? 0) * 10), icon: "😤", cond: analysis.conditions?.acne },
-    { label: "Oleosidade",     value: Math.round((analysis.scores.oiliness     ?? 0) * 10), icon: "✨", cond: false },
-    { label: "Manchas",        value: Math.round((analysis.scores.darkSpots    ?? 0) * 10), icon: "🔶", cond: analysis.conditions?.manchas },
-    { label: "Sensibilidade",  value: Math.round((analysis.scores.sensitivity  ?? 0) * 10), icon: "🌡️", cond: false },
-    { label: "Poros",          value: Math.round((analysis.scores.poros        ?? 0) * 10), icon: "🔍", cond: analysis.conditions?.poros },
-    { label: "Olheiras",       value: Math.round((analysis.scores.olheiras     ?? 0) * 10), icon: "👁️", cond: analysis.conditions?.olheiras },
-    { label: "Linhas finas",   value: Math.round((analysis.scores.linhasFinas  ?? 0) * 10), icon: "⏳", cond: analysis.conditions?.linhasFinas },
-    { label: "Vermelhidão",    value: Math.round((analysis.scores.vermelhidao  ?? 0) * 10), icon: "🔴", cond: analysis.conditions?.vermelhidao },
-    { label: "Espinhas ativas",value: Math.round((analysis.scores.espinhasAtivas ?? 0) * 10), icon: "🔴", cond: analysis.conditions?.espinhasAtivas },
-    { label: "Cravos",         value: Math.round((analysis.scores.cravos       ?? 0) * 10), icon: "⚫", cond: analysis.conditions?.cravos },
-  ].filter((m) => isAProblem(m.value / 10, m.cond)).sort((a, b) => b.value - a.value);
+  // Hidratação é métrica positiva (quanto maior, melhor a pele).
+  // Ressecamento é o problema — aparece quando hydration < 4 ou conditions.ressecamento = true.
+  const hydration = analysis.scores.hydration ?? 0;
+  const ressecamentoValue = hydration > 0
+    ? Math.round(Math.max(0, Math.min(10, (4 - hydration))) * 10)
+    : 0;
+
+  const allImprovementMetrics = [
+    { label: "Acne",            value: Math.round((analysis.scores.acne          ?? 0) * 10), cond: analysis.conditions?.acne },
+    { label: "Oleosidade",      value: Math.round((analysis.scores.oiliness      ?? 0) * 10), cond: false },
+    { label: "Manchas",         value: Math.round((analysis.scores.darkSpots     ?? 0) * 10), cond: analysis.conditions?.manchas },
+    { label: "Sensibilidade",   value: Math.round((analysis.scores.sensitivity   ?? 0) * 10), cond: false },
+    { label: "Ressecamento",    value: ressecamentoValue,                                      cond: analysis.conditions?.ressecamento },
+    { label: "Poros dilatados", value: Math.round((analysis.scores.poros         ?? 0) * 10), cond: analysis.conditions?.poros },
+    { label: "Olheiras",        value: Math.round((analysis.scores.olheiras      ?? 0) * 10), cond: analysis.conditions?.olheiras },
+    { label: "Linhas finas",    value: Math.round((analysis.scores.linhasFinas   ?? 0) * 10), cond: analysis.conditions?.linhasFinas },
+    { label: "Vermelhidão",     value: Math.round((analysis.scores.vermelhidao   ?? 0) * 10), cond: analysis.conditions?.vermelhidao },
+    { label: "Espinhas ativas", value: Math.round((analysis.scores.espinhasAtivas ?? 0) * 10), cond: analysis.conditions?.espinhasAtivas },
+    { label: "Cravos",          value: Math.round((analysis.scores.cravos        ?? 0) * 10), cond: analysis.conditions?.cravos },
+  ].sort((a, b) => b.value - a.value);
+
+  // Problemas reais (score > 0 ou condição detectada) — em ordem decrescente
+  const improvementMetrics = allImprovementMetrics.filter((m) => isAProblem(m.value / 10, m.cond));
+  // Itens "não identificados" (score = 0 e sem condição) — aparecem no final
+  const okMetrics = allImprovementMetrics.filter((m) => !isAProblem(m.value / 10, m.cond));
+  // Todos os itens para exibição na aba (problemas primeiro, depois os ok)
+  const allDisplayMetrics = [...improvementMetrics, ...okMetrics];
+
+  // Top issue (maior percentual) para card informativo
+  const topIssue = improvementMetrics[0] ?? null;
 
   // Labels dos problemas confirmados — usados para garantir exclusão em S5
   const problemLabelSet = new Set(improvementMetrics.map((m) => m.label.toLowerCase()));
@@ -350,8 +395,9 @@ const Results = () => {
   // ── S4: pontos fortes ────────────────────────────────────────────────────
   const baseInsights = getSkinTypeInsights(analysis.skinType);
   const extraStrengths: SkinInsight[] = [];
-  if ((analysis.scores.hydration ?? 0) < 3)
-    extraStrengths.push({ icon: "💧", title: "Boa hidratação natural", description: "Sua pele mantém bons níveis de umidade sem precisar de muitos produtos." });
+  // Hidratação alta (>= 6) é um ponto forte
+  if ((analysis.scores.hydration ?? 0) >= 6)
+    extraStrengths.push({ icon: "💧", title: "Boa hidratação", description: "Sua pele mantém ótimos níveis de hidratação — isso protege a barreira cutânea." });
   if (!isAProblem(analysis.scores.acne, analysis.conditions?.acne))
     extraStrengths.push({ icon: "🌸", title: "Livre de acne", description: "Nenhum foco de acne ativa foi identificado na análise." });
   const skinStrengths = [...extraStrengths, ...baseInsights].slice(0, 4);
@@ -417,7 +463,7 @@ const Results = () => {
         animate={{ opacity: 1, y: 0 }}
         className="lg-surface-strong p-6 flex flex-col items-center mb-8 rounded-[2rem]"
       >
-        <FGScoreOrb score={analysis.overallScore} size={280} variant="default" />
+        <FGScoreOrb score={analysis.overallScore} size={220} variant="default" />
         <div className="mt-5 flex items-center gap-2">
           <span className="px-4 py-1.5 rounded-full gradient-primary text-primary-foreground text-sm font-bold shadow-glow">
             {skinTypeLabel}
@@ -427,45 +473,37 @@ const Results = () => {
           {confidence}% de confiança na análise
         </p>
 
-        {/* Mini metric donuts — top 3 scores */}
-        {metricCards.length > 0 && (
-          <div className="mt-5 flex items-center justify-center gap-4 w-full">
-            {metricCards.map((m, i) => {
-              const R = 18; const circ = 2 * Math.PI * R;
-              const hue = m.value > 70 ? "#EF4444" : m.value > 40 ? "#F59E0B" : "#22C55E";
-              return (
+        {/* Anos aparentes — barra de progresso */}
+        {skinAge > 0 && (() => {
+          // Escala 18–42: quanto mais jovem o aparente, melhor (barra mais cheia)
+          const ageProgress = Math.round(Math.max(0, Math.min(100, ((42 - skinAge) / (42 - 18)) * 100)));
+          const ageColor = ageProgress >= 70 ? "#22c55e" : ageProgress >= 45 ? "#f59e0b" : "#ef4444";
+          return (
+            <div className="mt-5 w-full">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Idade aparente da pele
+                </span>
+                <span className="text-sm font-extrabold" style={{ color: ageColor }}>
+                  {skinAge} anos
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.07)" }}>
                 <motion.div
-                  key={m.label}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3 + i * 0.1, type: "spring", stiffness: 260, damping: 20 }}
-                  className="flex flex-col items-center gap-1"
-                >
-                  <svg width="44" height="44" viewBox="0 0 44 44">
-                    <circle cx="22" cy="22" r={R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="4"/>
-                    <motion.circle
-                      cx="22" cy="22" r={R}
-                      fill="none" stroke={hue} strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeDasharray={circ}
-                      initial={{ strokeDashoffset: circ }}
-                      animate={{ strokeDashoffset: circ * (1 - m.value / 100) }}
-                      transition={{ duration: 1, ease: "easeOut", delay: 0.5 + i * 0.12 }}
-                      transform="rotate(-90 22 22)"
-                    />
-                    <text x="22" y="22" textAnchor="middle" dominantBaseline="middle"
-                      fontSize="9" fontWeight="800" fill={hue}>
-                      {m.value}
-                    </text>
-                  </svg>
-                  <p className="text-[10px] font-semibold text-muted-foreground text-center leading-tight">
-                    {m.label}
-                  </p>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+                  className="h-full rounded-full"
+                  style={{ background: ageColor }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${ageProgress}%` }}
+                  transition={{ duration: 1.1, ease: "easeOut", delay: 0.4 }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                {ageProgress >= 70 ? "Abaixo da sua idade — ótimo sinal!" : ageProgress >= 45 ? "Dentro da média esperada" : "Cuidados extras podem ajudar"}
+              </p>
+            </div>
+          );
+        })()}
+
       </motion.div>
 
       {/* Low confidence warning */}
@@ -482,269 +520,302 @@ const Results = () => {
         </motion.div>
       )}
 
-      {/* Skin Type Info Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="px-0 mb-8"
-      >
-        <SkinTypeInfoSection 
-          currentSkinType={analysis.skinType} 
-          showAllTypes={false} 
-          delay={0.35}
-          onReopenPhoto={() => setShowFloatingCard(true)}
-        />
-      </motion.div>
-
-      {/* ── ANÁLISE — VISÍVEL PARA TODOS OS USUÁRIOS ── */}
-
-      {/* ── S1: Hero — data, resumo, chips ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35 }}
-        className="rounded-2xl overflow-hidden mb-5"
-        style={{
-          background: "var(--glass-bg-strong)",
-          backdropFilter: "blur(28px) saturate(1.8)",
-          WebkitBackdropFilter: "blur(28px) saturate(1.8)",
-          border: "1px solid var(--glass-border)",
-          boxShadow: "var(--glass-shadow)",
-        }}
-      >
-        {/* Gradient top accent */}
-        <div style={{ height: "3px", background: "var(--grad-coral)" }} />
-        <div className="p-5">
-          <div className="mb-3">
-            <span className="text-xs font-semibold text-primary border border-primary/20 bg-primary/5 px-3 py-1 rounded-full">
-              📅 {new Date(analysis.createdAtUtc).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-              {" às "}
-              {new Date(analysis.createdAtUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          </div>
-          <p className="text-base font-bold text-foreground mb-0.5">
-            {skinTypeLabel} · {skinAge} anos aparentes
-          </p>
-          <p className={`text-sm text-muted-foreground ${activeConditions.length > 0 ? "mb-3" : ""}`}>
-            {analysis.scores.sensitivity >= 7 ? "Alta Sensibilidade · " : analysis.scores.sensitivity >= 4 ? "Sensibilidade Moderada · " : ""}
-            Score geral: {analysis.overallScore}/100
-          </p>
-          {activeConditions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {activeConditions.map((c) => (
-                <span key={c.key} className="text-xs font-bold px-3 py-1 rounded-full"
-                  style={{ background: "linear-gradient(135deg, #fff1f2, #ffe4e6)", color: "#e11d48", border: "1px solid #fecdd3" }}>
-                  {c.label}
-                </span>
-              ))}
-            </div>
-          )}
+      {/* ── Tabs ── */}
+      <div className="mb-5">
+        <div className="flex gap-1 p-1 rounded-2xl mb-5"
+          style={{ background: "rgba(255,255,255,0.5)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.7)" }}>
+          {([
+            { id: "tipo",     label: "Tipo de pele" },
+            { id: "melhoria", label: "Melhorias" },
+            { id: "fortes",   label: "Pontos fortes" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-xs transition-all"
+              style={activeTab === tab.id ? {
+                background: "linear-gradient(135deg, #E8748A 0%, #F4A8C7 100%)",
+                color: "white",
+                boxShadow: "0 4px 12px rgba(232,116,138,0.3)",
+              } : {
+                color: "var(--fg-ink-3)",
+                background: "transparent",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </motion.div>
 
-      {/* ── S2: Pontos de Melhoria ── */}
-      {improvementMetrics.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }} className="mb-5">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #f97316, #ef4444)", boxShadow: "0 4px 12px -2px rgba(239,68,68,0.38)" }}>
-              <FontAwesomeIcon icon={faMicroscope} className="text-white text-sm" />
+        {/* Tab: Tipo de pele */}
+        {activeTab === "tipo" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+            <div className="px-0 mb-5">
+              <SkinTypeInfoSection
+                currentSkinType={analysis.skinType}
+                showAllTypes={false}
+                delay={0}
+                onReopenPhoto={() => setShowFloatingCard(true)}
+              />
             </div>
-            <div>
-              <h3 className="text-base font-extrabold text-foreground leading-tight">Pontos de Melhoria</h3>
-              <p className="text-xs text-muted-foreground">Baseado na análise da sua pele</p>
-            </div>
-          </div>
-          <div className="space-y-2.5">
-            {improvementMetrics.map((m, i) => (
-              <ImprovementBar key={m.label} label={m.label} value={m.value} icon={m.icon} delay={0.48 + i * 0.07} />
-            ))}
-          </div>
-        </motion.div>
-      )}
 
-      {/* ── S3: Análise por Região ── */}
-      {uniqueRegionPoints.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.56 }} className="mb-5">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", boxShadow: "0 4px 12px -2px rgba(99,102,241,0.38)" }}>
-              <FontAwesomeIcon icon={faMapLocation} className="text-white text-sm" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-foreground leading-tight">Análise por Região</h3>
-              <p className="text-xs text-muted-foreground">Regiões com condições identificadas</p>
-            </div>
-          </div>
-          <div className="space-y-2.5">
-            {uniqueRegionPoints.map((pt, i) => (
-              <RegionCard key={`${pt.factor}-${i}`} point={pt} />
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── S4: Pontos Fortes — carrossel horizontal ── */}
-      {skinStrengths.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.63 }} className="mb-5">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 12px -2px rgba(16,185,129,0.38)" }}>
-              <FontAwesomeIcon icon={faStar} className="text-white text-sm" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-foreground leading-tight">Pontos Fortes da Pele</h3>
-              <p className="text-xs text-muted-foreground">Aspectos positivos identificados</p>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "10px", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", paddingBottom: "4px" }}>
-            {skinStrengths.map((s, i) => (
-              <div key={i} style={{ scrollSnapAlign: "start", flexShrink: 0, width: "calc(50% - 5px)" }}>
-                <StrengthCard insight={s} />
+            {/* S7: Cuidados para sua pele */}
+            <div className="mb-5">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "var(--grad-coral)", boxShadow: "0 4px 12px -2px rgba(220,100,140,0.38)" }}>
+                  <FontAwesomeIcon icon={faDroplet} className="text-white text-sm" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground leading-tight">Cuidados para sua pele</h3>
+                  <p className="text-xs text-muted-foreground">{skinRoutineTips.description}</p>
+                </div>
               </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── S5: Não Identificados ── */}
-      {okConditions.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.70 }}
-          className="lg-surface p-5 rounded-2xl mb-5"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 12px -2px rgba(16,185,129,0.35)" }}>
-              <FontAwesomeIcon icon={faShieldHalved} className="text-white text-sm" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-foreground leading-tight">Não Identificados</h3>
-              <p className="text-xs text-muted-foreground">Condições não detectadas na análise</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {okConditions.map((label) => (
-              <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 border border-green-200/60">
-                <CheckCircle2 size={13} className="text-green-600 flex-shrink-0" />
-                <span className="text-xs font-semibold text-green-800">{label}</span>
+              <div className="space-y-2.5">
+                {skinRoutineTips.routine.map((step, i) => {
+                  const faIcon = step.step === "Limpeza" ? faSprayCan : step.step === "Hidratação" ? faDroplet : faSun;
+                  return (
+                    <div
+                      key={step.step}
+                      className="flex items-start gap-3 p-4 rounded-2xl"
+                      style={{
+                        background: "var(--glass-bg)",
+                        backdropFilter: "blur(20px)",
+                        WebkitBackdropFilter: "blur(20px)",
+                        border: "1px solid var(--glass-border)",
+                        boxShadow: "0 2px 12px -4px rgba(60,30,50,0.1)",
+                      }}
+                    >
+                      <div
+                        className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "var(--grad-coral)", boxShadow: "0 4px 14px -2px rgba(220,100,140,0.45)" }}
+                      >
+                        <FontAwesomeIcon icon={faIcon} className="text-white text-base" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">{step.step}</p>
+                        <p className="text-sm font-semibold text-foreground mb-1">{step.guidance}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{step.detail}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* ── S6: Assistente IA ── */}
-      {aiCommentary && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.76 }}
-          className="rounded-2xl overflow-hidden mb-5"
-          style={{
-            background: "linear-gradient(135deg, var(--glass-bg-strong) 0%, rgba(239,143,184,0.08) 100%)",
-            backdropFilter: "blur(24px) saturate(1.8)",
-            WebkitBackdropFilter: "blur(24px) saturate(1.8)",
-            border: "1px solid rgba(239,143,184,0.3)",
-            boxShadow: "0 4px 20px -6px rgba(239,143,184,0.2)",
-          }}
-        >
-          <div style={{ height: "2px", background: "var(--grad-coral-soft, var(--grad-coral))" }} />
-          <div className="p-5">
-            <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "var(--grad-coral)", boxShadow: "0 3px 10px -2px rgba(220,100,140,0.4)" }}>
-                <span className="text-sm">✨</span>
-              </div>
-              <span className="text-sm font-bold text-primary">Assistente IA</span>
             </div>
-            <p className="text-sm text-foreground leading-relaxed">{aiCommentary}</p>
-          </div>
-        </motion.div>
-      )}
 
-      {/* ── S7: Cuidados para sua pele — orientação por tipo ── */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.82 }} className="mb-5">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "var(--grad-coral)", boxShadow: "0 4px 12px -2px rgba(220,100,140,0.38)" }}>
-            <FontAwesomeIcon icon={faDroplet} className="text-white text-sm" />
-          </div>
-          <div>
-            <h3 className="text-base font-extrabold text-foreground leading-tight">Cuidados para sua pele</h3>
-            <p className="text-xs text-muted-foreground">{skinRoutineTips.description}</p>
-          </div>
-        </div>
-        <div className="space-y-2.5">
-          {skinRoutineTips.routine.map((step, i) => {
-            const faIcon = step.step === "Limpeza" ? faSprayCan : step.step === "Hidratação" ? faDroplet : faSun;
-            return (
-              <motion.div
-                key={step.step}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.86 + i * 0.06 }}
-                className="flex items-start gap-3 p-4 rounded-2xl"
+            {/* S6: Assistente IA */}
+            {aiCommentary && (
+              <div className="rounded-2xl overflow-hidden mb-5"
                 style={{
-                  background: "var(--glass-bg)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid var(--glass-border)",
-                  boxShadow: "0 2px 12px -4px rgba(60,30,50,0.1)",
+                  background: "linear-gradient(135deg, var(--glass-bg-strong) 0%, rgba(239,143,184,0.08) 100%)",
+                  backdropFilter: "blur(24px) saturate(1.8)",
+                  WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+                  border: "1px solid rgba(239,143,184,0.3)",
+                  boxShadow: "0 4px 20px -6px rgba(239,143,184,0.2)",
                 }}
               >
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "var(--grad-coral)", boxShadow: "0 4px 14px -2px rgba(220,100,140,0.45)" }}
-                >
-                  <FontAwesomeIcon icon={faIcon} className="text-white text-base" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">{step.step}</p>
-                  <p className="text-sm font-semibold text-foreground mb-1">{step.guidance}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{step.detail}</p>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      {/* ── S8: O que observar — dicas por condição detectada ── */}
-      {activeTips.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.96 }} className="mb-5">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #f97316, #f59e0b)", boxShadow: "0 4px 12px -2px rgba(249,115,22,0.38)" }}>
-              <FontAwesomeIcon icon={faTriangleExclamation} className="text-white text-sm" />
-            </div>
-            <div>
-              <h3 className="text-base font-extrabold text-foreground leading-tight">O que observar</h3>
-              <p className="text-xs text-muted-foreground">Dicas para as condições detectadas</p>
-            </div>
-          </div>
-          <div className="space-y-2.5">
-            {activeTips.map(({ label, icon, tip }) => (
-              <div
-                key={label}
-                className="flex items-start gap-3 p-4 rounded-2xl"
-                style={{
-                  background: "var(--glass-bg)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid var(--glass-border)",
-                  boxShadow: "0 2px 12px -4px rgba(60,30,50,0.1)",
-                }}
-              >
-                <span className="text-2xl leading-none mt-0.5 flex-shrink-0">{icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground mb-1">{label}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{tip}</p>
+                <div style={{ height: "2px", background: "var(--grad-coral)" }} />
+                <div className="p-5">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "var(--grad-coral)", boxShadow: "0 3px 10px -2px rgba(220,100,140,0.4)" }}>
+                      <Sparkles size={14} className="text-white" />
+                    </div>
+                    <span className="text-sm font-bold text-primary">Assistente IA</span>
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed">{aiCommentary}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
+            )}
+          </motion.div>
+        )}
+
+        {/* Tab: Pontos de Melhoria */}
+        {activeTab === "melhoria" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+            {/* S1: Hero — data, resumo, chips */}
+            <div className="rounded-2xl overflow-hidden mb-5"
+              style={{
+                background: "var(--glass-bg-strong)",
+                backdropFilter: "blur(28px) saturate(1.8)",
+                WebkitBackdropFilter: "blur(28px) saturate(1.8)",
+                border: "1px solid var(--glass-border)",
+                boxShadow: "var(--glass-shadow)",
+              }}
+            >
+              <div style={{ height: "3px", background: "var(--grad-coral)" }} />
+              <div className="p-5">
+                <div className="mb-3">
+                  <span className="text-xs font-semibold text-primary border border-primary/20 bg-primary/5 px-3 py-1 rounded-full">
+                    {new Date(analysis.createdAtUtc).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                    {" · "}
+                    {new Date(analysis.createdAtUtc).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <p className="text-base font-bold text-foreground mb-0.5">
+                  {skinTypeLabel} · {skinAge} anos aparentes
+                </p>
+                <p className={`text-sm text-muted-foreground ${activeConditions.length > 0 ? "mb-3" : ""}`}>
+                  {analysis.scores.sensitivity >= 7 ? "Alta Sensibilidade · " : analysis.scores.sensitivity >= 4 ? "Sensibilidade Moderada · " : ""}
+                  Score geral: {analysis.overallScore}/100
+                </p>
+                {activeConditions.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeConditions.map((c) => (
+                      <span key={c.key} className="text-xs font-bold px-3 py-1 rounded-full"
+                        style={{ background: "linear-gradient(135deg, #fff1f2, #ffe4e6)", color: "#e11d48", border: "1px solid #fecdd3" }}>
+                        {c.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* S2: Pontos de Melhoria */}
+            <div className="mb-5">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg, #f97316, #ef4444)", boxShadow: "0 4px 12px -2px rgba(239,68,68,0.38)" }}>
+                  <FontAwesomeIcon icon={faMicroscope} className="text-white text-sm" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground leading-tight">Pontos de Melhoria</h3>
+                  <p className="text-xs text-muted-foreground">Baseado na análise da sua pele</p>
+                </div>
+              </div>
+
+              {/* Card informativo do problema mais severo */}
+              {topIssue && topIssue.value > 0 && CONDITION_INFO[topIssue.label] && (
+                <div className="mb-3 rounded-2xl overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(239,68,68,0.04) 100%)",
+                    border: "1px solid rgba(249,115,22,0.2)",
+                  }}>
+                  <div style={{ height: "3px", background: "linear-gradient(90deg, #f97316, #ef4444)" }} />
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: "linear-gradient(135deg, #f97316, #ef4444)" }}>
+                        <Info size={13} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-orange-700 uppercase tracking-wide">Maior preocupação detectada</p>
+                        <p className="text-sm font-extrabold text-foreground">{topIssue.label} — {topIssue.value}%</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 text-xs text-muted-foreground leading-relaxed">
+                      <p><strong className="text-foreground">Causa:</strong> {CONDITION_INFO[topIssue.label].cause}</p>
+                      <p><strong className="text-foreground">Dica:</strong> {CONDITION_INFO[topIssue.label].tip}</p>
+                      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-orange-100">
+                        <span className="font-bold text-orange-700">Ativos indicados:</span>
+                        <span>{CONDITION_INFO[topIssue.label].ingredient}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2.5">
+                {allDisplayMetrics.map((m, i) => (
+                  <ImprovementBar key={m.label} label={m.label} value={m.value} delay={i * 0.05} />
+                ))}
+              </div>
+            </div>
+
+            {/* S3: Análise por Região */}
+            {uniqueRegionPoints.length > 0 && (
+              <div className="mb-5">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", boxShadow: "0 4px 12px -2px rgba(99,102,241,0.38)" }}>
+                    <FontAwesomeIcon icon={faMapLocation} className="text-white text-sm" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-foreground leading-tight">Análise por Região</h3>
+                    <p className="text-xs text-muted-foreground">Regiões com condições identificadas</p>
+                  </div>
+                </div>
+                <div className="space-y-2.5">
+                  {uniqueRegionPoints.map((pt, i) => (
+                    <RegionCard key={`${pt.factor}-${i}`} point={pt} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* S8: O que observar */}
+            {activeTips.length > 0 && (
+              <div className="mb-5">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #f97316, #f59e0b)", boxShadow: "0 4px 12px -2px rgba(249,115,22,0.38)" }}>
+                    <FontAwesomeIcon icon={faTriangleExclamation} className="text-white text-sm" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-foreground leading-tight">O que observar</h3>
+                    <p className="text-xs text-muted-foreground">Dicas para as condições detectadas</p>
+                  </div>
+                </div>
+                <div className="space-y-2.5">
+                  {activeTips.map(({ label, tip }) => (
+                    <div
+                      key={label}
+                      className="flex items-start gap-3 p-4 rounded-2xl"
+                      style={{
+                        background: "var(--glass-bg)",
+                        backdropFilter: "blur(20px)",
+                        WebkitBackdropFilter: "blur(20px)",
+                        border: "1px solid var(--glass-border)",
+                        boxShadow: "0 2px 12px -4px rgba(60,30,50,0.1)",
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "linear-gradient(135deg, #f97316, #f59e0b)" }}>
+                        <FontAwesomeIcon icon={faTriangleExclamation} className="text-white text-xs" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-foreground mb-1">{label}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{tip}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* Tab: Pontos Fortes */}
+        {activeTab === "fortes" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+            {/* S4: Pontos Fortes */}
+            {skinStrengths.length > 0 && (
+              <div className="mb-5">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 12px -2px rgba(16,185,129,0.38)" }}>
+                    <FontAwesomeIcon icon={faStar} className="text-white text-sm" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-foreground leading-tight">Pontos Fortes da Pele</h3>
+                    <p className="text-xs text-muted-foreground">Aspectos positivos identificados</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "10px", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", paddingBottom: "4px" }}>
+                  {skinStrengths.map((s, i) => (
+                    <div key={i} style={{ scrollSnapAlign: "start", flexShrink: 0, width: "calc(50% - 5px)" }}>
+                      <StrengthCard insight={s} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* S5: removido — itens não identificados já aparecem na aba Melhorias com tag "Não identificado" */}
+          </motion.div>
+        )}
+      </div>
 
       {/* ── CTA Rotina ── */}
       {routineState === "loading" ? (
@@ -753,16 +824,24 @@ const Results = () => {
           <div className="h-12 rounded-2xl bg-muted-foreground/10" />
         </div>
       ) : isPremiumBlocked ? (
-        <motion.button
+        /* Free: rotina simples disponível para todos */
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.02 }}
-          onClick={() => setShowRoutineModal(true)}
-          className="w-full py-5 rounded-[999px] flex items-center justify-center gap-2 font-extrabold text-base text-white mb-5"
-          style={{ background: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)", boxShadow: "0 6px 22px rgba(99,102,241,0.35)" }}
+          className="space-y-3 mb-5"
         >
-          <Lock size={18} /> Desbloquear Rotina Personalizada
-        </motion.button>
+          <button
+            onClick={() => navigate("/routine", { state: { analysis, simpleMode: true } })}
+            className="w-full py-4 rounded-[999px] flex items-center justify-center gap-2 font-extrabold text-base text-white"
+            style={{ background: "linear-gradient(135deg, #E8748A 0%, #F4A8C7 100%)", boxShadow: "0 6px 22px rgba(232,116,138,0.35)", border: "none", cursor: "pointer" }}
+          >
+            <Sparkles size={18} /> Ver Minha Rotina
+          </button>
+          <p className="text-center text-xs text-muted-foreground">
+            Rotina personalizada para o seu tipo de pele
+          </p>
+        </motion.div>
       ) : (() => {
         const isLatest = !analysis?.id || getCachedLatestAnalysis()?.id === analysis.id;
         return isLatest ? (
@@ -772,16 +851,12 @@ const Results = () => {
             transition={{ delay: 1.02 }}
             onClick={handleLoadRoutine}
             className="w-full py-5 rounded-[999px] flex items-center justify-center gap-2 font-extrabold text-base text-white mb-5"
-            style={{ background: "linear-gradient(135deg, #f97316 0%, #f472b6 100%)", boxShadow: "0 6px 22px rgba(249,115,22,0.38)" }}
+            style={{ background: "linear-gradient(135deg, #E8748A 0%, #F4A8C7 100%)", boxShadow: "0 6px 22px rgba(232,116,138,0.38)", border: "none", cursor: "pointer" }}
           >
             <Sparkles size={18} /> Ver Rotina Personalizada
           </motion.button>
         ) : (
           <div className="space-y-2 mb-5">
-            <button disabled className="liquiglass-button w-full py-4 rounded-2xl text-muted-foreground font-semibold text-sm cursor-not-allowed opacity-60">
-              Ver Rotina (análise anterior)
-            </button>
-            <p className="text-center text-xs text-muted-foreground">A rotina reflete sempre a análise mais recente</p>
             <button onClick={() => navigate("/routine")} className="liquiglass-button w-full py-3 rounded-2xl text-foreground font-semibold text-sm flex items-center justify-center gap-2">
               <BookOpen size={16} /> Ver rotina atual
             </button>
@@ -806,8 +881,8 @@ const Results = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-6"
-            style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", overflowY: "auto" }}
+            className="fixed inset-0 flex items-end justify-center px-4 pb-6"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", overflowY: "auto", zIndex: 9999 }}
             onClick={() => setShowRoutineModal(false)}
           >
             <PremiumUnlockModal isVisible={true} onClose={() => setShowRoutineModal(false)} />

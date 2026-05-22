@@ -51,6 +51,8 @@ interface StepIconProps {
   stepTypeKey?: string;
   /** Tamanho fixo em px. Se omitido, usa modo fill: ícone em 50% do container pai */
   size?: number;
+  /** Cor/gradiente da máscara. Padrão: gradiente do sistema */
+  background?: string;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -60,14 +62,14 @@ interface StepIconProps {
  * diretamente via CSS mask — sem caixa colorida ao redor.
  * O container pai é responsável por fornecer background e border-radius.
  */
-export function StepIcon({ stepTypeKey, size, className = "", style }: StepIconProps) {
+export function StepIcon({ stepTypeKey, size, background = GRAD, className = "", style }: StepIconProps) {
   const iconUrl = (stepTypeKey ? ICON_MAP[stepTypeKey.toLowerCase()] : undefined) ?? productUrl;
   const mask = maskStyle(iconUrl);
 
   if (size !== undefined) {
     return (
       <div className={`flex-shrink-0 ${className}`} style={{ width: size, height: size, ...style }}>
-        <div style={{ width: "100%", height: "100%", background: GRAD, ...mask }} />
+        <div style={{ width: "100%", height: "100%", background, ...mask }} />
       </div>
     );
   }
@@ -77,7 +79,7 @@ export function StepIcon({ stepTypeKey, size, className = "", style }: StepIconP
     <div className={`w-full h-full flex items-center justify-center ${className}`} style={style}>
       <div
         className="aspect-square"
-        style={{ width: "50%", background: GRAD, ...mask }}
+        style={{ width: "50%", background, ...mask }}
       />
     </div>
   );

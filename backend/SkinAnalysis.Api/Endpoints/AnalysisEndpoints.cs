@@ -571,8 +571,28 @@ public static class AnalysisEndpoints
             try
             {
                 var result = await bgService.CreateQuickAnalysisAsync(request, CancellationToken.None);
-                var resultWithRoutine = await bgService.BuildRoutineAsync(result.Id, CancellationToken.None);
-                AnalysisJobStore.Complete(jobId, resultWithRoutine);
+
+                // Rotina estruturada (com produtos) apenas para usuários premium
+                var bgDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var now = DateTime.UtcNow;
+                var isPremium = await bgDb.Subscriptions.AnyAsync(
+                    s => s.UserId == authenticatedUserId.Value
+                        && (s.Status == "active" || (s.ExpiresAtUtc != null && s.ExpiresAtUtc > now)),
+                    CancellationToken.None);
+
+                AnalysisResponseDto finalResult;
+                if (isPremium)
+                {
+                    finalResult = await bgService.BuildRoutineAsync(result.Id, CancellationToken.None);
+                    logger.LogInformation("[ASYNC] Routine built for premium userId {UserId}.", authenticatedUserId.Value);
+                }
+                else
+                {
+                    finalResult = result;
+                    logger.LogInformation("[ASYNC] Skipping routine build for free userId {UserId}.", authenticatedUserId.Value);
+                }
+
+                AnalysisJobStore.Complete(jobId, finalResult);
 
                 cache.Remove($"user_credits_{authenticatedUserId.Value}");
                 cache.Remove($"profile_summary_{authenticatedUserId.Value}");

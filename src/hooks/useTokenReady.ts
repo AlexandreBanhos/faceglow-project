@@ -32,12 +32,10 @@ export const useTokenReady = () => {
       }
     });
 
-    // Timeout de segurança: se após 3s ainda sem token, libera de qualquer forma
+    // Timeout de segurança: libera após 1.5s se token não aparecer
     const safetyTimeout = setTimeout(() => {
-      if (mounted && !tokenReady) {
-        setTokenReady(true);
-      }
-    }, 3000);
+      if (mounted) setTokenReady(true);
+    }, 1500);
 
     return () => {
       mounted = false;

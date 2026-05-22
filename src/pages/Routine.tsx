@@ -6,7 +6,7 @@ import {
   type RoutineVersionItem,
 } from "@/lib/lifestyle";
 import { motion } from "framer-motion";
-import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen, Loader2, Package, ChevronRight, History, RotateCcw } from "lucide-react";
+import { ArrowLeft, Sun, Moon, AlertTriangle, CalendarDays, Repeat2, Plus, ListChecks, ChevronDown, Search, CheckCircle2, Droplets, Sparkles, Beaker, Pipette, MoonStar, Shield, Edit, ChevronUp, Trash2, X, Image, GripVertical, RefreshCw, Crown, Upload, PackageOpen, Loader2, Package, ChevronRight, History, RotateCcw, Info } from "lucide-react";
 import { GradientSpinner } from "@/components/LoadingSpinner";
 import { normalizeAnalysis, type AnalysisRecommendation, type AnalysisResponse } from "@/lib/analysis";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -30,6 +30,11 @@ import { getUserCatalog } from "@/lib/userCatalog";
 import { createMyProduct } from "@/lib/userProducts";
 import { apiBaseUrl } from "@/lib/api";
 import { AuroraBackdrop } from "@/components/shared";
+import { useIsPremium } from "@/hooks/useIsPremium";
+import { PremiumUnlockModal } from "@/components/PremiumUnlockModal";
+import { StepInfoModal } from "@/components/routine/StepInfoModal";
+import { toggleFreeStep, isFreeStepDone } from "@/lib/freeRoutine";
+import { Mascot, useFloatAnimation } from "@/components/quiz/Mascot";
 import { ProductSwitchSheet } from "@/components/routine/ProductSwitchSheet";
 import { ProductWizard, type WizardResult, type WizardProductOption } from "@/components/routine/ProductWizard";
 import { RoutineSuggestionsPanel } from "@/components/routine/RoutineSuggestionsPanel";
@@ -310,10 +315,28 @@ const normalizeSchedule = (raw: unknown, itemKeys: string[]): ProductSchedule =>
   };
 };
 
+const PREMIUM_MODAL_DISMISSED_KEY = "faceglow-premium-modal-dismissed-at";
+const PREMIUM_MODAL_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24h
+
+const isPremiumModalOnCooldown = () => {
+  const raw = localStorage.getItem(PREMIUM_MODAL_DISMISSED_KEY);
+  if (!raw) return false;
+  const dismissedAt = Number(raw);
+  return Number.isFinite(dismissedAt) && Date.now() - dismissedAt < PREMIUM_MODAL_COOLDOWN_MS;
+};
+
+const dismissPremiumModal = () => {
+  localStorage.setItem(PREMIUM_MODAL_DISMISSED_KEY, String(Date.now()));
+};
+
 const Routine = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { isPremium, isLoading: isPremiumLoading } = useIsPremium();
+  const simpleMode = (location.state as { simpleMode?: boolean } | null)?.simpleMode === true;
+  // Free users always see simple mode (text-only, no images)
+  const isFreeMode = !isPremium && !isPremiumLoading;
   const stateAnalysis = normalizeAnalysis((location.state as { analysis?: unknown } | null)?.analysis);
 
   let analysis = stateAnalysis;
@@ -344,6 +367,7 @@ const Routine = () => {
 
 
   // Declare all states FIRST before any useEffect or useMemo that use them
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string>(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; });
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [selectedPeriod, setSelectedPeriod] = useState<"morning" | "night">("morning");
@@ -377,6 +401,22 @@ const Routine = () => {
   const [uploadingImageByItem, setUploadingImageByItem] = useState<Record<string, boolean>>({});
   const [imageUploadErrorByItem, setImageUploadErrorByItem] = useState<Record<string, string>>({});
   const [isEditing, setIsEditing] = useState(false);
+  // Free user: step info modal
+  const [stepInfoLabel, setStepInfoLabel] = useState<string | null>(null);
+  // Free user: completion tracking via freeRoutine.ts (separado dos UUIDs premium)
+  const [freeCheckedRevision, setFreeCheckedRevision] = useState(0);
+  const todayDateStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  })();
+  // Animação de conclusão da rotina
+  const [showCompletionAnimation, setShowCompletionAnimation] = useState(false);
+  const [completionAnimPeriod, setCompletionAnimPeriod] = useState<"morning" | "night">("morning");
+  // Free user: simple add-step form
+  const [freeAddStepOpen, setFreeAddStepOpen] = useState(false);
+  const [freeStepName, setFreeStepName] = useState("");
+  const [freeStepPeriod, setFreeStepPeriod] = useState<"morning" | "night" | "both">("both");
+  const [freeStepSaving, setFreeStepSaving] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
   const [showRefineQuiz, setShowRefineQuiz] = useState(false);
@@ -428,6 +468,15 @@ const Routine = () => {
   );
   const { markComplete } = useRoutineComplete();
 
+
+  // Auto-open premium modal for free users (after premium status loads, respeitando cooldown de 24h)
+  useEffect(() => {
+    if (!isPremiumLoading && !isPremium && !isPremiumModalOnCooldown()) {
+      const t = setTimeout(() => setShowPremiumModal(true), 600);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [isPremiumLoading, isPremium]);
 
   // Try loading analysis from API if none available from initial fallbacks
   useEffect(() => {
@@ -974,6 +1023,25 @@ const Routine = () => {
     setNewStepCatalogOpen(false);
     setNewStepCatalogQuery("");
     toast.success("Passo adicionado!", { id: toastId, duration: 2500 });
+  };
+
+  // Salva passo simples para usuário free (apenas nome, sem produto)
+  const saveFreeStep = async () => {
+    const name = freeStepName.trim();
+    if (!name || !analysis?.id) return;
+    setFreeStepSaving(true);
+    const toastId = toast.loading("Adicionando passo…");
+    const periods: Array<"morning" | "night"> = freeStepPeriod === "both" ? ["morning", "night"] : [freeStepPeriod];
+    for (const p of periods) {
+      await addRoutineStep(analysis.id, { period: p, productName: name, category: "Passo", recurrence: "daily" });
+    }
+    await reloadApiSteps(true);
+    invalidateAnalysisCache();
+    setFreeStepName("");
+    setFreeStepPeriod("both");
+    setFreeAddStepOpen(false);
+    toast.success("Passo adicionado!", { id: toastId, duration: 2500 });
+    setFreeStepSaving(false);
   };
 
   const handleNewStepFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1586,12 +1654,31 @@ const Routine = () => {
     ? Math.round((completedInVisible / activeChecklistItems.length) * 100)
     : 0;
   const isRoutineComplete = activeChecklistItems.length > 0 && completedInVisible === activeChecklistItems.length;
-  const completionBanner =
-    isRoutineComplete && selectedPeriod === "morning"
-      ? "Rotina da manhã concluida!"
-      : isRoutineComplete && selectedPeriod === "night"
-        ? "Você concluiu suas rotinas do dia! Sua pele agradece"
-        : null;
+  // Mascot float animation for the completion overlay
+  useFloatAnimation();
+
+  // Dispara animação de conclusão uma vez por período/dia.
+  // Animação de conclusão: dispara apenas 1× por dia (persiste em localStorage).
+  const COMPLETION_ANIM_KEY = "faceglow-completion-anim-shown-date";
+  const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isRoutineComplete || selectedDay !== todayStr) return;
+    // Verifica se já foi exibida hoje (persistência cross-reload)
+    const shownDate = localStorage.getItem(COMPLETION_ANIM_KEY);
+    if (shownDate === todayStr) return;
+    // Marca como exibida hoje antes de mostrar
+    localStorage.setItem(COMPLETION_ANIM_KEY, todayStr);
+    setCompletionAnimPeriod(selectedPeriod);
+    setShowCompletionAnimation(true);
+    if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+    completionTimerRef.current = setTimeout(() => {
+      setShowCompletionAnimation(false);
+      completionTimerRef.current = null;
+    }, 1800);
+    // Sem return de cleanup — o timer não deve ser cancelado por re-render
+  }, [isRoutineComplete, selectedDay, selectedPeriod, todayStr]);
+  // Limpa o timer apenas no unmount do componente
+  useEffect(() => () => { if (completionTimerRef.current) clearTimeout(completionTimerRef.current); }, []);
 
   useEffect(() => {
     const total = activeChecklistItems.length;
@@ -1940,13 +2027,15 @@ const Routine = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {!isFreeMode && (
             <button
               onClick={() => navigate("/meus-produtos")}
-            className="w-10 h-10 rounded-full liquiglass-button flex items-center justify-center transition-colors"
+              className="w-10 h-10 rounded-full liquiglass-button flex items-center justify-center transition-colors"
               aria-label="Meus Produtos"
             >
               <PackageOpen size={16} className="text-[var(--fg-ink)]" />
             </button>
+            )}
             <button
               onClick={() => setShowCalendar((v) => !v)}
               className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showCalendar ? "coral-button" : "liquiglass-button"}`}
@@ -2194,26 +2283,15 @@ const Routine = () => {
           <div className="flex items-center justify-between gap-3 mb-3">
             {/* Título + contador */}
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-[var(--fg-ink)]">
-                  {selectedPeriod === "morning" ? "Rotina da manhã" : "Rotina da noite"}
-                </h2>
-                {isRoutineComplete && (
-                  <motion.span
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 border border-primary/30"
-                  >
-                    <CheckCircle2 size={12} className="text-primary" />
-                    <span className="text-xs font-semibold text-primary">Concluída</span>
-                  </motion.span>
-                )}
-              </div>
-              {/* Contador abaixo do título */}
-              <p className="text-xs font-semibold mt-0.5" style={{ color: "#9CA3AF" }}>
-                {completedInVisible}/{activeChecklistItems.length} feitos
-              </p>
+              <h2 className="text-base font-bold text-[var(--fg-ink)]">
+                {selectedPeriod === "morning" ? "Manhã" : "Noite"}
+              </h2>
+              {/* Contador — só quando não concluído */}
+              {!isRoutineComplete && (
+                <p className="text-xs font-semibold mt-0.5" style={{ color: "#9CA3AF" }}>
+                  {completedInVisible}/{activeChecklistItems.length} feitos
+                </p>
+              )}
             </div>
 
             {/* Direita: Fiz tudo + toggle período */}
@@ -2263,8 +2341,8 @@ const Routine = () => {
             </div>
           </div>
 
-          {/* Progress ring + bar combinados */}
-          <div className="mb-4 flex items-center gap-3">
+          {/* Progress ring + bar — oculto quando concluído */}
+          {!isRoutineComplete && <div className="mb-4 flex items-center gap-3">
             {/* Mini ring circular */}
             <div className="flex-shrink-0 relative">
               {(() => {
@@ -2313,31 +2391,7 @@ const Routine = () => {
                 transition={{ duration: 0.4, ease: "easeOut" }}
               />
             </div>
-          </div>
-
-          {/* Banner de conclusão */}
-          <AnimatePresence>
-            {completionBanner && (
-              <motion.div
-                key="completion-banner"
-                initial={{ opacity: 0, scale: 0.92, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 8 }}
-                transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                className="mb-3 rounded-2xl px-4 py-3 flex items-center gap-3"
-                style={{ background: selectedPeriod === "night" ? "linear-gradient(135deg,#22c55e20,#16a34a15)" : "linear-gradient(135deg,#f9a8d420,#fb923c15)", border: `1px solid ${selectedPeriod === "night" ? "#22c55e40" : "#f97316-40"}` }}
-              >
-                <motion.span
-                  animate={{ rotate: [0, -12, 12, -8, 8, 0] }}
-                  transition={{ duration: 0.6, delay: 0.2 }}
-                  className="text-xl flex-shrink-0"
-                >
-                  {selectedPeriod === "night" ? "🌙" : "☀️"}
-                </motion.span>
-                <p className="text-sm font-bold text-foreground">{completionBanner}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          </div>}
 
           {isFutureDay && (
             <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: "#FEF9EE", border: "1px solid #F59E0B33" }}>
@@ -2484,13 +2538,93 @@ const Routine = () => {
                         </div>
                         <div className="w-9 h-9 rounded-full bg-muted/60 flex-shrink-0" />
                       </div>
+                    ) : isFreeMode ? (
+                      /* ── Free: número do passo em círculo + nome do passo ── */
+                      (() => {
+                        const freeLabel = (item.stepLabel || item.type || item.title).toLowerCase().trim();
+                        const isFreeChecked = isFreeStepDone(analysis?.id ?? "", todayDateStr, item.period, freeLabel);
+                        void freeCheckedRevision;
+                        return (
+                          <div className="flex items-center gap-4 px-4 py-3.5">
+                            <span
+                              className="rounded-full flex items-center justify-center font-extrabold flex-shrink-0 text-white"
+                              style={{
+                                width: 44,
+                                height: 44,
+                                fontSize: 16,
+                                background: isFreeChecked
+                                  ? "rgba(156,163,175,0.6)"
+                                  : "var(--grad-coral)",
+                                boxShadow: isFreeChecked ? "none" : "var(--shadow-glow)",
+                                transition: "background 300ms, box-shadow 300ms",
+                              }}
+                            >
+                              {item.stepNumber}
+                            </span>
+                            <p
+                              className="text-sm font-semibold flex-1 leading-snug"
+                              style={{
+                                color: isFreeChecked ? "#9CA3AF" : "#1f2937",
+                                textDecoration: isFreeChecked ? "line-through" : "none",
+                                transition: "color 300ms",
+                              }}
+                            >
+                              {capitalizeWords(item.stepLabel) || capitalizeWords(item.type) || capitalizeWords(item.title)}
+                            </p>
+                            {/* Info button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setStepInfoLabel(item.stepLabel || item.type || item.title);
+                              }}
+                              className="min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center flex-shrink-0"
+                              style={{ background: "rgba(232,116,138,0.1)", border: "none", cursor: "pointer" }}
+                              aria-label="Informações sobre este passo"
+                            >
+                              <Info size={16} style={{ color: "#E8748A" }} />
+                            </button>
+                            {/* Check button */}
+                            <motion.button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!analysis?.id) return;
+                                toggleFreeStep(analysis.id, todayDateStr, item.period, freeLabel);
+                                setFreeCheckedRevision(v => v + 1);
+                              }}
+                              whileTap={{ scale: 0.88 }}
+                              animate={isFreeChecked
+                                ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } }
+                                : { scale: 1 }
+                              }
+                              className="min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center flex-shrink-0"
+                              style={isFreeChecked
+                                ? { background: "var(--grad-coral)", border: "2px solid transparent" }
+                                : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
+                              }
+                              aria-label={isFreeChecked ? "Desmarcar" : "Marcar"}
+                            >
+                              {isFreeChecked && (
+                                <motion.svg width="14" height="14" viewBox="0 0 12 12" fill="none"
+                                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
+                                  <motion.path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2.2"
+                                    strokeLinecap="round" strokeLinejoin="round"
+                                    initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+                                    transition={{ duration: 0.22, ease: "easeOut" }} />
+                                </motion.svg>
+                              )}
+                            </motion.button>
+                          </div>
+                        );
+                      })()
                     ) : (
                     <div className="flex flex-col w-full">
 
-                      {/* Main card row: image + details + check */}
+                      {/* Main card row: image (premium only) + details + check */}
                       <div className={`flex items-center gap-3 p-3 ${isEditing ? "wiggle-editing" : ""}`}>
-                        {/* Imagem com ícone de busca sobreposto no canto inferior direito */}
-                        <div
+                        {/* Imagem — apenas para usuários premium */}
+                        {!isFreeMode && <div
                           className="relative w-[120px] h-[120px] rounded-xl border border-border/40 flex-shrink-0 overflow-hidden flex items-center justify-center"
                           style={{ background: "#f5f1ff" }}
                           key={`img-container-${item.key}`}
@@ -2517,7 +2651,7 @@ const Routine = () => {
                           >
                             <Search size={13} className="text-white" />
                           </button>
-                        </div>
+                        </div>}
 
                         {/* Details */}
                         <div className="flex-1 min-w-0 space-y-1">
@@ -3114,8 +3248,8 @@ const Routine = () => {
                 </motion.div>
               )}
 
-              {/* Add Step button (edit mode) — abre o ProductWizard */}
-              {isEditing && (
+              {/* Add Step — comportamento diferente para free e premium */}
+              {isEditing && !isFreeMode && (
                 <div className="space-y-3">
                   <button
                     onClick={() => { setWizardItem(null); setWizardMode("add"); setWizardOpen(true); }}
@@ -3131,14 +3265,141 @@ const Routine = () => {
         </motion.section>
         )}
 
-        {/* Editar Rotina CTA - always visible at bottom */}
+        {/* Editar Rotina CTA */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="pb-2"
+          className="pb-2 space-y-3"
         >
-          {isEditing ? (
+          {isFreeMode ? (
+            /* ── Free: card premium + formulário simples ── */
+            <div>
+              {/* Card premium upsell */}
+              <div className="rounded-3xl overflow-hidden mb-3"
+                style={{
+                  background: "linear-gradient(135deg, #6366f1 0%, #a855f7 60%, #ec4899 100%)",
+                  padding: "20px",
+                  boxShadow: "0 8px 32px rgba(99,102,241,0.3)",
+                }}>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(255,255,255,0.2)" }}>
+                    <Crown size={18} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-white text-base leading-tight mb-1">
+                      Quer uma rotina com produtos perfeitos para sua pele?
+                    </p>
+                    <p className="text-white/75 text-xs leading-relaxed">
+                      Com o Premium, a FaceGlow seleciona produtos especialmente para o seu tipo de pele e monta sua rotina completa — manhã e noite — com ativos indicados pela análise.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 mb-4">
+                  {[
+                    "Produtos selecionados pelo seu tipo de pele",
+                    "Rotina completa manhã e noite",
+                    "Ativos indicados pela sua análise",
+                    "Troca de produto com 1 clique",
+                  ].map((benefit) => (
+                    <div key={benefit} className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: "rgba(255,255,255,0.25)" }}>
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                          <path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <span className="text-white/90 text-xs font-medium">{benefit}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowPremiumModal(true)}
+                  className="w-full font-extrabold text-sm flex items-center justify-center gap-2"
+                  style={{
+                    height: 44,
+                    borderRadius: 12,
+                    background: "rgba(255,255,255,0.95)",
+                    color: "#6366f1",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Sparkles size={15} /> Conhecer o Plano Premium
+                </button>
+              </div>
+
+              {/* Separador */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 h-px bg-border/50" />
+                <span className="text-xs text-muted-foreground font-medium">ou</span>
+                <div className="flex-1 h-px bg-border/50" />
+              </div>
+
+              {/* Add simple step form */}
+              {freeAddStepOpen ? (
+                <div className="rounded-2xl p-4 space-y-3"
+                  style={{ background: "var(--glass-bg)", border: "1px solid var(--glass-border)" }}>
+                  <p className="text-sm font-bold text-foreground">Adicionar passo à rotina</p>
+                  <input
+                    type="text"
+                    placeholder="Ex: Limpeza facial, Protetor solar..."
+                    value={freeStepName}
+                    onChange={e => setFreeStepName(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    style={{ background: "rgba(255,255,255,0.8)", border: "1.5px solid rgba(0,0,0,0.1)" }}
+                    onKeyDown={e => e.key === "Enter" && void saveFreeStep()}
+                  />
+                  <div className="flex gap-2">
+                    {(["morning", "night", "both"] as const).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setFreeStepPeriod(p)}
+                        className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+                        style={freeStepPeriod === p ? {
+                          background: "var(--grad-coral)", color: "white",
+                        } : {
+                          background: "rgba(0,0,0,0.05)", color: "var(--fg-ink-3)",
+                        }}
+                      >
+                        {p === "morning" ? "Manhã" : p === "night" ? "Noite" : "Ambos"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setFreeAddStepOpen(false); setFreeStepName(""); }}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-border/50 text-muted-foreground"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => void saveFreeStep()}
+                      disabled={!freeStepName.trim() || freeStepSaving}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-1.5"
+                      style={{
+                        background: freeStepName.trim() ? "var(--grad-coral)" : "#D1D5DB",
+                        border: "none",
+                        cursor: freeStepName.trim() ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      {freeStepSaving ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setFreeAddStepOpen(true)}
+                  className="w-full h-12 rounded-2xl border-2 border-dashed text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+                  style={{ borderColor: "rgba(0,0,0,0.15)", color: "var(--fg-ink-3)" }}
+                >
+                  <Plus size={16} /> Adicionar passo simples
+                </button>
+              )}
+            </div>
+          ) : isEditing ? (
             <div className="flex gap-2">
               <button
                 onClick={() => { setIsEditing(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}
@@ -3533,6 +3794,103 @@ const Routine = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Animação de conclusão da rotina — mascote */}
+      <AnimatePresence>
+        {showCompletionAnimation && (
+          <motion.div
+            key="completion-mascot"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 9990,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(160deg, rgba(252,231,243,0.97) 0%, rgba(253,240,248,0.97) 50%, rgba(255,240,252,0.97) 100%)",
+              backdropFilter: "blur(20px)",
+              pointerEvents: "none", // nunca bloqueia interação
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.7, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.7, y: 20 }}
+              transition={{ type: "spring", stiffness: 360, damping: 26, delay: 0.05 }}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}
+            >
+              <Mascot mood="happy" size={96} />
+              <div style={{ textAlign: "center", paddingInline: 32 }}>
+                <motion.p
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  style={{ fontSize: 22, fontWeight: 800, color: "#1A1A1A", letterSpacing: "-0.4px", marginBottom: 6 }}
+                >
+                  {completionAnimPeriod === "morning" ? "Manhã concluída!" : "Dia concluído!"}
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.35 }}
+                  style={{ fontSize: 14, color: "#6B6B6B", lineHeight: 1.5 }}
+                >
+                  {completionAnimPeriod === "morning"
+                    ? "Ótimo começo de dia. Sua pele agradece!"
+                    : "Rotina completa! Sua pele vai agradecer amanhã."}
+                </motion.p>
+              </div>
+              {/* Confetti dots decorativos */}
+              {[...Array(6)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: [0, 1, 0], scale: [0, 1, 0.5], y: [0, -40 - i * 10] }}
+                  transition={{ delay: 0.1 + i * 0.08, duration: 1.2, ease: "easeOut" }}
+                  style={{
+                    position: "absolute",
+                    left: `${15 + i * 14}%`,
+                    top: "38%",
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: i % 2 === 0 ? "#E8748A" : "#F4A8C7",
+                  }}
+                />
+              ))}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de informações do passo — acessível para todos os usuários */}
+      <StepInfoModal
+        open={stepInfoLabel !== null}
+        stepLabel={stepInfoLabel ?? ""}
+        skinType={analysis?.skinType}
+        onClose={() => setStepInfoLabel(null)}
+      />
+
+      {/* Modal premium — abre automaticamente para usuários free (cooldown 24h após dispensa) */}
+      {showPremiumModal && (
+        <div
+          className="fixed inset-0 flex items-end justify-center px-4 pb-6"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", zIndex: 9999 }}
+          onClick={() => { dismissPremiumModal(); setShowPremiumModal(false); }}
+        >
+          <div style={{ width: "100%", maxWidth: 420, zIndex: 10000, position: "relative" }}>
+            <PremiumUnlockModal
+              isVisible={true}
+              onClose={() => { dismissPremiumModal(); setShowPremiumModal(false); }}
+            />
+          </div>
         </div>
       )}
 
