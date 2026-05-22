@@ -1896,12 +1896,23 @@ const Routine = () => {
     payload: { productId?: string; productName?: string; imageUrl?: string },
   ) => {
     if (!analysis?.id) return;
+    const toastId = toast.loading("Adicionando produto…");
     setSavingProductItem(true);
     setSelectingProductItem(stepId);
-    await addCatalogSlot(analysis.id, stepId, payload);
-    await reloadApiSteps(true);
-    setSavingProductItem(false);
-    setSelectingProductItem(null);
+    try {
+      const ok = await addCatalogSlot(analysis.id, stepId, payload);
+      if (ok) {
+        await reloadApiSteps(true);
+        toast.success("Produto atualizado!", { id: toastId, duration: 2500 });
+      } else {
+        toast.error("Não foi possível adicionar o produto. Verifique sua conexão e tente novamente.", { id: toastId, duration: 3500 });
+      }
+    } catch {
+      toast.error("Erro ao conectar. Tente novamente.", { id: toastId, duration: 3000 });
+    } finally {
+      setSavingProductItem(false);
+      setSelectingProductItem(null);
+    }
   };
 
   const cancelProductSelection = (itemKey: string) => {
