@@ -117,7 +117,29 @@ const DailyRoutineSection = ({
       </div>
 
       <div className="space-y-2">
-        {routineSummary.items.slice(0, 4).map((item, i) => (
+        {/* Skeleton — exibido enquanto análise ou status premium ainda carregam */}
+        {isLoading && [0, 1, 2].map((i) => (
+          <div
+            key={`skel-${i}`}
+            className="lg-surface p-4 rounded-2xl flex items-center gap-3"
+          >
+            <div className="w-6 h-6 rounded-full bg-[var(--glass-border)] animate-pulse flex-shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div
+                className="h-3.5 rounded-full animate-pulse"
+                style={{ width: `${55 + i * 15}%`, background: "var(--glass-border)" }}
+              />
+              <div
+                className="h-2.5 rounded-full animate-pulse w-16"
+                style={{ background: "var(--glass-border)" }}
+              />
+            </div>
+            <div className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "var(--glass-border)" }} />
+          </div>
+        ))}
+
+        {/* Itens reais — só renderiza quando carregado */}
+        {!isLoading && routineSummary.items.slice(0, 4).map((item, i) => (
           <motion.div
             key={`${item.title}-${i}`}
             initial={{ opacity: 0, x: -20 }}
@@ -130,38 +152,24 @@ const DailyRoutineSection = ({
           >
             <div
               className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                item.done
-                  ? "border-none"
-                  : "border-[var(--glass-border)]"
+                item.done ? "border-none" : "border-[var(--glass-border)]"
               }`}
               style={item.done ? { background: periodGradient } : undefined}
             >
               {item.done && (
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path
-                    d="M2 6L5 9L10 3"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p
-                className={`text-sm font-bold ${
-                  item.done ? "line-through text-[var(--fg-ink-3)]" : "text-[var(--fg-ink)]"
-                }`}
-              >
+              <p className={`text-sm font-bold ${item.done ? "line-through text-[var(--fg-ink-3)]" : "text-[var(--fg-ink)]"}`}>
                 {item.title}
               </p>
               <p className="text-xs text-[var(--fg-ink-3)]">
                 {item.done ? "Concluído" : "Pendente"}
               </p>
             </div>
-
-            {/* Indicator dot com gradiente do período */}
             {!item.done && (
               <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
@@ -173,6 +181,7 @@ const DailyRoutineSection = ({
             )}
           </motion.div>
         ))}
+
         {!isLoading && routineSummary.items.length === 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
