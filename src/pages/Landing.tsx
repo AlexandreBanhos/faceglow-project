@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { getSessionUser } from "@/lib/auth";
 import { LandingProvider } from "@/shared/providers/LandingProvider";
 import { LandingHero } from "@/components/landing/LandingHero";
+import { StatsStrip } from "@/components/landing/StatsStrip";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -91,6 +92,9 @@ export function LandingPageContent() {
       {/* Hero */}
       <LandingHero />
 
+      {/* Stats strip */}
+      <StatsStrip />
+
       {/* Benefits (Why FaceGlow) */}
       <BenefitsSection />
 
@@ -134,19 +138,22 @@ export function LandingPageContent() {
             </button>
 
             {/* Perks */}
-            <div className="flex flex-col md:flex-row gap-4 justify-center items-center text-[var(--fg-ink-3)] text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-green-500 font-bold">✓</span>
-                <span>1 análise grátis</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-green-500 font-bold">✓</span>
-                <span>Sem cartão de crédito</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-green-500 font-bold">✓</span>
-                <span>Resultado em 60s</span>
-              </div>
+            <div className="flex flex-col md:flex-row gap-6 justify-center items-center text-sm" style={{ color: "var(--fg-ink-3)" }}>
+              {["1 análise grátis", "Sem cartão de crédito", "Resultado em 60s"].map((perk) => (
+                <div key={perk} className="flex items-center gap-2">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <circle cx="7" cy="7" r="7" fill="url(#perk-grad)" />
+                    <path d="M4 7L6 9L10 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <defs>
+                      <linearGradient id="perk-grad" x1="0" y1="0" x2="14" y2="14">
+                        <stop stopColor="#ddb693" />
+                        <stop offset="1" stopColor="#ef8fb8" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <span>{perk}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -1,76 +1,125 @@
-/**
- * Component: How It Works
- * Timeline dos 4 passos
- * Padrão: Dependency Injection via Hook (useLandingContent)
- * SOLID: Single Responsibility, Dependency Inversion
- */
-
 import { motion } from "framer-motion";
-import { useLandingContent } from "@/shared/providers/LandingContext";
+import { Camera, Cpu, FileText, Sparkles } from "lucide-react";
+import rotinaManha from "@/assets/skincare-edu/rotina-limpeza.jpg";
+import rotinaHidratante from "@/assets/skincare-edu/rotina-hidratante.jpg";
 
-export const HowItWorks = () => {
-  const service = useLandingContent();
-  const config = service.getConfig();
-  const steps = config.howItWorks || [
-    { order: 1, title: "Tire uma selfie", icon: "📸", description: "Com boa iluminação, a câmera captura os detalhes da sua pele." },
-    { order: 2, title: "IA analisa em segundos", icon: "🤖", description: "Detecta tipo de pele, hidratação, poros, manchas e condições." },
-    { order: 3, title: "Receba diagnóstico", icon: "📋", description: "Resultado detalhado com nome da sua condição e recomendações." },
-    { order: 4, title: "Monta sua rotina", icon: "✨", description: "Passos específicos e produtos curados para sua pele." },
-  ];
+const STEPS = [
+  {
+    number: "01",
+    icon: Camera,
+    title: "Tire uma selfie",
+    description: "Com boa iluminação, a câmera captura os detalhes da sua pele. Sem filtro, sem maquiagem.",
+    image: null,
+  },
+  {
+    number: "02",
+    icon: Cpu,
+    title: "IA analisa em segundos",
+    description: "Detecta tipo de pele, nível de hidratação, poros, manchas e condições. Precisão de grau clínico.",
+    image: null,
+  },
+  {
+    number: "03",
+    icon: FileText,
+    title: "Receba seu diagnóstico",
+    description: "Resultado detalhado com nome da sua condição, métricas e score geral da saúde da pele.",
+    image: rotinaManha,
+  },
+  {
+    number: "04",
+    icon: Sparkles,
+    title: "Sua rotina personalizada",
+    description: "Passos específicos e produtos curados para o seu tipo de pele. Manhã e noite, na ordem certa.",
+    image: rotinaHidratante,
+  },
+];
+
+export function HowItWorks() {
   return (
-    <section id="how" className="relative z-1 py-20 px-4 md:px-8">
+    <section id="how" className="relative z-10 py-20 px-4 md:px-8">
       <div className="max-w-6xl mx-auto">
+
         {/* Header */}
         <motion.div
-          className="mb-16 text-center"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
+          className="mb-14 text-center max-w-2xl mx-auto"
         >
-          <div className="fg-eyebrow mb-4">
-            <div className="w-1 h-1 rounded-full bg-coral" />
-            <span>Como funciona</span>
-          </div>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-[var(--fg-ink)]">
+          <p className="fg-eyebrow mb-3">
+            <span className="mr-2 inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ background: "var(--grad-coral)" }} />
+            Como funciona
+          </p>
+          <h2 className="text-4xl md:text-5xl font-extrabold leading-tight mb-4">
             Do zero ao diagnóstico{" "}
-            <span className="bg-gradient-to-r from-coral via-pink to-lavender bg-clip-text text-transparent">
-              em 4 passos simples
+            <span style={{
+              background: "var(--grad-coral)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}>
+              em 4 passos
             </span>
           </h2>
         </motion.div>
 
-        {/* Timeline */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
-          {/* Connection line */}
-          <div className="hidden md:block absolute top-12 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-coral/30 via-pink/30 to-lavender/30" />
+        {/* Steps grid */}
+        <div className="relative grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-3">
 
-          {/* Steps */}
-          {steps.map((step, index) => (
+          {/* Connector line — desktop only */}
+          <div
+            className="hidden md:block absolute top-[52px] left-[12.5%] right-[12.5%] h-px pointer-events-none"
+            style={{ background: "linear-gradient(90deg, transparent 0%, var(--grad-coral) 15%, var(--grad-coral) 85%, transparent 100%)", opacity: 0.25 }}
+          />
+
+          {STEPS.map((step, i) => (
             <motion.div
-              key={step.order}
-              className="lg-surface relative z-10 rounded-[1.75rem] p-5 text-center"
-              initial={{ opacity: 0, y: 20 }}
+              key={step.number}
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
               viewport={{ once: true }}
+              transition={{ delay: i * 0.1, duration: 0.4 }}
+              className="lg-surface rounded-[1.75rem] p-5 relative z-10 overflow-hidden"
             >
-              {/* Number circle */}
-              <motion.div
-                className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center font-bold text-lg bg-[var(--grad-coral)] text-white shadow-glow transition-all duration-300"
-                whileHover={{ scale: 1.1 }}
-              >
-                {step.order}
-              </motion.div>
+              {/* Background image for steps 03/04 */}
+              {step.image && (
+                <div className="absolute inset-0 opacity-[0.07]">
+                  <img src={step.image} alt="" className="w-full h-full object-cover" />
+                </div>
+              )}
 
-              {/* Content */}
-              <div className="text-3xl mb-3">{step.icon}</div>
-              <h3 className="font-bold text-[var(--fg-ink)] mb-2">{step.title}</h3>
-              <p className="text-sm text-[var(--fg-ink-3)] leading-relaxed">{step.description}</p>
+              {/* Number + Icon */}
+              <div className="relative z-10 flex items-center gap-3 mb-4">
+                <motion.div
+                  whileHover={{ scale: 1.08 }}
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "var(--grad-coral)", boxShadow: "var(--shadow-glow)" }}
+                >
+                  <step.icon size={20} color="white" strokeWidth={2} />
+                </motion.div>
+                <span
+                  className="font-extrabold text-3xl leading-none"
+                  style={{
+                    background: "var(--grad-coral)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    opacity: 0.25,
+                  }}
+                >
+                  {step.number}
+                </span>
+              </div>
+
+              <div className="relative z-10">
+                <h3 className="font-bold text-sm mb-2" style={{ color: "var(--fg-ink)" }}>{step.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--fg-ink-3)" }}>{step.description}</p>
+              </div>
             </motion.div>
           ))}
+
         </div>
       </div>
     </section>
   );
-};
+}
