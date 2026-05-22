@@ -18,6 +18,7 @@ import { StatsStrip } from "@/components/landing/StatsStrip";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { ProductShowcase } from "@/components/landing/ProductShowcase";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { AuroraBackdrop, FGGradientText } from "@/components/shared";
 import logoFaceglow from "@/assets/logo-faceglow.svg";
@@ -100,6 +101,9 @@ export function LandingPageContent() {
 
       {/* Features (What FaceGlow Offers) */}
       <FeaturesSection />
+
+      {/* Product Showcase — interactive carousel */}
+      <ProductShowcase />
 
       {/* How It Works */}
       <HowItWorks />
