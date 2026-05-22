@@ -75,6 +75,7 @@ export const WIZARD_CATEGORIES = [
   { key: "acid",           label: "Ácido"              },
   { key: "oil",            label: "Óleo Facial"        },
   { key: "spot_treatment", label: "Tratamento Pontual" },
+  { key: "makeup_remover", label: "Removedor de Maquiagem" },
 ];
 
 const WEEK_DAYS = [
