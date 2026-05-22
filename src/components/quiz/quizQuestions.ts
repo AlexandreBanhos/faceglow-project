@@ -34,7 +34,24 @@ export const PRE_ANALYSIS_QUESTIONS: QuizQuestion[] = [
       { id: "over60",  label: "Mais de 60 anos"  },
     ],
   },
-  // Pergunta 2 — sensibilidade (ajuda a IA calibrar limiares de vermelhidão e irritação)
+  // Pergunta 2 — tom de pele (ajuda a IA calibrar manchas, vermelhidão e risco de hiperpigmentação)
+  {
+    id: "skinTone",
+    question: "Qual o seu tom de pele?",
+    highlight: "tom de pele",
+    subtitle: "Isso ajuda a IA a interpretar sua foto e calibrar o risco de manchas.",
+    mascotMood: "happy",
+    type: "single",
+    columns: 1,
+    options: [
+      { id: "very_light", label: "Muito clara",     sublabel: "Tons brancos/rosados · queima facilmente"         },
+      { id: "light",      label: "Clara",            sublabel: "Tom bege claro · queima às vezes, bronzeia pouco" },
+      { id: "medium",     label: "Média / Trigal",   sublabel: "Tom bege-oliva · raramente queima, bronzeia bem"  },
+      { id: "tan",        label: "Morena",           sublabel: "Tom marrom médio · quase nunca queima"            },
+      { id: "dark",       label: "Negra / Escura",   sublabel: "Tom marrom-escuro a negra · nunca queima"         },
+    ],
+  },
+  // Pergunta 3 — sensibilidade (ajuda a IA calibrar limiares de vermelhidão e irritação)
   {
     id: "skinSensitivity",
     question: "Sua pele costuma reagir a produtos?",
@@ -170,6 +187,22 @@ export const FULL_QUESTIONS: QuizQuestion[] = [
       { id: "seca",   label: "Seca",   sublabel: "Sensação repuxada, descamação",        faIcon: faWind     },
       { id: "normal", label: "Normal", sublabel: "Equilibrada, sem grandes queixas",     faIcon: faEquals   },
       { id: "mista",  label: "Mista",  sublabel: "Zona T oleosa, bochechas mais secas",  faIcon: faSliders  },
+    ],
+  },
+  {
+    id: "skinTone",
+    question: "Qual o seu tom de pele?",
+    highlight: "tom de pele",
+    subtitle: "Tons mais escuros têm maior risco de hiperpigmentação pós-inflamatória — isso muda os ativos recomendados.",
+    mascotMood: "happy",
+    type: "single",
+    columns: 1,
+    options: [
+      { id: "very_light", label: "Muito clara",    sublabel: "Tons brancos/rosados · queima facilmente, alto risco de vermelhidão" },
+      { id: "light",      label: "Clara",           sublabel: "Tom bege claro · queima às vezes, bronzeia gradualmente"             },
+      { id: "medium",     label: "Média / Trigal",  sublabel: "Tom bege-oliva · raramente queima, bronzeia bem"                     },
+      { id: "tan",        label: "Morena",          sublabel: "Tom marrom médio · quase nunca queima, maior risco de manchas"       },
+      { id: "dark",       label: "Negra / Escura",  sublabel: "Tom marrom-escuro a negra · nunca queima, atenção à hiperpigmentação"},
     ],
   },
   {
@@ -370,6 +403,7 @@ export function quizToLifestyle(answers: Record<string, string[]>): LifestyleAns
   return {
     ageRange:              s("ageRange"),
     gender:                s("gender"),
+    skinTone:              s("skinTone"),
     selfReportedSkinType:  s("selfReportedSkinType"),
     skinSensitivity:       s("skinSensitivity"),
     primaryConcern:        concerns[0] ?? "",

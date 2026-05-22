@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 export interface LifestyleAnswers {
   ageRange: string;
   gender: string;
+  skinTone: string;
   selfReportedSkinType: string;
   skinSensitivity: string;
   primaryConcern: string;
@@ -23,6 +24,7 @@ export interface LifestyleAnswers {
 const EMPTY: LifestyleAnswers = {
   ageRange: "",
   gender: "",
+  skinTone: "",
   selfReportedSkinType: "",
   skinSensitivity: "",
   primaryConcern: "",
@@ -38,7 +40,7 @@ const EMPTY: LifestyleAnswers = {
   certifications: [],
 };
 
-type SingleKey = "ageRange" | "gender" | "selfReportedSkinType" | "skinSensitivity" | "primaryConcern" | "budgetRange" | "makeupUsage" | "sunscreenUsage";
+type SingleKey = "ageRange" | "gender" | "skinTone" | "selfReportedSkinType" | "skinSensitivity" | "primaryConcern" | "budgetRange" | "makeupUsage" | "sunscreenUsage";
 type MultiKey  = "secondaryConcerns" | "currentRoutineItems" | "hormonalConditions" | "skinConditions" | "ingredientReactions" | "productPreferences" | "certifications";
 
 interface Option {
