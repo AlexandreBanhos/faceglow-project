@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sun, Moon, ChevronRight, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useIsPremium } from "@/hooks/useIsPremium";
-import { type AnalysisResponse, type AnalysisRecommendation } from "@/lib/analysis";
-import { fetchRoutineSteps, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
+import { type AnalysisResponse } from "@/lib/analysis";
+import { fetchRoutineSteps, fetchCatalogProducts, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
 import { PremiumUnlockModal } from "@/components/PremiumUnlockModal";
 import SerumSvg from "@/assets/icones/serum-svg.svg";
 
@@ -14,17 +14,28 @@ interface RoutineSummaryCardProps {
 }
 
 const getRoutineTitle = (step: string) => {
-  const separatorIndex = step.indexOf(":");
-  const raw = separatorIndex >= 0 ? step.slice(separatorIndex + 1).trim() : step.trim();
+  const idx = step.indexOf(":");
+  const raw = idx >= 0 ? step.slice(idx + 1).trim() : step.trim();
   return raw.replace(/\(([^)]+)\)\s*$/, "").trim();
 };
 
-const normalizeType = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .toLowerCase();
+const normalizeLabel = (value: string) =>
+  value.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+// Mapeia label do passo para step_type_key do catálogo
+const labelToStepTypeKey = (label: string): string => {
+  const n = normalizeLabel(label);
+  if (n.includes("limpeza")) return "cleanser";
+  if (n.includes("hidratante") || n.includes("hidratacao")) return "moisturizer";
+  if (n.includes("serum") || n.includes("antioxidante") || n.includes("sero")) return "serum";
+  if (n.includes("protetor") || n.includes("solar") || n.includes("fps")) return "sunscreen";
+  if (n.includes("tonico")) return "toner";
+  if (n.includes("retinol") || n.includes("retino")) return "retinoid";
+  if (n.includes("acido") || n.includes("acid") || n.includes("esfoliante")) return "acid";
+  if (n.includes("mascara")) return "mask";
+  if (n.includes("demaquilante")) return "makeup_remover";
+  return "spot_treatment";
+};
 
 interface ProductSlot {
   name: string;
@@ -65,7 +76,7 @@ const ProductSlotCircle = ({
           src={slot.imageUrl}
           alt={slot.name}
           className="w-full h-full object-cover"
-          style={blurred ? { filter: "blur(5px) saturate(0.6)", transform: "scale(1.08)" } : undefined}
+          style={blurred ? { filter: "blur(5px) saturate(0.55)", transform: "scale(1.1)" } : undefined}
           loading="lazy"
         />
       ) : (
@@ -111,8 +122,7 @@ const StackedSlots = ({
       const isMobile = window.innerWidth < 640;
       const slotSz = isMobile ? SLOT_MOBILE : SLOT_DESKTOP;
       const overlap = isMobile ? OVERLAP_MOBILE : OVERLAP_DESKTOP;
-      let count = 0;
-      let used = 0;
+      let count = 0, used = 0;
       for (let i = 0; i < (slots.length > 0 ? slots.length : 4); i++) {
         const sw = i === 0 ? slotSz : slotSz - overlap;
         if (used + sw <= width) { used += sw; count++; } else break;
@@ -130,27 +140,21 @@ const StackedSlots = ({
   const renderStack = (mobile: boolean) => {
     const slotSz = mobile ? SLOT_MOBILE : SLOT_DESKTOP;
     const overlap = mobile ? OVERLAP_MOBILE : OVERLAP_DESKTOP;
-    const cls = mobile ? "flex sm:hidden" : "hidden sm:flex";
     return (
-      <div className={`${cls} items-center`}>
+      <div className={`${mobile ? "flex sm:hidden" : "hidden sm:flex"} items-center`}>
         {visible.map((slot, i) => (
-          <div
-            key={i}
-            style={{ marginLeft: i === 0 ? 0 : -overlap, zIndex: i + 1, position: "relative", flexShrink: 0 }}
-          >
+          <div key={i} style={{ marginLeft: i === 0 ? 0 : -overlap, zIndex: i + 1, position: "relative", flexShrink: 0 }}>
             <ProductSlotCircle slot={slot} size={mobile ? "mobile" : "desktop"} blurred={blurred} />
           </div>
         ))}
         {totalExtra > 0 && (
-          <div
-            style={{
-              marginLeft: -overlap, zIndex: visible.length + 2, position: "relative", flexShrink: 0,
-              width: slotSz, height: slotSz, borderRadius: "50%",
-              background: "var(--grad-coral)", border: "2px solid rgba(255,255,255,0.95)",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-          >
+          <div style={{
+            marginLeft: -overlap, zIndex: visible.length + 2, position: "relative", flexShrink: 0,
+            width: slotSz, height: slotSz, borderRadius: "50%",
+            background: "var(--grad-coral)", border: "2px solid rgba(255,255,255,0.95)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
             <span style={{ color: "white", fontSize: mobile ? 10 : 11, fontWeight: 800, lineHeight: 1 }}>
               +{totalExtra}
             </span>
@@ -175,8 +179,11 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
   const { isPremium } = useIsPremium();
   const [apiSteps, setApiSteps] = useState<ApiRoutineStep[]>([]);
   const [stepsLoaded, setStepsLoaded] = useState(false);
+  // Imagens do catálogo por step_type_key — usado para preview borrado no free
+  const [catalogImages, setCatalogImages] = useState<Record<string, string>>({});
   const [showModal, setShowModal] = useState(false);
 
+  // Premium: busca steps estruturados com imagens reais
   useEffect(() => {
     if (!analysis?.id || !isPremium) { setStepsLoaded(true); return; }
     let cancelled = false;
@@ -186,11 +193,37 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
     return () => { cancelled = true; };
   }, [analysis?.id, isPremium]);
 
+  // Free: busca uma imagem representativa do catálogo para cada tipo de passo
+  useEffect(() => {
+    if (isPremium) return;
+    const routine = analysis.routine;
+    if (!routine) return;
+
+    const allSteps = [...(routine.morning ?? []), ...(routine.night ?? [])];
+    const uniqueKeys = new Set<string>();
+    allSteps.forEach((step) => {
+      const label = step.split(":")[0]?.trim() ?? "";
+      uniqueKeys.add(labelToStepTypeKey(label));
+    });
+
+    const keys = Array.from(uniqueKeys).slice(0, 6);
+    Promise.all(
+      keys.map((key) =>
+        fetchCatalogProducts(key)
+          .then((products) => ({ key, imageUrl: products.find((p) => p.imageUrl)?.imageUrl }))
+          .catch(() => ({ key, imageUrl: undefined }))
+      )
+    ).then((results) => {
+      const map: Record<string, string> = {};
+      results.forEach(({ key, imageUrl }) => { if (imageUrl) map[key] = imageUrl; });
+      setCatalogImages(map);
+    });
+  }, [isPremium, analysis?.id, analysis?.routine]);
+
   const { morningSlots, nightSlots, morningExtra, nightExtra } = useMemo(() => {
     const maxDisplay = 4;
-    const recommendations: AnalysisRecommendation[] = analysis.recommendations ?? [];
 
-    // Premium: structured API steps com imagens reais
+    // Premium: steps estruturados com imagens reais
     if (isPremium && stepsLoaded && apiSteps.length > 0) {
       let displayNames: Record<string, string> = {};
       try {
@@ -199,9 +232,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
       } catch { displayNames = {}; }
 
       const buildSlotsFromApi = (period: "morning" | "night") => {
-        const periodSteps = apiSteps
-          .filter((s) => s.period === period)
-          .sort((a, b) => a.stepOrder - b.stepOrder);
+        const periodSteps = apiSteps.filter((s) => s.period === period).sort((a, b) => a.stepOrder - b.stepOrder);
         const slots: ProductSlot[] = periodSteps.slice(0, maxDisplay).map((s) => {
           const itemKey = `${period}::${s.productName.toLowerCase()}`;
           return {
@@ -217,31 +248,24 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
       return { morningSlots: m.slots, nightSlots: n.slots, morningExtra: m.extraCount, nightExtra: n.extraCount };
     }
 
-    // Free: inclui imageUrl das recomendações (serão exibidas borradas para gerar curiosidade)
-    const recByType = new Map<string, AnalysisRecommendation>();
-    recommendations.forEach((rec) => {
-      const key = normalizeType(rec.type ?? "");
-      if (!recByType.has(key)) recByType.set(key, rec);
-    });
-
-    const buildSlots = (steps: string[], period: "morning" | "night") => {
+    // Free: usa imagens do catálogo por tipo de passo (borradas no render)
+    const buildSlots = (steps: string[]) => {
       const slots: ProductSlot[] = steps.slice(0, maxDisplay).map((step) => {
-        const idx = step.indexOf(":");
-        const type = idx >= 0 ? step.slice(0, idx).trim() : step.trim();
+        const label = step.split(":")[0]?.trim() ?? "";
         const title = getRoutineTitle(step);
-        const rec = recByType.get(normalizeType(type));
+        const key = labelToStepTypeKey(label);
         return {
-          name: type || title,
-          imageUrl: rec?.imageUrl, // exibida borrada no free
+          name: label || title,
+          imageUrl: catalogImages[key],
         };
       });
       return { slots, extraCount: Math.max(0, steps.length - maxDisplay) };
     };
 
-    const m = buildSlots(analysis.routine?.morning ?? [], "morning");
-    const n = buildSlots(analysis.routine?.night ?? [], "night");
+    const m = buildSlots(analysis.routine?.morning ?? []);
+    const n = buildSlots(analysis.routine?.night ?? []);
     return { morningSlots: m.slots, nightSlots: n.slots, morningExtra: m.extraCount, nightExtra: n.extraCount };
-  }, [analysis, isPremium, apiSteps, stepsLoaded]);
+  }, [analysis, isPremium, apiSteps, stepsLoaded, catalogImages]);
 
   const morningCount = stepsLoaded && apiSteps.length > 0
     ? apiSteps.filter((s) => s.period === "morning").length
@@ -252,8 +276,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
 
   if (morningCount === 0 && nightCount === 0) return null;
 
-  const goToRoutine = () =>
-    navigate("/routine", { state: { analysis } });
+  const goToRoutine = () => navigate("/routine", { state: { analysis } });
 
   return (
     <>
@@ -275,7 +298,6 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
             <div className="flex items-center justify-between mb-4 gap-2">
               <h3 className="text-sm font-bold text-foreground">Sua Rotina</h3>
               <div className="flex items-center gap-2">
-                {/* "Rotina Atual" → navega para /routine */}
                 <motion.button
                   type="button"
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -344,7 +366,6 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
         </button>
       </motion.div>
 
-      {/* Premium Modal */}
       <AnimatePresence>
         {showModal && (
           <div
