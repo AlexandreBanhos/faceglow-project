@@ -366,7 +366,7 @@ export default function MeusProdutos() {
     analysisRoutine.night.length > 0;
 
   return (
-    <div className="relative min-h-screen overflow-hidden pb-28" style={{ background: "var(--grad-aurora)" }}>
+    <div className="relative min-h-screen overflow-x-hidden pb-28" style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
 
       {/* Header */}

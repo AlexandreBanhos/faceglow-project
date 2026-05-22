@@ -1947,7 +1947,7 @@ const Routine = () => {
 
   return (
     <div
-      className="relative w-full min-h-screen pb-24 overflow-hidden"
+      className="relative w-full min-h-screen pb-24 overflow-x-hidden"
       style={{ background: "var(--grad-aurora)" }}
     >
       <AuroraBackdrop tone="warm" className="-z-10" />

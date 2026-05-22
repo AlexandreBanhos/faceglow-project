@@ -152,12 +152,15 @@
 
   html {
     scroll-behavior: auto;
+    overscroll-behavior-y: none; /* impede scroll além do conteúdo */
+    -webkit-overflow-scrolling: touch;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background: var(--grad-aurora);
     color: var(--fg-ink);
+    overscroll-behavior-y: none;
   }
 }
 
@@ -403,8 +406,7 @@
   }
 
   .bottom-nav-safe {
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
-    will-change: transform;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
   }
 
   @keyframes card-wiggle {

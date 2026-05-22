@@ -9,44 +9,43 @@ import { getCachedLatestAnalysis, fetchAnalysisWithRecommendations } from "@/lib
 // ── Geometria ─────────────────────────────────────────────────────────────────
 const BUBBLE = 52;
 const NAV_H  = 64;
-const DIP_D  = Math.round(NAV_H * 0.85);  // = 54px
+const DIP_D  = Math.round(NAV_H * 0.85);  // 54px
 const DIP_HW = 28;                         // meia-largura do vão
 const WAVE_H = Math.round(DIP_D * 0.38);
 const SPRING = { type: "spring" as const, stiffness: 370, damping: 24, mass: 0.75 };
 const EASING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const NAV_RADIUS = 24; // raio dos cantos — visível pois o nav flutua
 
-// Sem pill-radius → clamp mínimo é só o DIP_HW
 const minCx = (W: number) => DIP_HW + 2;
 const maxCx = (W: number) => W - DIP_HW - 2;
 
 interface Tab { path: string; icon: LucideIcon; label: string }
 
-// ── Path SVG: borda reta + dip suave + cantos arredondados ──────────────────
-// Cantos superiores com raio de 20px, dip no meio.
+// ── Path SVG: todos os cantos arredondados + dip suave ───────────────────────
 function buildNavPath(W: number, H: number, cx: number): string {
   const hw = DIP_HW;
-  const sm = hw * 0.48;   // spread do ponto de controle externo
-  const bm = hw * 0.22;   // spread do ponto de controle interno
+  const sm = hw * 0.48;
+  const bm = hw * 0.22;
   const d  = DIP_D;
-  const r  = 20;          // border-radius
+  const r  = NAV_RADIUS;
   return [
     `M ${r} 0`,
     `L ${cx - hw} 0`,
-    `C ${cx - hw + sm} 0 ${cx - bm} ${d} ${cx} ${d}`,  // descida suave
-    `C ${cx + bm} ${d} ${cx + hw - sm} 0 ${cx + hw} 0`, // subida suave
+    `C ${cx - hw + sm} 0 ${cx - bm} ${d} ${cx} ${d}`,
+    `C ${cx + bm} ${d} ${cx + hw - sm} 0 ${cx + hw} 0`,
     `L ${W - r} 0`,
-    `Q ${W} 0 ${W} ${r}`,  // canto sup-dir arredondado
+    `Q ${W} 0 ${W} ${r}`,
     `L ${W} ${H - r}`,
-    `Q ${W} ${H} ${W - r} ${H}`, // canto inf-dir arredondado
+    `Q ${W} ${H} ${W - r} ${H}`,
     `L ${r} ${H}`,
-    `Q 0 ${H} 0 ${H - r}`, // canto inf-esq arredondado
+    `Q 0 ${H} 0 ${H - r}`,
     `L 0 ${r}`,
-    `Q 0 0 ${r} 0`,        // canto sup-esq arredondado
+    `Q 0 0 ${r} 0`,
     `Z`,
   ].join(" ");
 }
 
-// ── Onda SVG (um período completo, scrollada infinitamente) ──────────────────
+// ── Onda ─────────────────────────────────────────────────────────────────────
 const waveW = DIP_HW * 2;
 const waveD = [
   `M 0 ${WAVE_H * 0.5}`,
@@ -94,36 +93,30 @@ const BottomNav = () => {
   const activeIdx = allTabs.findIndex(t => location.pathname === t.path);
   const ActiveIcon = activeIdx >= 0 ? allTabs[activeIdx].icon : null;
 
-  // ── State ─────────────────────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs      = useRef<(HTMLButtonElement | null)[]>([]);
-  const [ready,     setReady]     = useState(false);
-  const [dipCx,     setDipCx]     = useState(0);   // centro clamped do dip
-  const [bubbleX,   setBubbleX]   = useState(0);   // left da bolha (= dipCx - BUBBLE/2)
-  const [navPath,   setNavPath]   = useState("");
+  const [ready,      setReady]      = useState(false);
+  const [dipCx,      setDipCx]      = useState(0);
+  const [bubbleX,    setBubbleX]    = useState(0);
+  const [navPath,    setNavPath]     = useState("");
   const [containerW, setContainerW] = useState(0);
 
   const measure = useCallback(() => {
     const wrap = containerRef.current;
     if (!wrap) return;
-
     const W  = wrap.offsetWidth;
     const wR = wrap.getBoundingClientRect();
     setContainerW(W);
-
     let cx: number;
     if (activeIdx >= 0) {
       const el = tabRefs.current[activeIdx];
       if (!el) return;
       const eR = el.getBoundingClientRect();
       const raw = eR.left - wR.left + eR.width / 2;
-      // Clamp: garante que o path SVG seja geometricamente válido
       cx = Math.min(Math.max(raw, minCx(W)), maxCx(W));
     } else {
-      cx = W / 2;  // câmera / página sem aba ativa → dip no centro
+      cx = W / 2;
     }
-
-    // Bolha e dip sempre usam o mesmo cx → sem desalinhamento
     setDipCx(cx);
     setBubbleX(cx - BUBBLE / 2);
     setNavPath(buildNavPath(W, NAV_H, cx));
@@ -176,18 +169,39 @@ const BottomNav = () => {
     );
   };
 
-  // Posição vertical: bolha centrada no vão
   const bubbleBottom = NAV_H - DIP_D / 2 - BUBBLE / 2;
-  // Câmera: mesmo centro vertical da bolha, dentro do flex (shift a partir do centro do nav)
   const cameraShift  = NAV_H / 2 - DIP_D / 2;
 
   return (
-    <nav className="pointer-events-none fixed bottom-0 left-1/2 -translate-x-1/2 z-50 bottom-nav-safe px-3 sm:px-4 pb-3 sm:pb-4 w-full max-w-screen-sm">
+    // Wrapper: fixed inset-x com flex centering — sem transform para não criar containing block
+    <nav
+      style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        display: "flex",
+        justifyContent: "center",
+        padding: "0 12px",
+        paddingBottom: "max(10px, env(safe-area-inset-bottom, 0px))",
+        pointerEvents: "none",
+      }}
+    >
+      {/* Container interno: max-width centralizado por margin, pointer-events auto */}
       <div
         ref={containerRef}
-        style={{ position: "relative", height: NAV_H, width: "100%", overflow: "visible", pointerEvents: "auto", borderRadius: "20px 20px 0 0" }}
+        style={{
+          position: "relative",
+          height: NAV_H,
+          width: "100%",
+          maxWidth: 520,
+          overflow: "visible",
+          pointerEvents: "auto",
+          borderRadius: NAV_RADIUS,
+        }}
       >
-        {/* ── z:1 Glass com clip-path do dip ─────────────────────────────── */}
+        {/* z:1 Glass com clip-path */}
         {ready && (
           <div style={{
             position: "absolute", top: 0, left: 0, width: "100%", height: NAV_H,
@@ -197,11 +211,10 @@ const BottomNav = () => {
             clipPath: navPath ? `path('${navPath}')` : undefined,
             transition: `clip-path 0.4s ${EASING}`,
             zIndex: 1, pointerEvents: "none",
-            borderRadius: "20px 20px 0 0",
           }} />
         )}
 
-        {/* ── z:2 Borda SVG sincronizada ──────────────────────────────────── */}
+        {/* z:2 Borda SVG sincronizada */}
         {ready && containerW > 0 && (
           <svg
             aria-hidden
@@ -214,7 +227,7 @@ const BottomNav = () => {
           </svg>
         )}
 
-        {/* ── z:4 Onda no vão (segue a bolha com o mesmo spring) ──────────── */}
+        {/* z:4 Onda no vão */}
         {ready && activeIdx >= 0 && (
           <motion.div
             initial={false}
@@ -232,7 +245,6 @@ const BottomNav = () => {
               pointerEvents: "none",
             }}
           >
-            {/* 3 períodos: scroll de 1 período cria loop perfeito */}
             <motion.div
               style={{ display: "flex", position: "absolute", top: 0, left: 0 }}
               animate={{ x: [0, -waveW] }}
@@ -245,7 +257,7 @@ const BottomNav = () => {
           </motion.div>
         )}
 
-        {/* ── z:20 Bolha flutuante (spring) ───────────────────────────────── */}
+        {/* z:20 Bolha flutuante (spring) */}
         {ready && activeIdx >= 0 && (
           <motion.div
             initial={false}
@@ -270,7 +282,7 @@ const BottomNav = () => {
             <motion.div
               key={activeIdx}
               initial={{ scale: 0.4, opacity: 0 }}
-              animate={{ scale: 1,   opacity: 1 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 500, damping: 26, delay: 0.04 }}
             >
               {ActiveIcon && <ActiveIcon size={22} color="white" strokeWidth={2.2} />}
@@ -278,7 +290,7 @@ const BottomNav = () => {
           </motion.div>
         )}
 
-        {/* ── z:10 Conteúdo (tabs + câmera) ───────────────────────────────── */}
+        {/* z:10 Tabs + câmera */}
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", paddingInline: 6, zIndex: 10 }}>
           <div style={{ flex: 1, display: "flex", justifyContent: "space-around", alignItems: "center" }}>
             {leftTabs.map((tab, i) => renderTab(tab, i))}
@@ -290,9 +302,7 @@ const BottomNav = () => {
               aria-label="Analisar pele"
               whileTap={{ scale: 0.9 }}
               style={{
-                width: BUBBLE,
-                height: BUBBLE,
-                borderRadius: "50%",
+                width: BUBBLE, height: BUBBLE, borderRadius: "50%",
                 background: "var(--grad-coral)",
                 border: "none",
                 transform: `translateY(-${cameraShift}px)`,
