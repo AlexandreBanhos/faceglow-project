@@ -264,6 +264,14 @@ const isExtraItem = (item: RoutineItem) => {
 
 const getRoutineTypeKey = (item: RoutineItem) => normalizeCategory(item.stepLabel || item.type);
 
+const isMedicalStep = (item: RoutineItem): boolean => {
+  const key = (item.stepTypeKey ?? "").toLowerCase();
+  const label = normalizeCategory(item.stepLabel || item.type || "");
+  return key === "retinoid" || key === "acid" ||
+    label.includes("retino") || label.includes("retinol") ||
+    label.includes("acido") || (label.includes("acid") && !label.includes("acido"));
+};
+
 const dedupeValidDays = (days: string[] | undefined): WeekDayKey[] => {
   const set = new Set<WeekDayKey>();
   (days ?? []).forEach((day) => {
@@ -2294,8 +2302,24 @@ const Routine = () => {
               )}
             </div>
 
-            {/* Direita: Fiz tudo + toggle período */}
+            {/* Direita: Ordenar (free) + Fiz tudo + toggle período */}
             <div className="flex items-center gap-2 shrink-0">
+              {/* Botão ordenar — apenas free */}
+              {isFreeMode && (
+                <button
+                  onClick={() => setIsEditing((v) => !v)}
+                  className="h-8 px-3 rounded-full flex items-center gap-1.5 transition-all"
+                  style={isEditing
+                    ? { background: "var(--grad-coral)", border: "none", color: "white" }
+                    : { background: "rgba(255,255,255,0.55)", border: "1px solid rgba(0,0,0,0.07)", color: "#9CA3AF" }
+                  }
+                >
+                  <GripVertical size={13} style={{ color: isEditing ? "white" : "#9CA3AF" }} />
+                  <span className="text-[10px] font-bold">
+                    {isEditing ? "Pronto" : "Ordenar"}
+                  </span>
+                </button>
+              )}
               {/* "Fiz tudo" — mesmo h-8 do toggle, opaco por padrão */}
               <motion.button
                 whileTap={!isFutureDay && !isEditing ? { scale: 0.92 } : undefined}
@@ -2545,76 +2569,107 @@ const Routine = () => {
                         const isFreeChecked = isFreeStepDone(analysis?.id ?? "", todayDateStr, item.period, freeLabel);
                         void freeCheckedRevision;
                         return (
-                          <div className="flex items-center gap-4 px-4 py-3.5">
-                            <span
-                              className="rounded-full flex items-center justify-center font-extrabold flex-shrink-0 text-white"
-                              style={{
-                                width: 44,
-                                height: 44,
-                                fontSize: 16,
-                                background: isFreeChecked
-                                  ? "rgba(156,163,175,0.6)"
-                                  : "var(--grad-coral)",
-                                boxShadow: isFreeChecked ? "none" : "var(--shadow-glow)",
-                                transition: "background 300ms, box-shadow 300ms",
-                              }}
-                            >
-                              {item.stepNumber}
-                            </span>
-                            <p
-                              className="text-sm font-semibold flex-1 leading-snug"
-                              style={{
-                                color: isFreeChecked ? "#9CA3AF" : "#1f2937",
-                                textDecoration: isFreeChecked ? "line-through" : "none",
-                                transition: "color 300ms",
-                              }}
-                            >
-                              {capitalizeWords(item.stepLabel) || capitalizeWords(item.type) || capitalizeWords(item.title)}
-                            </p>
-                            {/* Info button */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setStepInfoLabel(item.stepLabel || item.type || item.title);
-                              }}
-                              className="min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center flex-shrink-0"
-                              style={{ background: "rgba(232,116,138,0.1)", border: "none", cursor: "pointer" }}
-                              aria-label="Informações sobre este passo"
-                            >
-                              <Info size={16} style={{ color: "#E8748A" }} />
-                            </button>
-                            {/* Check button */}
-                            <motion.button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!analysis?.id) return;
-                                toggleFreeStep(analysis.id, todayDateStr, item.period, freeLabel);
-                                setFreeCheckedRevision(v => v + 1);
-                              }}
-                              whileTap={{ scale: 0.88 }}
-                              animate={isFreeChecked
-                                ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } }
-                                : { scale: 1 }
-                              }
-                              className="min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center flex-shrink-0"
-                              style={isFreeChecked
-                                ? { background: "var(--grad-coral)", border: "2px solid transparent" }
-                                : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
-                              }
-                              aria-label={isFreeChecked ? "Desmarcar" : "Marcar"}
-                            >
-                              {isFreeChecked && (
-                                <motion.svg width="14" height="14" viewBox="0 0 12 12" fill="none"
-                                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
-                                  <motion.path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2.2"
-                                    strokeLinecap="round" strokeLinejoin="round"
-                                    initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-                                    transition={{ duration: 0.22, ease: "easeOut" }} />
-                                </motion.svg>
+                          <div>
+                            <div className="flex items-center gap-4 px-4 py-3.5">
+                              <span
+                                className="rounded-full flex items-center justify-center font-extrabold flex-shrink-0 text-white"
+                                style={{
+                                  width: 44, height: 44, fontSize: 16,
+                                  background: isEditing ? "var(--grad-coral)" : isFreeChecked ? "rgba(156,163,175,0.6)" : "var(--grad-coral)",
+                                  boxShadow: (!isEditing && isFreeChecked) ? "none" : "var(--shadow-glow)",
+                                  transition: "background 300ms, box-shadow 300ms",
+                                }}
+                              >
+                                {item.stepNumber}
+                              </span>
+                              <p
+                                className="text-sm font-semibold flex-1 leading-snug"
+                                style={{
+                                  color: !isEditing && isFreeChecked ? "#9CA3AF" : "#1f2937",
+                                  textDecoration: !isEditing && isFreeChecked ? "line-through" : "none",
+                                  transition: "color 300ms",
+                                }}
+                              >
+                                {capitalizeWords(item.stepLabel) || capitalizeWords(item.type) || capitalizeWords(item.title)}
+                              </p>
+
+                              {isEditing ? (
+                                /* Modo reordenação */
+                                <>
+                                  <div className="flex flex-col gap-0.5 flex-shrink-0">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); moveStep(item.period, item.key, "up"); }}
+                                      disabled={isFirst}
+                                      className="w-8 h-8 rounded-xl border border-border/50 bg-background/80 flex items-center justify-center disabled:opacity-25 hover:bg-muted/50 transition-colors"
+                                    >
+                                      <ChevronUp size={14} className="text-foreground" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); moveStep(item.period, item.key, "down"); }}
+                                      disabled={isLast}
+                                      className="w-8 h-8 rounded-xl border border-border/50 bg-background/80 flex items-center justify-center disabled:opacity-25 hover:bg-muted/50 transition-colors"
+                                    >
+                                      <ChevronDown size={14} className="text-foreground" />
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setStepPendingDelete({ id: item.key, name: item.stepLabel || item.type || item.title }); }}
+                                    className="w-8 h-8 rounded-xl border border-destructive/40 bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors flex-shrink-0"
+                                  >
+                                    <Trash2 size={13} className="text-destructive" />
+                                  </button>
+                                </>
+                              ) : (
+                                /* Modo normal: info + check */
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setStepInfoLabel(item.stepLabel || item.type || item.title); }}
+                                    className="min-w-[36px] min-h-[36px] rounded-full flex items-center justify-center flex-shrink-0"
+                                    style={{ background: "rgba(232,116,138,0.1)", border: "none", cursor: "pointer" }}
+                                    aria-label="Informações sobre este passo"
+                                  >
+                                    <Info size={16} style={{ color: "#E8748A" }} />
+                                  </button>
+                                  <motion.button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!analysis?.id) return;
+                                      toggleFreeStep(analysis.id, todayDateStr, item.period, freeLabel);
+                                      setFreeCheckedRevision(v => v + 1);
+                                    }}
+                                    whileTap={{ scale: 0.88 }}
+                                    animate={isFreeChecked ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } } : { scale: 1 }}
+                                    className="min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center flex-shrink-0"
+                                    style={isFreeChecked
+                                      ? { background: "var(--grad-coral)", border: "2px solid transparent" }
+                                      : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
+                                    }
+                                    aria-label={isFreeChecked ? "Desmarcar" : "Marcar"}
+                                  >
+                                    {isFreeChecked && (
+                                      <motion.svg width="14" height="14" viewBox="0 0 12 12" fill="none"
+                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
+                                        <motion.path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2.2"
+                                          strokeLinecap="round" strokeLinejoin="round"
+                                          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
+                                          transition={{ duration: 0.22, ease: "easeOut" }} />
+                                      </motion.svg>
+                                    )}
+                                  </motion.button>
+                                </>
                               )}
-                            </motion.button>
+                            </div>
+                            {/* Aviso médico para retinóides e ácidos */}
+                            {isMedicalStep(item) && !isEditing && (
+                              <div style={{ padding: "8px 16px 10px", display: "flex", gap: 8, alignItems: "flex-start", background: "rgba(251,191,36,0.10)", borderTop: "1px solid rgba(251,191,36,0.20)" }}>
+                                <AlertTriangle size={13} style={{ color: "#d97706", flexShrink: 0, marginTop: 1 }} />
+                                <p style={{ fontSize: 11, color: "#92400e", lineHeight: 1.45, fontWeight: 500 }}>
+                                  Ativo potente — faça um teste de tolerância antes do uso regular. Consulta com dermatologista é indispensável.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         );
                       })()
@@ -2783,6 +2838,16 @@ const Routine = () => {
                           </motion.button>
                         )}
                       </div>
+
+                      {/* Aviso médico — retinóides e ácidos */}
+                      {isMedicalStep(item) && !isEditing && (
+                        <div style={{ padding: "8px 16px 10px", display: "flex", gap: 8, alignItems: "flex-start", background: "rgba(251,191,36,0.10)", borderTop: "1px solid rgba(251,191,36,0.20)" }}>
+                          <AlertTriangle size={13} style={{ color: "#d97706", flexShrink: 0, marginTop: 1 }} />
+                          <p style={{ fontSize: 11, color: "#92400e", lineHeight: 1.45, fontWeight: 500 }}>
+                            Ativo potente — faça um teste de tolerância antes do uso regular. Recomendamos cautela e consulta com dermatologista antes de iniciar.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Admin Edit Panel */}
                       {isAdmin && adminEditingItem === item.key && (

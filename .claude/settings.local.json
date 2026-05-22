@@ -68,7 +68,25 @@
       "Bash(npm install *)",
       "mcp__claude_ai_Supabase__get_project",
       "mcp__claude_ai_Supabase__get_logs",
-      "Bash(claude mcp *)"
+      "Bash(claude mcp *)",
+      "Bash(Get-ChildItem -Recurse -Directory)",
+      "Bash(Select-Object -First 20 FullName)",
+      "Bash(dotnet run *)",
+      "Bash(findstr /N \"isUserCreated\" src/lib/*.ts src/components/**/*.tsx)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\src\" -Recurse -Filter \"*.tsx\")",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\src\\\\pages\\\\Routine.tsx\" | Measure-Object -Line\\).Lines)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\src\" -Recurse -Directory)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\src\\\\components\" -Name -Exclude \"*ui*\")",
+      "Bash(Get-ChildItem *)",
+      "Bash(dir C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\src\\\\assets\\\\favicon *)",
+      "Bash(dir \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\public\")",
+      "Bash(dir \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\" /b)",
+      "Bash(findstr -i \"manifest\\\\|favicon\")",
+      "Bash(dir C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\\\\public *)",
+      "Bash(findstr /I /N \"isFreeMode\" src\\\\pages\\\\Routine.tsx)",
+      "Bash(findstr /I /N \"retinoid\\\\|retinol\\\\|acid\\\\|retin\" src\\\\pages\\\\Routine.tsx)",
+      "PowerShell(cd \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\"; Select-String -Path src\\\\pages\\\\Routine.tsx -Pattern \"isFreeMode\" | Select-Object -First 15 | ForEach-Object { $_.LineNumber.ToString\\(\\) + \": \" + $_.Line })",
+      "PowerShell(cd \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\"; Select-String -Path src\\\\pages\\\\Routine.tsx -Pattern \"retinoid|retinol|ácido\" | Select-Object -First 25 | ForEach-Object { $_.LineNumber.ToString\\(\\) + \": \" + $_.Line })"
     ]
   }
 }

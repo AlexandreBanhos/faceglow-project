@@ -713,8 +713,8 @@ const Dashboard = () => {
         );
       })()}
 
-      {/* Routine Summary Card — premium */}
-      {latestAnalysis && !isPremiumBlocked && (
+      {/* Routine Summary Card — visível para todos (free vê CTA premium, premium vê produtos) */}
+      {latestAnalysis && (
         <RoutineSummaryCard analysis={latestAnalysis} delay={0.38} />
       )}
 

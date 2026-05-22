@@ -318,22 +318,22 @@ function SocialSection() {
       {/* Links sociais */}
       <div className="flex items-center justify-center gap-4 py-4 px-5">
         <a
-          href="https://instagram.com/faceglow.app"
+          href="https://instagram.com/faceglow.soora"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-4 py-2.5 rounded-full lg-surface border border-border/40 text-xs font-bold text-foreground active:scale-95 transition-transform"
         >
           <Instagram size={14} className="text-rose-500" />
-          @faceglow.app
+          @faceglow.soora
         </a>
         <a
-          href="https://faceglow.com.br"
+          href="https://app.faceglow-soora.me"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-4 py-2.5 rounded-full lg-surface border border-border/40 text-xs font-bold text-foreground active:scale-95 transition-transform"
         >
           <Globe size={14} className="text-blue-500" />
-          faceglow.com.br
+          faceglow-soora.me
         </a>
       </div>
 
