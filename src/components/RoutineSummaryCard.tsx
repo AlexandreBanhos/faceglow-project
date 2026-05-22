@@ -253,7 +253,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
   if (morningCount === 0 && nightCount === 0) return null;
 
   const goToRoutine = () =>
-    navigate("/routine", { state: { analysis, ...(isPremium ? {} : { simpleMode: true }) } });
+    navigate("/routine", { state: { analysis } });
 
   return (
     <>
