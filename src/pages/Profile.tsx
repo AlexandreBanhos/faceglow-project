@@ -89,6 +89,7 @@ const Profile = () => {
         setLastScore(latest.overallScore ?? 0);
         setLastAnalysisDate(latest.createdAtUtc);
         setLatestAnalysis(latest);
+        if (latest.imageUrl) setLastImageUrl(latest.imageUrl);
         if (!isCustomAvatar && latest.imageUrl) setAvatarUrl(latest.imageUrl);
         // Busca contagem real de passos ativos via v2 API
         try {
