@@ -43,6 +43,7 @@ const ChangeEmail    = lazy(() => import("./pages/ChangeEmail"));
 const DeleteAccount  = lazy(() => import("./pages/DeleteAccount"));
 const Support        = lazy(() => import("./pages/Support"));
 const SkincareLearn  = lazy(() => import("./pages/SkincareLearn"));
+const AuthCallback   = lazy(() => import("./pages/AuthCallback"));
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
                   <Route path="/"                 element={<Landing />} />
                   <Route path="/onboarding"       element={<Onboarding />} />
                   <Route path="/auth"             element={<Auth />} />
+                  <Route path="/auth-callback"    element={<AuthCallback />} />
                   <Route path="/verify-email"     element={<VerifyEmail />} />
                   <Route path="/email-confirmed"  element={<EmailConfirmed />} />
                   <Route path="/privacidade"      element={<PrivacyPolicy />} />

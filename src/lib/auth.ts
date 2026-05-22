@@ -111,6 +111,30 @@ export const updateEmail = async (newEmail: string) => {
   return client.auth.updateUser({ email: newEmail });
 };
 
+// ─── OAuth social ─────────────────────────────────────────────────────────────
+// Supabase emite um JWT com mesmo issuer após o OAuth — backend não precisa de mudanças.
+// Pré-requisito: habilitar o provider no Supabase Dashboard > Auth > Providers.
+
+export const signInWithGoogle = async (redirectTo?: string) => {
+  const client = assertSupabaseConfigured();
+  return client.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: redirectTo ?? `${window.location.origin}/auth-callback`,
+    },
+  });
+};
+
+export const signInWithApple = async (redirectTo?: string) => {
+  const client = assertSupabaseConfigured();
+  return client.auth.signInWithOAuth({
+    provider: "apple",
+    options: {
+      redirectTo: redirectTo ?? `${window.location.origin}/auth-callback`,
+    },
+  });
+};
+
 /** Desativa a conta no backend (soft-delete). O logout deve ser chamado em seguida. */
 export const deactivateAccount = async (): Promise<{ ok: boolean; error?: string }> => {
   const token = await getAccessToken();
