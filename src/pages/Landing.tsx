@@ -14,7 +14,6 @@ import { useNavigate } from "react-router-dom";
 import { getSessionUser } from "@/lib/auth";
 import { LandingProvider } from "@/shared/providers/LandingProvider";
 import { LandingHero } from "@/components/landing/LandingHero";
-import { StatsStrip } from "@/components/landing/StatsStrip";
 import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -93,9 +92,6 @@ export function LandingPageContent() {
 
       {/* Hero */}
       <LandingHero />
-
-      {/* Stats strip */}
-      <StatsStrip />
 
       {/* Benefits (Why FaceGlow) */}
       <BenefitsSection />

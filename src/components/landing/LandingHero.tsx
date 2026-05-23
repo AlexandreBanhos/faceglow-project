@@ -190,6 +190,16 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
 
         </motion.div>
 
+        {/* Névoa branca — da base até ~20% do vídeo, atrás dos elementos */}
+        <div style={{
+          position: "absolute",
+          bottom: 0, left: 0, right: 0,
+          height: "68vh",
+          background: "linear-gradient(to top, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.88) 20%, rgba(255,255,255,0.6) 45%, rgba(255,255,255,0.2) 65%, transparent 100%)",
+          zIndex: 1,
+          pointerEvents: "none",
+        }} />
+
         {/* 4. Parágrafo — sobreposto à base do vídeo */}
         <motion.p
           initial={{ opacity: 0, y: 16 }}
@@ -267,52 +277,62 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
           </button>
         </motion.div>
 
-        {/* 7. Social proof */}
+        {/* 8. Stats — 2×2 grid */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.54 }}
+          transition={{ duration: 0.5, delay: 0.64 }}
           style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            flexWrap: "nowrap",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
             gap: 10,
-            margin: "12px 24px 32px",
+            margin: "16px 24px 0",
+            position: "relative",
+            zIndex: 2,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center" }}>
-            {AVATARS.map((label, i) => (
-              <div
-                key={label}
-                style={{
-                  width: 26, height: 26,
-                  borderRadius: "50%",
-                  border: "2px solid white",
-                  background: "linear-gradient(135deg, #F4836B, #E897C4)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 9, fontWeight: 700, color: "white",
-                  flexShrink: 0,
-                  marginLeft: i === 0 ? 0 : -7,
-                  position: "relative",
-                  zIndex: AVATARS.length - i,
-                }}
-              >
-                {label}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <div style={{ display: "flex", gap: 2 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} size={11} fill="#F4836B" color="#F4836B" />
-              ))}
+          {[
+            { value: "600+",   label: "produtos curados no catálogo" },
+            { value: "12+",    label: "parâmetros de pele analisados" },
+            { value: "60s",    label: "para o resultado completo" },
+            { value: "Grátis", label: "sua primeira análise" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                textAlign: "center", padding: "10px 8px",
+                background: "rgba(255,255,255,0.52)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.7)",
+              }}
+            >
+              <span style={{
+                fontSize: "1.3rem", fontWeight: 800, lineHeight: 1,
+                background: "linear-gradient(135deg, #ddb693 0%, #ef8fb8 100%)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+              }}>{stat.value}</span>
+              <span style={{ fontSize: 10.5, color: "#7a6060", marginTop: 4, lineHeight: 1.35 }}>{stat.label}</span>
             </div>
-            <span style={{ fontSize: 12, color: "#3D2018", whiteSpace: "nowrap" }}>
-              +{totalAnalyses.toLocaleString("pt-BR")} análises realizadas
-            </span>
-          </div>
+          ))}
         </motion.div>
+
+        {/* Fade inferior — mescla com próxima seção */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          height: 200,
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          maskImage: "linear-gradient(to top, black 0%, black 15%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to top, black 0%, black 15%, transparent 100%)",
+          background: "linear-gradient(to top, rgba(255,255,255,0.5) 0%, transparent 70%)",
+          zIndex: 1, pointerEvents: "none",
+        }} />
+
+        {/* Spacer final */}
+        <div style={{ height: 48 }} />
       </section>
     );
   }
@@ -345,6 +365,59 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
       }} />
 
 
+
+      {/* Stats — base do hero desktop */}
+      <div style={{
+        position: "absolute", bottom: 28, left: 0, right: 0,
+        zIndex: 2, pointerEvents: "none",
+        display: "flex", justifyContent: "center",
+        padding: "0 clamp(16px, 6vw, 80px)",
+      }}>
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
+          width: "100%", maxWidth: 720,
+          background: "rgba(255,255,255,0.52)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderRadius: 20,
+          border: "1px solid rgba(255,255,255,0.7)",
+          boxShadow: "0 4px 24px rgba(80,40,60,0.08)",
+          padding: "12px 0",
+        }}>
+          {[
+            { value: "600+",   label: "produtos curados no catálogo" },
+            { value: "12+",    label: "parâmetros de pele analisados" },
+            { value: "60s",    label: "para o resultado completo" },
+            { value: "Grátis", label: "sua primeira análise" },
+          ].map((stat, i) => (
+            <div key={stat.label} style={{
+              display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+              padding: "4px 12px",
+              borderLeft: i > 0 ? "1px solid rgba(0,0,0,0.07)" : "none",
+            }}>
+              <span style={{
+                fontSize: "clamp(1.1rem, 2vw, 1.5rem)", fontWeight: 800, lineHeight: 1,
+                background: "linear-gradient(135deg, #ddb693 0%, #ef8fb8 100%)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+              }}>{stat.value}</span>
+              <span style={{ fontSize: 11, color: "#7a6060", marginTop: 4, lineHeight: 1.35 }}>{stat.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Fade inferior — mescla hero com próxima seção */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        height: 280,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        maskImage: "linear-gradient(to top, black 0%, black 15%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to top, black 0%, black 15%, transparent 100%)",
+        background: "linear-gradient(to top, rgba(255,255,255,0.55) 0%, transparent 70%)",
+        zIndex: 1, pointerEvents: "none",
+      }} />
+
       {/* Sparkles */}
       {SPARKLES.map((s, i) => (
         <div key={i} style={{
@@ -358,15 +431,8 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
         }} />
       ))}
 
-      {/* Watermark cover */}
-      <div style={{
-        position: "absolute", bottom: 0, right: 0,
-        width: 140, height: 48,
-        background: "rgba(255,245,242,0.98)",
-        zIndex: 2, pointerEvents: "none",
-      }} />
 
-      {/* Content */}
+{/* Content */}
       <div className="absolute bottom-8 z-[2] flex flex-col md:top-1/2 md:-translate-y-1/2 md:left-[clamp(24px,6vw,80px)] md:right-auto md:bottom-auto md:max-w-[480px]">
         <motion.div
           style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}
@@ -426,40 +492,6 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
             >
               Ver como funciona <ChevronRight size={15} />
             </button>
-          </motion.div>
-
-          <motion.div
-            variants={itemVariants}
-            style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20 }}
-          >
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {AVATARS.map((label, i) => (
-                <div
-                  key={label}
-                  style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    border: "2px solid white",
-                    background: "linear-gradient(135deg, #F4836B, #E897C4)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 10, fontWeight: 700, color: "white",
-                    flexShrink: 0, marginLeft: i === 0 ? 0 : -8,
-                    position: "relative", zIndex: AVATARS.length - i,
-                  }}
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <div style={{ display: "flex", gap: 2 }}>
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} size={12} fill="#F4836B" color="#F4836B" />
-                ))}
-              </div>
-              <span style={{ fontSize: 13, color: "#3D2018" }}>
-                +{totalAnalyses.toLocaleString("pt-BR")} análises realizadas
-              </span>
-            </div>
           </motion.div>
         </motion.div>
       </div>

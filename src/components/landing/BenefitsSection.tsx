@@ -37,8 +37,19 @@ export function BenefitsSection() {
       className="relative z-10 overflow-hidden"
       style={{ padding: "80px 0" }}
     >
+      {/* Fade superior — mescla com hero */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0,
+        height: 280,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        maskImage: "linear-gradient(to bottom, black 0%, black 15%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 15%, transparent 100%)",
+        background: "linear-gradient(to bottom, rgba(255,255,255,0.55) 0%, transparent 70%)",
+        zIndex: 0, pointerEvents: "none",
+      }} />
 
-      <div className="max-w-6xl mx-auto px-4 md:px-8">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 relative z-10">
         <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-stretch">
 
           {/* ── Esquerda: imagem direta na página, sem card ── */}
