@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Clock, LoaderCircle, Sparkles, XCircle, Zap, Gift } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, LoaderCircle, Sparkles, XCircle, Zap, Gift, ListChecks } from "lucide-react";
 import { fetchBillingStatus, fetchAnalysisCredits } from "@/lib/billing";
 import { invalidateAnalysisCache } from "@/lib/analysisClient";
+import { apiClient } from "@/shared/services/api/ApiClient";
 
 type PollState = "loading" | "pending" | "active" | "timeout" | "error";
+type RoutineState = "idle" | "waiting" | "ready";
 
 // Max time to poll before showing "confirming via webhook" message
 const MAX_POLL_MS = 60_000;
@@ -13,8 +15,8 @@ const POLL_INTERVAL_MS = 4_000;
 
 const CREDITS_BY_PLAN: Record<string, number> = {
   "credits": 1,
-  "monthly": 8,
-  "annual": 8,
+  "monthly": 6,
+  "annual": 6,
 };
 
 const BillingSuccess = () => {
@@ -22,7 +24,9 @@ const BillingSuccess = () => {
   const [searchParams] = useSearchParams();
   const [state, setState] = useState<PollState>("loading");
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
+  const [routineState, setRoutineState] = useState<RoutineState>("idle");
   const pollCount = useRef(0);
+  const routinePollCount = useRef(0);
 
   const externalReference = useMemo(
     () => searchParams.get("external_reference") ?? undefined,
@@ -123,6 +127,40 @@ const BillingSuccess = () => {
     };
   }, [externalId, externalReference]);
 
+  useEffect(() => {
+    if (state !== "active") return;
+
+    let mounted = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    routinePollCount.current = 0;
+    setRoutineState("waiting");
+
+    const pollRoutine = async () => {
+      routinePollCount.current += 1;
+      try {
+        const res = await apiClient.get<{ ready: boolean }>("/routine/ready");
+        if (!mounted) return;
+        if (res.data?.ready) {
+          setRoutineState("ready");
+          return;
+        }
+      } catch { /* ignora erros de rede */ }
+
+      if (!mounted) return;
+      if (routinePollCount.current < 15) {
+        timer = setTimeout(pollRoutine, 2000);
+      } else {
+        setRoutineState("idle");
+      }
+    };
+
+    pollRoutine();
+    return () => {
+      mounted = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [state]);
+
   const isActive = state === "active";
   const isPending = state === "pending" || state === "loading";
   const isTimeout = state === "timeout";
@@ -202,6 +240,33 @@ const BillingSuccess = () => {
                   <Gift size={20} className="text-accent opacity-60" />
                 </div>
               </motion.div>
+
+              {/* Routine generation status */}
+              <AnimatePresence mode="wait">
+                {routineState === "waiting" && (
+                  <motion.div
+                    key="routine-waiting"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="p-4 rounded-2xl border border-border/60 bg-muted/30 flex items-center gap-3"
+                  >
+                    <LoaderCircle size={18} className="text-primary animate-spin shrink-0" />
+                    <p className="text-sm text-muted-foreground text-left">Gerando sua rotina personalizada com produtos...</p>
+                  </motion.div>
+                )}
+                {routineState === "ready" && (
+                  <motion.div
+                    key="routine-ready"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3"
+                  >
+                    <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
+                    <p className="text-sm font-semibold text-foreground text-left">Rotina com produtos pronta!</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </>
           )}
           {isPending && (
@@ -229,16 +294,32 @@ const BillingSuccess = () => {
           className="w-full max-w-xs space-y-3"
         >
           {isActive && (
-            <motion.button
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              onClick={() => navigate("/analyze")}
-              className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-glow"
-            >
-              <Sparkles size={18} />
-              Iniciar análise agora
-            </motion.button>
+            <>
+              <AnimatePresence>
+                {routineState === "ready" && (
+                  <motion.button
+                    key="routine-btn"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => navigate("/routine")}
+                    className="w-full py-4 rounded-2xl gradient-primary text-primary-foreground font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform shadow-glow"
+                  >
+                    <ListChecks size={18} />
+                    Ver minha rotina
+                  </motion.button>
+                )}
+              </AnimatePresence>
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                onClick={() => navigate("/analyze")}
+                className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.97] transition-transform ${routineState === "ready" ? "border border-border/70 glass text-foreground" : "gradient-primary text-primary-foreground shadow-glow"}`}
+              >
+                <Sparkles size={18} />
+                Iniciar análise agora
+              </motion.button>
+            </>
           )}
 
           <motion.button

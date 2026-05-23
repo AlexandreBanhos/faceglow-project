@@ -70,10 +70,10 @@ export function SubscriptionCard({
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {isFullAccess && expiresFormatted
-              ? `Renova em ${expiresFormatted}`
+              ? `Acesso válido até ${expiresFormatted}`
               : isCreditsOnly
               ? `${creditsRemaining} crédito${creditsRemaining !== 1 ? "s" : ""} restante${creditsRemaining !== 1 ? "s" : ""}`
-              : `${creditsRemaining} crédito${creditsRemaining !== 1 ? "s" : ""} · Assine para análises ilimitadas`}
+              : `${creditsRemaining} crédito${creditsRemaining !== 1 ? "s" : ""} · Sem renovação automática`}
           </p>
         </div>
 

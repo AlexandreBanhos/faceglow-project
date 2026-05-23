@@ -392,6 +392,18 @@ const Profile = () => {
             </button>
           </div>
         </div>
+                {/* ── Seção: Aprenda ── */}
+        <div>
+          <SectionHeader title="Aprenda" />
+          <ProfileCard items={[
+            {
+              icon: <BookOpen size={15} className="text-foreground" />,
+              label: "Skincare & Educação",
+              sub: "Ativos, tipos de pele, rotinas e mitos",
+              onClick: () => navigate("/aprenda"),
+            },
+          ]} />
+        </div>
 
         {/* ── Seção: Precisa de ajuda ── */}
         <div>
@@ -432,7 +444,44 @@ const Profile = () => {
           </AnimatePresence>
         </div>
 
-        {/* ── Seção: Participe ── */}
+        {/* ── Seção: Legal ── */}
+        <div>
+          <SectionHeader title="Legal" />
+          <ProfileCard items={[
+            {
+              icon: <Shield size={15} className="text-foreground" />,
+              label: "Política de privacidade",
+              onClick: () => navigate("/privacidade"),
+            },
+            {
+              icon: <FileText size={15} className="text-foreground" />,
+              label: "Termos de uso",
+              onClick: () => navigate("/termos"),
+            },
+          ]} />
+        </div>
+
+        {/* ── Admin (só admin) ── */}
+        {isAdmin && (
+          <div>
+            <SectionHeader title="Admin" />
+            <ProfileCard items={[
+              {
+                icon: <Settings size={15} className="text-orange-500" />,
+                label: "Produtos",
+                badge: "Admin",
+                onClick: () => navigate("/admin/products"),
+              },
+              {
+                icon: <Settings size={15} className="text-orange-500" />,
+                label: "Afiliados",
+                badge: "Admin",
+                onClick: () => navigate("/admin/afiliados"),
+              },
+            ]} />
+          </div>
+        )}
+         {/* ── Seção: Participe ── */}
         <div>
           <SectionHeader title="Participe" />
           <div className="lg-surface rounded-2xl overflow-hidden">
@@ -440,7 +489,7 @@ const Profile = () => {
             <div className="flex flex-col items-center py-5 px-5 text-center border-b border-border/30">
               <img src={logoUrl} alt="FaceGlow" className="h-7 mb-1.5 object-contain" />
               <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
-                Skincare inteligente com IA para a sua pele.
+                Skincare inteligente para a sua pele.
               </p>
             </div>
 
@@ -487,57 +536,6 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* ── Seção: Aprenda ── */}
-        <div>
-          <SectionHeader title="Aprenda" />
-          <ProfileCard items={[
-            {
-              icon: <BookOpen size={15} className="text-foreground" />,
-              label: "Skincare & Educação",
-              sub: "Ativos, tipos de pele, rotinas e mitos",
-              onClick: () => navigate("/aprenda"),
-            },
-          ]} />
-        </div>
-
-        {/* ── Seção: Legal ── */}
-        <div>
-          <SectionHeader title="Legal" />
-          <ProfileCard items={[
-            {
-              icon: <Shield size={15} className="text-foreground" />,
-              label: "Política de privacidade",
-              onClick: () => navigate("/privacidade"),
-            },
-            {
-              icon: <FileText size={15} className="text-foreground" />,
-              label: "Termos de uso",
-              onClick: () => navigate("/termos"),
-            },
-          ]} />
-        </div>
-
-        {/* ── Admin (só admin) ── */}
-        {isAdmin && (
-          <div>
-            <SectionHeader title="Admin" />
-            <ProfileCard items={[
-              {
-                icon: <Settings size={15} className="text-orange-500" />,
-                label: "Produtos",
-                badge: "Admin",
-                onClick: () => navigate("/admin/products"),
-              },
-              {
-                icon: <Settings size={15} className="text-orange-500" />,
-                label: "Afiliados",
-                badge: "Admin",
-                onClick: () => navigate("/admin/afiliados"),
-              },
-            ]} />
-          </div>
-        )}
-
         {/* ── Sair ── */}
         <motion.button
           whileTap={{ scale: 0.97 }}
@@ -564,6 +562,8 @@ const Profile = () => {
           </button>
         </div>
 
+        
+
         {/* ── Footer ── */}
         <div className="text-center pb-4 space-y-1">
           <img src={logoIcon} alt="FaceGlow" className="h-5 mx-auto opacity-30 mb-2" />
@@ -571,7 +571,7 @@ const Profile = () => {
             FaceGlow © {new Date().getFullYear()} · v{APP_VERSION}
           </p>
           <p className="text-[10px] text-muted-foreground/30">
-            Desenvolvido com IA para cuidar da sua pele
+            Desenvolvido para cuidar da sua pele
           </p>
         </div>
 

@@ -49,11 +49,11 @@ export const PremiumOfferBanner = () => {
       <div className="grid grid-cols-2 gap-3 mt-4">
         <div className="p-3 bg-white/65 rounded-2xl border border-white/80">
           <div className="text-xs font-medium text-primary">Análise Avulsa</div>
-          <div className="text-sm text-[var(--fg-ink-3)]">R$ 4,90/análise</div>
+          <div className="text-sm text-[var(--fg-ink-3)]">R$ 4,90 · único</div>
         </div>
         <div className="p-3 bg-white/65 rounded-2xl border border-white/80">
-          <div className="text-xs font-medium text-primary">Premium Mensal</div>
-          <div className="text-sm text-[var(--fg-ink-3)]">R$ 24,90/mês</div>
+          <div className="text-xs font-medium text-primary">Acesso 30 dias</div>
+          <div className="text-sm text-[var(--fg-ink-3)]">R$ 24,90 · único</div>
         </div>
       </div>
     </div>

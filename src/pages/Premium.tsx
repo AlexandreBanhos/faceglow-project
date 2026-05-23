@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, XCircle, RotateCw, QrCode, CreditCard } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, ShieldCheck, QrCode, CreditCard } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar, faChartLine, faListCheck, faBottleDroplet,
@@ -10,6 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-escura.webp";
 import { createBillingCheckout, type BillingPlanKey, type BillingStatusResponse, fetchBillingStatus } from "@/lib/billing";
+import { apiClient } from "@/shared/services/api/ApiClient";
 import { getCurrentUser } from "@/lib/auth";
 import { getCachedLatestAnalysis } from "@/lib/analysisClient";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
@@ -34,24 +35,24 @@ const PLANS: Record<PlanTier, Plan> = {
     key: "credits",
     name: "Análise Avulsa",
     priceCents: 490,
-    period: "por análise",
+    period: "pagamento único",
     badge: null,
   },
   monthly: {
     key: "monthly",
-    name: "Premium Mensal",
+    name: "Acesso 30 dias",
     priceCents: 2490,
-    period: "por mês",
+    period: "pagamento único · 30 dias",
     badge: null,
   },
   annual: {
     key: "annual",
-    name: "Premium Anual",
+    name: "Acesso 365 dias",
     priceCents: 19790,
     monthlyEquiv: 1649,
-    period: "por ano",
-    badge: "2 MESES GRÁTIS",
-    savings: "Economia de R$ 100/ano",
+    period: "pagamento único · 365 dias",
+    badge: "MELHOR VALOR",
+    savings: "Equivale a R$ 16,49/mês",
   },
 };
 
@@ -95,24 +96,25 @@ const getPaymentLabel = (gateway?: string) => {
 
 const ACTIVE_PLAN_FEATURES: Record<BillingPlanKey, string[]> = {
   monthly: [
-    "8 análises por mês",
+    "6 créditos de análise facial",
     "Rotina personalizada pela IA",
     "Checklist diário de rotina",
     "Histórico completo de análises",
     "Comparativo de evolução da pele",
     "Biblioteca de produtos próprios",
+    "Acesso válido por 30 dias",
   ],
   annual: [
-    "8 análises por mês (sem interrupção)",
+    "Créditos de análise facial",
     "Rotina personalizada pela IA",
     "Checklist diário de rotina",
     "Histórico completo de análises",
     "Comparativo de evolução da pele",
     "Biblioteca de produtos próprios",
-    "2 meses grátis vs. mensal",
+    "Acesso válido por 365 dias",
   ],
   credits: [
-    "1 análise avulsa",
+    "1 crédito de análise avulsa",
     "Resultado facial completo",
     "Diagnóstico de tipo de pele",
     "Condições e pontos de melhoria",
@@ -240,7 +242,7 @@ const Premium = () => {
                       : "text-muted-foreground"
                   }`}
                 >
-                  {t === "subscription" ? "✨ Assinatura" : "⚡ Análise Avulsa"}
+                  {t === "subscription" ? "✨ Acesso Premium" : "⚡ Análise Avulsa"}
                 </button>
               ))}
             </div>
@@ -290,17 +292,17 @@ const Premium = () => {
                             )}
                           </div>
                           <div className="text-right flex-shrink-0">
-                            {p.monthlyEquiv && (
-                              <p className="text-[10px] text-muted-foreground line-through">
-                                {fmt(2490)}/mês
-                              </p>
-                            )}
                             <p className="text-xl font-black text-foreground">
-                              {p.monthlyEquiv ? fmt(p.monthlyEquiv) : fmt(p.priceCents)}
+                              {fmt(p.priceCents)}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
-                              {p.monthlyEquiv ? "por mês · cobrado anualmente" : p.period}
+                              {p.period}
                             </p>
+                            {p.monthlyEquiv && (
+                              <p className="text-[10px] text-primary/70 font-semibold mt-0.5">
+                                ≈ {fmt(p.monthlyEquiv)}/mês
+                              </p>
+                            )}
                           </div>
                         </div>
                         {isSelected && (
@@ -442,10 +444,10 @@ const Premium = () => {
                 <>
                   <FontAwesomeIcon icon={faCrown} className="text-sm" />
                   {billingType === "avulsa"
-                    ? "Comprar 1 Análise · R$ 4,90"
+                    ? "Obter 1 Análise · R$ 4,90"
                     : selectedPlan === "annual"
-                    ? `Assinar Anual · ${fmt(19790)}/ano`
-                    : `Assinar Mensal · ${fmt(2490)}/mês`}
+                    ? `Ativar 365 dias · ${fmt(19790)}`
+                    : `Ativar 30 dias · ${fmt(2490)}`}
                   <FontAwesomeIcon icon={faChevronRight} className="text-xs opacity-75" />
                 </>
               )}
@@ -453,18 +455,14 @@ const Premium = () => {
 
             {/* Rodapé legal */}
             <div className="text-center space-y-1.5 pb-4">
-              {billingType === "subscription" && (
-                <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                  <RotateCw size={11} />
-                  <span>Renovação automática. Cancele a qualquer momento.</span>
-                </div>
-              )}
+              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <ShieldCheck size={12} className="text-emerald-500" />
+                <span>Pagamento único · Sem renovação automática · Sem cobranças futuras</span>
+              </div>
               <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                 <a href="#" className="underline">Termos de Uso</a>
                 <span className="opacity-40">|</span>
                 <a href="#" className="underline">Privacidade</a>
-                <span className="opacity-40">|</span>
-                <a href="#" className="underline">Restaurar compra</a>
               </div>
             </div>
           </motion.div>
@@ -498,84 +496,117 @@ const ActivePremiumView = ({
   billingStatus: BillingStatusResponse;
   onDashboard: () => void;
   onRoutine: () => void;
-}) => (
-  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-    {/* Header */}
-    <div className="text-center">
+}) => {
+  const [canceling, setCanceling] = useState(false);
+  const [canceled, setCanceled] = useState(false);
+  const navigate = useNavigate();
+
+  const handleCancel = async () => {
+    if (!window.confirm("Tem certeza? Seu acesso premium será encerrado imediatamente e não poderá ser desfeito.")) return;
+    setCanceling(true);
+    try {
+      await apiClient.post("/billing/cancel", {});
+      setCanceled(true);
+    } catch {
+      alert("Não foi possível cancelar. Tente novamente.");
+    } finally {
+      setCanceling(false);
+    }
+  };
+
+  if (canceled) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-12">
+        <p className="text-2xl font-black text-foreground">Acesso encerrado</p>
+        <p className="text-sm text-muted-foreground">Seu plano foi cancelado. Você pode adquirir um novo acesso a qualquer momento.</p>
+        <button onClick={() => navigate("/dashboard")} className="coral-button px-6 py-3 rounded-2xl font-bold text-sm">
+          Voltar ao início
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+      {/* Header */}
+      <div className="text-center">
+        <div
+          className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
+          style={{ background: "var(--grad-coral)", boxShadow: "0 8px 28px -4px rgba(220,100,140,0.5)" }}
+        >
+          <FontAwesomeIcon icon={faCrown} className="text-white text-3xl" />
+        </div>
+        <h1 className="text-2xl font-black text-foreground mb-1">Você é Premium! 🎉</h1>
+        <p className="text-sm text-muted-foreground">Explore todos os recursos do seu plano</p>
+      </div>
+
+      {/* Detalhes do plano */}
       <div
-        className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
-        style={{ background: "var(--grad-coral)", boxShadow: "0 8px 28px -4px rgba(220,100,140,0.5)" }}
+        className="lg-surface-strong p-5 rounded-2xl space-y-4"
+        style={{ border: "1px solid var(--primary, #e8a9c2)" }}
       >
-        <FontAwesomeIcon icon={faCrown} className="text-white text-3xl" />
+        <div className="grid grid-cols-2 gap-4">
+          <InfoCell label="Plano Ativo" value={billingStatus.planName} />
+          <InfoCell label="Pagamento" value={getPaymentLabel(billingStatus.gateway)} />
+          <InfoCell label="Ativado em" value={formatDate(billingStatus.activatedAtUtc)} small />
+          <InfoCell label="Acesso válido até" value={formatDate(billingStatus.expiresAtUtc)} small />
+        </div>
+        <div
+          className="flex items-center justify-between p-3 rounded-xl"
+          style={{ background: "var(--glass-bg-soft)", border: "1px solid var(--glass-border-soft)" }}
+        >
+          <span className="text-sm font-semibold text-foreground">Valor pago</span>
+          <span className="text-lg font-black text-primary">
+            {fmt(billingStatus.amountCents)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
+          <span>Pagamento único realizado — sem cobranças futuras automáticas</span>
+        </div>
       </div>
-      <h1 className="text-2xl font-black text-foreground mb-1">Você é Premium! 🎉</h1>
-      <p className="text-sm text-muted-foreground">Explore todos os recursos do seu plano</p>
-    </div>
 
-    {/* Detalhes do plano */}
-    <div
-      className="lg-surface-strong p-5 rounded-2xl space-y-4"
-      style={{ border: "1px solid var(--primary, #e8a9c2)" }}
-    >
-      <div className="grid grid-cols-2 gap-4">
-        <InfoCell label="Plano Ativo" value={billingStatus.planName} />
-        <InfoCell label="Pagamento" value={getPaymentLabel(billingStatus.gateway)} />
-        <InfoCell label="Ativado em" value={formatDate(billingStatus.activatedAtUtc)} small />
-        <InfoCell label="Próxima renovação" value={formatDate(billingStatus.expiresAtUtc)} small />
+      {/* Features ativas */}
+      <div>
+        <p className="text-sm font-bold text-foreground mb-2">O que está incluído</p>
+        <div className="space-y-2">
+          {(ACTIVE_PLAN_FEATURES[billingStatus.planKey] ?? []).map((feat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 + i * 0.04 }}
+              className="flex items-center gap-3 p-3 rounded-xl lg-surface"
+            >
+              <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
+              <span className="text-sm font-medium text-foreground">{feat}</span>
+            </motion.div>
+          ))}
+        </div>
       </div>
-      <div
-        className="flex items-center justify-between p-3 rounded-xl"
-        style={{ background: "var(--glass-bg-soft)", border: "1px solid var(--glass-border-soft)" }}
-      >
-        <span className="text-sm font-semibold text-foreground">Valor do plano</span>
-        <span className="text-lg font-black text-primary">
-          {fmt(billingStatus.amountCents)}
-        </span>
+
+      {/* Ações */}
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={onDashboard} className="coral-button py-3 rounded-xl font-bold text-sm">
+          Dashboard
+        </button>
+        <button onClick={onRoutine} className="liquiglass-button py-3 rounded-xl font-bold text-sm">
+          Minha Rotina
+        </button>
       </div>
-    </div>
 
-    {/* Features ativas */}
-    <div>
-      <p className="text-sm font-bold text-foreground mb-2">O que está incluído</p>
-      <div className="space-y-2">
-        {(ACTIVE_PLAN_FEATURES[billingStatus.planKey] ?? []).map((feat, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 + i * 0.04 }}
-            className="flex items-center gap-3 p-3 rounded-xl lg-surface"
-          >
-            <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
-            <span className="text-sm font-medium text-foreground">{feat}</span>
-          </motion.div>
-        ))}
+      <div className="text-center pb-4">
+        <button
+          onClick={handleCancel}
+          disabled={canceling}
+          className="text-xs text-rose-500 font-semibold underline disabled:opacity-50"
+        >
+          {canceling ? "Cancelando..." : "Encerrar acesso antecipadamente"}
+        </button>
       </div>
-    </div>
-
-    {/* Ações */}
-    <div className="grid grid-cols-2 gap-3">
-      <button onClick={onDashboard} className="coral-button py-3 rounded-xl font-bold text-sm">
-        Dashboard
-      </button>
-      <button onClick={onRoutine} className="liquiglass-button py-3 rounded-xl font-bold text-sm">
-        Minha Rotina
-      </button>
-    </div>
-
-    <div className="text-center pb-4">
-      <p className="text-xs text-muted-foreground mb-2">
-        Renovação automática. Cancele a qualquer momento.
-      </p>
-      <button
-        onClick={() => alert("Funcionalidade de cancelamento em desenvolvimento")}
-        className="text-xs text-rose-500 font-semibold underline"
-      >
-        Cancelar meu plano
-      </button>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 const InfoCell = ({ label, value, small }: { label: string; value: string; small?: boolean }) => (
   <div>

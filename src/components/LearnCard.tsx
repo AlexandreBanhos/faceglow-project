@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, Lightbulb, CheckCircle2, XCircle } from "lucide-react";
 import { ImageInfoCard } from "@/components/ImageInfoCard";
+import { useModalPortal } from "@/hooks/useModalPortal";
 import type { LearnCard as LearnCardData } from "@/data/skincareLearn";
 
 // ─── Gradiente do sistema ─────────────────────────────────────────────────────
@@ -171,6 +173,7 @@ export function LearnCard({ card, delay = 0 }: LearnCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalImgLoaded, setModalImgLoaded]   = useState(false);
   const [modalImgErrored, setModalImgErrored] = useState(false);
+  const portalContainer = useModalPortal();
 
   const categoryLabel =
     card.category === "rotina" ? "Passo a passo"
@@ -178,6 +181,91 @@ export function LearnCard({ card, delay = 0 }: LearnCardProps) {
     : card.category === "ingredientes" ? "Ingrediente ativo"
     : card.category === "problemas" ? "Condição"
     : "Tipo de pele";
+
+  const modalContent = (
+    <AnimatePresence>
+      {modalOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setModalOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+          />
+
+          {/* Painel */}
+          <motion.div
+            key="panel"
+            initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+            transition={{ type: "spring", stiffness: 340, damping: 30 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999,
+              maxHeight: "92vh", maxWidth: 480, margin: "0 auto",
+              background: "#F8F6F4",
+              borderRadius: "24px 24px 0 0",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
+              display: "flex", flexDirection: "column",
+            }}
+          >
+            {/* Handle */}
+            <div style={{ flexShrink: 0, display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 4 }}>
+              <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(0,0,0,0.12)" }} />
+            </div>
+
+            {/* Área scrollável */}
+            <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+              {/* Header com imagem */}
+              <div style={{ position: "relative", margin: "8px 20px 0", borderRadius: 18, overflow: "hidden", height: 130, backgroundColor: card.fallbackColor }}>
+                {!modalImgErrored && (
+                  <img src={card.imageUrl} alt={card.title} loading="lazy" decoding="async"
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", opacity: modalImgLoaded ? 1 : 0, transition: "opacity 300ms ease" }}
+                    onLoad={() => setModalImgLoaded(true)} onError={() => setModalImgErrored(true)}
+                  />
+                )}
+                {!modalImgLoaded && !modalImgErrored && (
+                  <div className="skeleton-shimmer" style={{ position: "absolute", inset: 0 }} />
+                )}
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 55%)", pointerEvents: "none" }} />
+                {/* Badge categoria */}
+                <div style={{
+                  position: "absolute", top: 12, left: 12,
+                  padding: "3px 10px", borderRadius: 99,
+                  background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)",
+                  fontSize: 10, fontWeight: 700, color: "white", letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}>
+                  {categoryLabel}
+                </div>
+                <h2 style={{ position: "absolute", bottom: 12, left: 14, margin: 0, color: "white", fontSize: 19, fontWeight: 800, textShadow: "0 1px 4px rgba(0,0,0,0.5)", lineHeight: 1.2 }}>
+                  {card.title}
+                </h2>
+              </div>
+
+              {/* Conteúdo — layout por categoria */}
+              <div style={{ padding: "20px 20px 8px", display: "flex", flexDirection: "column", gap: 14 }}>
+                {card.category === "rotina" && <ModalTimeline card={card} />}
+                {card.category === "mitos"  && <ModalMyths   card={card} />}
+                {(card.category !== "rotina" && card.category !== "mitos") && <ModalStandard card={card} />}
+              </div>
+            </div>
+
+            {/* Botão fixo na base */}
+            <div style={{ flexShrink: 0, padding: "16px 20px calc(24px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(to top, #F8F6F4 70%, transparent)" }}>
+              <button
+                onClick={() => setModalOpen(false)}
+                style={{ width: "100%", height: 50, borderRadius: 14, background: GRAD, border: "none", color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(232,116,138,0.3)" }}
+              >
+                Entendi
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
 
   return (
     <>
@@ -190,88 +278,7 @@ export function LearnCard({ card, delay = 0 }: LearnCardProps) {
         delay={delay}
       />
 
-      <AnimatePresence>
-        {modalOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              key="backdrop"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setModalOpen(false)}
-              style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
-            />
-
-            {/* Painel */}
-            <motion.div
-              key="panel"
-              initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-              transition={{ type: "spring", stiffness: 340, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999,
-                maxHeight: "92vh", maxWidth: 480, margin: "0 auto",
-                background: "#F8F6F4",
-                borderRadius: "24px 24px 0 0",
-                boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
-                display: "flex", flexDirection: "column",
-              }}
-            >
-              {/* Handle */}
-              <div style={{ flexShrink: 0, display: "flex", justifyContent: "center", paddingTop: 12, paddingBottom: 4 }}>
-                <div style={{ width: 40, height: 4, borderRadius: 99, background: "rgba(0,0,0,0.12)" }} />
-              </div>
-
-              {/* Área scrollável */}
-              <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-                {/* Header com imagem */}
-                <div style={{ position: "relative", margin: "8px 20px 0", borderRadius: 18, overflow: "hidden", height: 130, backgroundColor: card.fallbackColor }}>
-                  {!modalImgErrored && (
-                    <img src={card.imageUrl} alt={card.title} loading="lazy" decoding="async"
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", opacity: modalImgLoaded ? 1 : 0, transition: "opacity 300ms ease" }}
-                      onLoad={() => setModalImgLoaded(true)} onError={() => setModalImgErrored(true)}
-                    />
-                  )}
-                  {!modalImgLoaded && !modalImgErrored && (
-                    <div className="skeleton-shimmer" style={{ position: "absolute", inset: 0 }} />
-                  )}
-                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 55%)", pointerEvents: "none" }} />
-                  {/* Badge categoria */}
-                  <div style={{
-                    position: "absolute", top: 12, left: 12,
-                    padding: "3px 10px", borderRadius: 99,
-                    background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)",
-                    fontSize: 10, fontWeight: 700, color: "white", letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  }}>
-                    {categoryLabel}
-                  </div>
-                  <h2 style={{ position: "absolute", bottom: 12, left: 14, margin: 0, color: "white", fontSize: 19, fontWeight: 800, textShadow: "0 1px 4px rgba(0,0,0,0.5)", lineHeight: 1.2 }}>
-                    {card.title}
-                  </h2>
-                </div>
-
-                {/* Conteúdo — layout por categoria */}
-                <div style={{ padding: "20px 20px 8px", display: "flex", flexDirection: "column", gap: 14 }}>
-                  {card.category === "rotina" && <ModalTimeline card={card} />}
-                  {card.category === "mitos"  && <ModalMyths   card={card} />}
-                  {(card.category !== "rotina" && card.category !== "mitos") && <ModalStandard card={card} />}
-                </div>
-              </div>
-
-              {/* Botão fixo na base */}
-              <div style={{ flexShrink: 0, padding: "16px 20px calc(24px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(to top, #F8F6F4 70%, transparent)" }}>
-                <button
-                  onClick={() => setModalOpen(false)}
-                  style={{ width: "100%", height: 50, borderRadius: 14, background: GRAD, border: "none", color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(232,116,138,0.3)" }}
-                >
-                  Entendi
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {createPortal(modalContent, portalContainer)}
     </>
   );
 }
