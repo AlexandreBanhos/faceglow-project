@@ -112,7 +112,7 @@ const Support = () => {
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">Falar com a equipe</p>
           <div className="space-y-2">
             <a
-              href="mailto:suporte@faceglow.com.br"
+              href="mailto:contato@faceglow-soora.me"
               className="flex items-center gap-4 px-4 py-4 rounded-2xl lg-surface active:scale-[0.98] transition-transform"
             >
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -120,7 +120,7 @@ const Support = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground">E-mail de suporte</p>
-                <p className="text-xs text-muted-foreground">suporte@faceglow.com.br</p>
+                <p className="text-xs text-muted-foreground">contato@faceglow-soora.me</p>
               </div>
             </a>
             <a

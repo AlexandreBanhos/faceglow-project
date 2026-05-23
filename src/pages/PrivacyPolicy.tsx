@@ -96,7 +96,7 @@ export default function PrivacyPolicy() {
             <li>Portabilidade dos dados.</li>
           </ul>
           <p className="text-muted-foreground mt-2">
-            Para exercer esses direitos, entre em contato: <strong>privacidade@faceglow.com.br</strong>
+            Para exercer esses direitos, entre em contato: <strong>contato@faceglow-soora.me</strong>
           </p>
         </section>
 
@@ -126,7 +126,7 @@ export default function PrivacyPolicy() {
         <section>
           <h2 className="text-lg font-semibold mb-2">10. Contato</h2>
           <p className="text-muted-foreground">
-            Dúvidas sobre privacidade: <strong>privacidade@faceglow.com.br</strong>
+            Dúvidas sobre privacidade: <strong>contato@faceglow-soora.me</strong>
           </p>
         </section>
 

@@ -218,10 +218,10 @@ export function LandingPageContent() {
                   <a href="/support" className="hover:text-coral transition-colors">Central de ajuda</a>
                 </li>
                 <li>
-                  <a href="mailto:suporte@faceglow.com.br" className="hover:text-coral transition-colors">Fale conosco</a>
+                  <a href="mailto:contato@faceglow-soora.me" className="hover:text-coral transition-colors">Fale conosco</a>
                 </li>
                 <li>
-                  <a href="mailto:privacidade@faceglow.com.br" className="hover:text-coral transition-colors">LGPD / Dados pessoais</a>
+                  <a href="mailto:contato@faceglow-soora.me" className="hover:text-coral transition-colors">LGPD / Dados pessoais</a>
                 </li>
               </ul>
             </div>
@@ -257,7 +257,7 @@ export function LandingPageContent() {
               <a href="/privacidade" className="hover:text-coral transition-colors">Privacidade</a>
               <a href="/termos" className="hover:text-coral transition-colors">Termos</a>
               <a href="/support" className="hover:text-coral transition-colors">Suporte</a>
-              <a href="mailto:suporte@faceglow.com.br" className="hover:text-coral transition-colors">Contato</a>
+              <a href="mailto:contato@faceglow-soora.me" className="hover:text-coral transition-colors">Contato</a>
             </div>
           </div>
 

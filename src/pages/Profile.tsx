@@ -6,7 +6,7 @@ import {
   Mail, Instagram, Globe, ChevronRight, Bell,
   MessageCircle, FileText, Share2, Trash2,
   ScanFace, Settings2, BookOpen, ClipboardList,
-  Coins, Sparkles, CreditCard, Settings,
+  Coins, Sparkles, CreditCard, Settings, Copy, Check,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
@@ -94,6 +94,8 @@ const Profile = () => {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isCustomAvatar, setIsCustomAvatar] = useState(false);
   const [userReady, setUserReady]         = useState(false);
+  const [userId, setUserId]               = useState("");
+  const [copiedId, setCopiedId]           = useState(false);
 
   // Estatísticas
   const [totalAnalyses, setTotalAnalyses]   = useState(0);
@@ -125,6 +127,7 @@ const Profile = () => {
       const name = (user.user_metadata?.full_name ?? user.user_metadata?.name ?? "").trim();
       setDisplayName(name || user.email?.split("@")[0] || "Usuário");
       setDisplayEmail(user.email ?? "");
+      setUserId(user.id ?? "");
       const custom = user.user_metadata?.avatar_url ?? "";
       setAvatarUrl(custom);
       setIsCustomAvatar(!!custom);
@@ -424,8 +427,8 @@ const Profile = () => {
             {
               icon: <MessageCircle size={15} className="text-foreground" />,
               label: "Fale conosco",
-              sub: "suporte@faceglow.com.br",
-              onClick: () => window.open("mailto:suporte@faceglow.com.br", "_blank"),
+              sub: "contato@faceglow-soora.me",
+              onClick: () => window.open("mailto:contato@faceglow-soora.me", "_blank"),
             },
           ]} />
 
@@ -552,7 +555,7 @@ const Profile = () => {
           <button
             onClick={() => {
               if (window.confirm("Excluir sua conta é irreversível. Todos os seus dados serão apagados permanentemente. Tem certeza?")) {
-                window.open("mailto:suporte@faceglow.com.br?subject=Excluir minha conta&body=Olá, solicito a exclusão permanente da minha conta.", "_blank");
+                window.open("mailto:contato@faceglow-soora.me?subject=Excluir minha conta&body=Olá, solicito a exclusão permanente da minha conta.", "_blank");
               }
             }}
             className="text-xs text-muted-foreground/40 font-medium flex items-center gap-1.5 active:opacity-70 transition-opacity"
@@ -573,6 +576,27 @@ const Profile = () => {
           <p className="text-[10px] text-muted-foreground/30">
             Desenvolvido para cuidar da sua pele
           </p>
+
+          {userId && (
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(userId).then(() => {
+                  setCopiedId(true);
+                  setTimeout(() => setCopiedId(false), 2000);
+                }).catch(() => {});
+              }}
+              className="flex items-center gap-1.5 mt-1 mx-auto transition-opacity active:opacity-60"
+            >
+              <span className="text-[9px] text-muted-foreground/25 font-mono">
+                ID: {userId}
+              </span>
+              {copiedId
+                ? <Check size={10} className="text-emerald-400 flex-shrink-0" />
+                : <Copy size={10} className="text-muted-foreground/25 flex-shrink-0" />
+              }
+            </button>
+          )}
         </div>
 
       </motion.div>

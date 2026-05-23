@@ -75,7 +75,7 @@ Utilizamos criptografia e as melhores práticas de segurança para proteger seus
 Você tem direito a: acessar, corrigir ou excluir seus dados pessoais a qualquer momento.
 
 **7. Contato**
-Para dúvidas sobre privacidade: contato@faceglow.com.br
+Para dúvidas sobre privacidade: contato@faceglow-soora.me
 `;
 
 function LegalModal({ title, content, onClose }: { title: string; content: string; onClose: () => void }) {

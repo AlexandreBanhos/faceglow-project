@@ -67,10 +67,10 @@ export default function TermsOfUse() {
         <section>
           <h2 className="text-lg font-semibold mb-2">5. Cancelamento e reembolso</h2>
           <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-            <li><strong>Direito de arrependimento (CDC Art. 49):</strong> para compras realizadas online, você tem direito ao cancelamento e reembolso integral em até 7 dias corridos da contratação, sem necessidade de justificativa. Solicite por e-mail: <strong>suporte@faceglow.com.br</strong></li>
+            <li><strong>Direito de arrependimento (CDC Art. 49):</strong> para compras realizadas online, você tem direito ao cancelamento e reembolso integral em até 7 dias corridos da contratação, sem necessidade de justificativa. Solicite por e-mail: <strong>contato@faceglow-soora.me</strong></li>
             <li>Após 7 dias, o cancelamento da assinatura encerra a renovação automática, mas o acesso continua até o fim do período já pago.</li>
             <li>Reembolsos após 7 dias são concedidos apenas para cobranças duplicadas ou falhas técnicas comprovadas.</li>
-            <li>Para solicitar cancelamento ou reembolso: <strong>suporte@faceglow.com.br</strong></li>
+            <li>Para solicitar cancelamento ou reembolso: <strong>contato@faceglow-soora.me</strong></li>
           </ul>
         </section>
 
@@ -120,7 +120,7 @@ export default function TermsOfUse() {
         <section>
           <h2 className="text-lg font-semibold mb-2">11. Contato</h2>
           <p className="text-muted-foreground">
-            Dúvidas: <strong>suporte@faceglow.com.br</strong>
+            Dúvidas: <strong>contato@faceglow-soora.me</strong>
           </p>
         </section>
 
