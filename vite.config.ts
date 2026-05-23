@@ -17,7 +17,18 @@ export default defineConfig(({ mode }) => ({
       filename: "sw.ts",
       registerType: "autoUpdate",
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
+        // Precacha só JS/CSS/HTML/ícones — exclui imagens grandes e vídeos
+        globPatterns: ["**/*.{js,css,html,ico,woff2}"],
+        globIgnores: [
+          "**/*.{png,jpg,jpeg,webp,mp4,webm,svg}",
+          "**/passos*",
+          "**/pele-*",
+          "**/prob-*",
+          "**/ativo-*",
+          "**/rotina-*",
+        ],
+        // Aumenta limite para 4MB (ícones SVG grandes)
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       manifest: {
         name: "FaceGlow",

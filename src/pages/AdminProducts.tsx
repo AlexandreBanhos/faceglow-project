@@ -113,7 +113,6 @@ const VALID_PRICE_SET    = new Set(["low", "medium", "high", "premium"]);
 
 const CONCERN_ALIASES: Record<string, string> = {
   "poros dilatados":      "poros",
-  "poros dilatados":      "poros",
   "ressecamento":         "hidratacao",
   "desidratacao":         "hidratacao",
   "linhas finas":         "rugas",
