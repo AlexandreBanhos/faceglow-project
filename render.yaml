@@ -42,4 +42,4 @@ services:
       - key: Frontend__PremiumCancelUrl
         sync: false
       - key: Cors__AllowedOrigins__0
-        sync: false
+        value: https://app.faceglow-soora.me

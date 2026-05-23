@@ -31,6 +31,9 @@ public static class BillingEndpoints
         app.MapGet("/billing/status", GetStatusHandler)
             .WithName("GetBillingStatus").WithOpenApi().AllowAnonymous();
 
+        app.MapPost("/billing/cancel", CancelHandler)
+            .WithName("CancelBilling").WithOpenApi().RequireAuthorization();
+
         app.MapPost("/billing/webhook/mercadopago", MercadoPagoWebhookHandler)
             .WithName("MercadoPagoWebhook").WithOpenApi();
 
@@ -119,6 +122,31 @@ public static class BillingEndpoints
         return Results.Ok(await billingService.CreateCheckoutAsync(userId.Value, request, cancellationToken));
     }
 
+    private static async Task<IResult> CancelHandler(
+        ClaimsPrincipal user, AppDbContext dbContext, IMemoryCache cache,
+        CancellationToken cancellationToken)
+    {
+        var userId = EndpointHelpers.GetAuthenticatedUserId(user);
+        if (!userId.HasValue) return Results.Unauthorized();
+
+        var subscription = await dbContext.Subscriptions
+            .Where(x => x.UserId == userId.Value && x.Status == "active")
+            .OrderByDescending(x => x.ActivatedAtUtc ?? x.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (subscription is null)
+            return Results.NotFound(new { error = "Nenhuma assinatura ativa encontrada." });
+
+        subscription.Status = "canceled";
+        subscription.ExpiresAtUtc = DateTime.UtcNow;
+        subscription.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        cache.Remove($"billing_status_{userId.Value}");
+
+        return Results.Ok(new { canceled = true });
+    }
+
     private static async Task<IResult> GetStatusHandler(
         string? externalReference, string? externalId, string? forceRefresh,
         ClaimsPrincipal user, AppDbContext dbContext, IMemoryCache cache,
@@ -183,6 +211,7 @@ public static class BillingEndpoints
         HttpRequest request, AppDbContext dbContext, IHttpClientFactory httpClientFactory,
         IBillingService billingService, IMemoryCache cache,
         SkinAnalysis.Api.Services.AffiliateService affiliateService,
+        IServiceScopeFactory scopeFactory,
         ILoggerFactory loggerFactory, CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("MercadoPagoWebhook");
@@ -258,6 +287,7 @@ public static class BillingEndpoints
         {
             await EndpointHelpers.GrantCreditsAsync(dbContext, subscription.UserId, subscription.PlanKey, cancellationToken);
             await affiliateService.RecordConversionAsync(subscription.Id, subscription.UserId, subscription.PlanKey, subscription.AmountCents, cancellationToken);
+            _ = TriggerRoutineGenerationAsync(scopeFactory, subscription.UserId, loggerFactory);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -269,6 +299,7 @@ public static class BillingEndpoints
     private static async Task<IResult> StripeWebhookHandler(
         HttpRequest request, AppDbContext dbContext, IConfiguration configuration,
         IMemoryCache cache, SkinAnalysis.Api.Services.AffiliateService affiliateService,
+        IServiceScopeFactory scopeFactory,
         ILoggerFactory loggerFactory, CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("StripeWebhook");
@@ -334,6 +365,7 @@ public static class BillingEndpoints
             {
                 await EndpointHelpers.GrantCreditsAsync(dbContext, subscription.UserId, subscription.PlanKey, cancellationToken);
                 await affiliateService.RecordConversionAsync(subscription.Id, subscription.UserId, subscription.PlanKey, subscription.AmountCents, cancellationToken);
+                _ = TriggerRoutineGenerationAsync(scopeFactory, subscription.UserId, loggerFactory);
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -341,5 +373,54 @@ public static class BillingEndpoints
         }
 
         return Results.Ok(new { received = true });
+    }
+
+    private static Task TriggerRoutineGenerationAsync(IServiceScopeFactory scopeFactory, Guid userId, ILoggerFactory loggerFactory)
+    {
+        return Task.Run(async () =>
+        {
+            var logger = loggerFactory.CreateLogger("PremiumRoutineGen");
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var routineGen = scope.ServiceProvider.GetRequiredService<SkinAnalysis.Api.Services.RoutineGeneratorService>();
+
+                var profile = await db.SkinProfiles
+                    .Where(p => p.UserId == userId && p.IsCurrent)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (profile is null)
+                {
+                    logger.LogInformation("[RoutineGen] No profile for user {UserId} — skipping", userId);
+                    return;
+                }
+
+                var hasRoutine = await db.Routines.AnyAsync(r => r.UserId == userId && r.IsActive);
+                if (hasRoutine)
+                {
+                    logger.LogInformation("[RoutineGen] User {UserId} already has routine — skipping on renewal", userId);
+                    return;
+                }
+
+                await routineGen.GenerateForProfileAsync(profile);
+                logger.LogInformation("[RoutineGen] Routine generated for user {UserId}", userId);
+
+                try
+                {
+                    var push = scope.ServiceProvider.GetRequiredService<SkinAnalysis.Api.Services.PushNotificationService>();
+                    await push.SendToUserAsync(userId,
+                        "Sua rotina está pronta! ✨",
+                        "Geramos uma rotina personalizada com os melhores produtos para o seu tipo de pele.",
+                        "/routine", "routine_ready");
+                }
+                catch (InvalidOperationException) { }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[RoutineGen] Falha ao gerar rotina para user {UserId}", userId);
+            }
+        });
     }
 }

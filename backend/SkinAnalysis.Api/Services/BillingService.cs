@@ -359,19 +359,31 @@ public class BillingService : IBillingService
             ["plan"] = plan.Key
         });
 
+        var planDescription = plan.Key switch
+        {
+            "credits" => "1 análise facial completa com diagnóstico de pele e rotina personalizada.",
+            "monthly" => "Acesso premium por 30 dias: 6 créditos de análise + rotina personalizada com produtos.",
+            "annual"  => "Acesso premium por 365 dias: créditos de análise ilimitados + rotina personalizada.",
+            _         => "Acesso ao FaceGlow Premium.",
+        };
+
         var form = new List<KeyValuePair<string, string>>
         {
             new("mode", "payment"),
+            new("locale", "pt-BR"),
+            new("submit_type", "pay"),
             new("success_url", enrichedSuccessUrl),
             new("cancel_url", enrichedCancelUrl),
             new("payment_method_types[0]", "card"),
             new("line_items[0][price_data][currency]", "brl"),
-            new("line_items[0][price_data][product_data][name]", $"FaceGlow Premium - {plan.Name}"),
+            new("line_items[0][price_data][product_data][name]", $"FaceGlow — {plan.Name}"),
+            new("line_items[0][price_data][product_data][description]", planDescription),
             new("line_items[0][price_data][unit_amount]", plan.AmountCents.ToString()),
             new("line_items[0][quantity]", "1"),
             new("metadata[user_id]", userId.ToString()),
             new("metadata[plan_key]", plan.Key),
             new("metadata[external_reference]", externalReference),
+            new("custom_text[submit][message]", "Seus dados são protegidos com criptografia SSL. Pagamento seguro via Stripe."),
         };
         if (!string.IsNullOrWhiteSpace(email))
         {

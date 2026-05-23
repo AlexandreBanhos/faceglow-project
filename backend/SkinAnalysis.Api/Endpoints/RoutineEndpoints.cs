@@ -13,6 +13,14 @@ public static class RoutineEndpoints
     {
         app.MapPost("/routine/mark-complete", MarkCompleteHandler)
             .WithName("MarkRoutineComplete").WithOpenApi().RequireAuthorization();
+
+        app.MapGet("/routine/ready", async (ClaimsPrincipal user, AppDbContext dbContext, CancellationToken ct) =>
+        {
+            var userId = EndpointHelpers.GetAuthenticatedUserId(user);
+            if (!userId.HasValue) return Results.Unauthorized();
+            var ready = await dbContext.Routines.AnyAsync(r => r.UserId == userId.Value && r.IsActive, ct);
+            return Results.Ok(new { ready });
+        }).WithName("GetRoutineReady").WithOpenApi().RequireAuthorization();
     }
 
     private static async Task<IResult> MarkCompleteHandler(
