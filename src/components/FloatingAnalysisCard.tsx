@@ -149,6 +149,8 @@ export const FloatingAnalysisCard = ({
   skinAge,
   confidence,
 }: FloatingAnalysisCardProps) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   if (!isOpen) return null;
 
   const allMetrics = metricCards
@@ -209,11 +211,10 @@ export const FloatingAnalysisCard = ({
           <div />
         </div>
 
-        {/* Painel inferior — altura automática baseada nas métricas */}
+        {/* Painel inferior */}
         <motion.div
           className="absolute inset-x-0 bottom-0 z-30 flex flex-col"
           style={{
-            maxHeight: "86svh",
             background: "rgba(251,246,241,0.94)",
             backdropFilter: "blur(28px)",
             WebkitBackdropFilter: "blur(28px)",
@@ -224,83 +225,97 @@ export const FloatingAnalysisCard = ({
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.42, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Handle */}
-          <div className="mx-auto mt-3 mb-3 h-1 w-9 flex-shrink-0 rounded-full bg-black/10" />
-
-          {/* Lista de métricas — scroll se overflow */}
-          <div
-            className="px-4 pb-2"
-            style={{
-              overflowY: "auto",
-              maxHeight: "calc(86svh - 148px)",
-              scrollbarWidth: "none",
-            }}
+          {/* Handle — toque para colapsar/expandir */}
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(v => !v)}
+            className="flex flex-col items-center w-full pt-3 pb-2 flex-shrink-0"
+            style={{ background: "transparent", border: "none", cursor: "pointer" }}
+            aria-label={isCollapsed ? "Expandir métricas" : "Ocultar métricas"}
           >
-            <div className="flex flex-col gap-2">
-              {allMetrics.map((metric, i) => (
-                <motion.div
-                  key={metric.label}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.28, delay: 0.18 + i * 0.04 }}
-                  style={{
-                    position: "relative",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    background: "rgba(255,255,255,0.55)",
-                    border: "1px solid rgba(255,255,255,0.65)",
-                  }}
-                >
-                  {/* Barra de preenchimento proporcional */}
-                  <motion.div
-                    style={{
-                      position: "absolute",
-                      top: 0, left: 0, bottom: 0,
-                      width: `${metric.value}%`,
-                      background: "linear-gradient(90deg, rgba(221,182,147,0.28) 0%, rgba(232,169,194,0.22) 60%, rgba(239,143,184,0.18) 100%)",
-                      transformOrigin: "left center",
-                    }}
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ duration: 0.65, delay: 0.22 + i * 0.04, ease: "easeOut" }}
-                  />
+            <div className="h-1 w-9 rounded-full bg-black/10 mb-1.5" />
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", color: "var(--fg-ink-3)", textTransform: "uppercase" }}>
+              {isCollapsed ? "ver métricas" : "ocultar"}
+            </span>
+          </button>
 
-                  {/* Conteúdo */}
-                  <div
+          {/* Lista de métricas — colapsa ao tocar no handle */}
+          <motion.div
+            animate={{ height: isCollapsed ? 0 : "auto", opacity: isCollapsed ? 0 : 1 }}
+            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            style={{ overflow: "hidden" }}
+          >
+            <div
+              className="px-4 pb-2"
+              style={{
+                overflowY: "auto",
+                maxHeight: "calc(60svh - 148px)",
+                scrollbarWidth: "none",
+              }}
+            >
+              <div className="flex flex-col gap-2">
+                {allMetrics.map((metric, i) => (
+                  <motion.div
+                    key={metric.label}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.28, delay: 0.18 + i * 0.04 }}
                     style={{
                       position: "relative",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "12px 16px",
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      background: "rgba(255,255,255,0.55)",
+                      border: "1px solid rgba(255,255,255,0.65)",
                     }}
                   >
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "var(--fg-ink)" }}>
-                      {metric.label}
-                    </span>
-                    <span
+                    <motion.div
                       style={{
-                        fontSize: 14,
-                        fontWeight: 700,
-                        background: "var(--grad-coral)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
+                        position: "absolute",
+                        top: 0, left: 0, bottom: 0,
+                        width: `${metric.value}%`,
+                        background: "linear-gradient(90deg, rgba(221,182,147,0.28) 0%, rgba(232,169,194,0.22) 60%, rgba(239,143,184,0.18) 100%)",
+                        transformOrigin: "left center",
+                      }}
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ duration: 0.65, delay: 0.22 + i * 0.04, ease: "easeOut" }}
+                    />
+                    <div
+                      style={{
+                        position: "relative",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "12px 16px",
                       }}
                     >
-                      {metric.value}%
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
+                      <span style={{ fontSize: 14, fontWeight: 500, color: "var(--fg-ink)" }}>
+                        {metric.label}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          background: "var(--grad-coral)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                        }}
+                      >
+                        {metric.value}%
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
 
-              {allMetrics.length === 0 && (
-                <div className="flex h-14 items-center justify-center text-sm text-[var(--fg-ink-3)]">
-                  Métricas não disponíveis
-                </div>
-              )}
+                {allMetrics.length === 0 && (
+                  <div className="flex h-14 items-center justify-center text-sm text-[var(--fg-ink-3)]">
+                    Métricas não disponíveis
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Footer fixo: confiança + slider */}
           <div

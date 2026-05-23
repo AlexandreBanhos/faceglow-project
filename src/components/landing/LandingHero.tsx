@@ -106,12 +106,12 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0 }}
           style={{
-            fontSize: "clamp(1.9rem, 8vw, 2.4rem)",
+            fontSize: "clamp(1.1rem, 8vw, 3.4rem)",
             fontWeight: 800,
             lineHeight: 1.1,
             color: "#1A0E0A",
-            margin: 0,
-            padding: "16px 24px 0",
+            margin: "8px",
+            padding: "10px 32px 0",
             position: "relative",
             zIndex: 2,
           }}
@@ -129,12 +129,12 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
             alignItems: "center",
             gap: 8,
             borderRadius: 999,
-            padding: "7px 14px",
+            padding: "3px 34px",
             background: "rgba(255,255,255,0.75)",
             backdropFilter: "blur(8px)",
             fontSize: 12,
             color: "#1A0E0A",
-            margin: "8px 24px 0",
+            margin: "0 24px 0",
             alignSelf: "flex-start",
             position: "relative",
             zIndex: 2,
