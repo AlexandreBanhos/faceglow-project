@@ -48,6 +48,8 @@ public class Subscription
     public DateTime? ExpiresAtUtc { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public string? ReferralCode { get; set; }
+    public Guid?   AffiliateId  { get; set; }
 }

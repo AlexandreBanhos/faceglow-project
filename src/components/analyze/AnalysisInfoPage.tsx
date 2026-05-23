@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { X, ChevronRight, AlertCircle, Sparkles, Shield, Star, Zap } from "lucide-react";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow.svg";
 
 interface Props {
   onStart: () => void;

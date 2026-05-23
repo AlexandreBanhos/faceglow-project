@@ -33,6 +33,7 @@ import { AuroraBackdrop } from "@/components/shared";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { PremiumUnlockModal } from "@/components/PremiumUnlockModal";
 import { StepInfoModal } from "@/components/routine/StepInfoModal";
+import { ProductInfoModal } from "@/components/routine/ProductInfoModal";
 import { toggleFreeStep, isFreeStepDone } from "@/lib/freeRoutine";
 import { Mascot, useFloatAnimation } from "@/components/quiz/Mascot";
 import { ProductSwitchSheet } from "@/components/routine/ProductSwitchSheet";
@@ -411,6 +412,8 @@ const Routine = () => {
   const [isEditing, setIsEditing] = useState(false);
   // Free user: step info modal
   const [stepInfoLabel, setStepInfoLabel] = useState<string | null>(null);
+  // Premium user: product info modal
+  const [productInfoItem, setProductInfoItem] = useState<RoutineItem | null>(null);
   // Free user: completion tracking via freeRoutine.ts (separado dos UUIDs premium)
   const [freeCheckedRevision, setFreeCheckedRevision] = useState(0);
   const todayDateStr = (() => {
@@ -2708,14 +2711,14 @@ const Routine = () => {
                           ) : (
                             <StepIcon stepTypeKey={item.stepTypeKey} className="w-full h-full" />
                           )}
-                          {/* Ícone de pesquisa — sempre visível, sobreposto à imagem */}
+                          {/* Ícone de informação — substitui a lupa, canto inferior direito */}
                           <button
-                            onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(getDisplayProductName(item))}`, "_blank", "noopener,noreferrer")}
+                            onClick={(e) => { e.stopPropagation(); setProductInfoItem(item); }}
                             className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full flex items-center justify-center transition-opacity hover:opacity-90"
                             style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }}
-                            aria-label="Pesquisar produto"
+                            aria-label="Informações sobre o produto"
                           >
-                            <Search size={13} className="text-white" />
+                            <Info size={13} className="text-white" />
                           </button>
                         </div>}
 
@@ -2723,8 +2726,25 @@ const Routine = () => {
                         <div className="flex-1 min-w-0 space-y-1">
                           {/* Passo + badge de recorrência (recorrência só em edição) */}
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-primary">
-                              {item.stepNumber} · {capitalizeWords(item.stepLabel)}
+                            {/* Círculo com número — padrão free */}
+                            <span
+                              className="rounded-full flex items-center justify-center font-extrabold flex-shrink-0 text-white"
+                              style={{
+                                width: 22, height: 22, fontSize: 10,
+                                background: isChecked && !isEditing ? "rgba(156,163,175,0.6)" : "var(--grad-coral)",
+                                boxShadow: isChecked && !isEditing ? "none" : "var(--shadow-glow)",
+                                transition: "background 300ms, box-shadow 300ms",
+                              }}
+                            >
+                              {item.stepNumber}
+                            </span>
+                            <p className="text-[10px] font-bold uppercase tracking-wide" style={{
+                              background: "var(--grad-coral)",
+                              WebkitBackgroundClip: "text",
+                              WebkitTextFillColor: "transparent",
+                              backgroundClip: "text",
+                            }}>
+                              {capitalizeWords(item.stepLabel)}
                             </p>
                             {isEditing && (
                               <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold items-center gap-1" style={{ backgroundColor: "rgba(255,255,255,0.7)", color: "#9CA3AF" }}>
@@ -2808,45 +2828,47 @@ const Routine = () => {
                             </button>
                           </div>
                         ) : (
-                          /* Check button — 44px touch target, spring animation */
-                          <motion.button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              toggleChecklist(item.key);
-                            }}
-                            whileTap={{ scale: 0.88 }}
-                            animate={isChecked
-                              ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } }
-                              : { scale: 1 }
-                            }
-                            className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center flex-shrink-0"
-                            style={isChecked
-                              ? { background: "var(--grad-coral)", border: "2px solid transparent" }
-                              : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
-                            }
-                            aria-label={isChecked ? "Desmarcar item" : "Marcar item"}
-                          >
-                            {isChecked && (
-                              <motion.svg
-                                width="14" height="14" viewBox="0 0 12 12" fill="none"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.15 }}
-                              >
-                                <motion.path
-                                  d="M2 6L5 9L10 3"
-                                  stroke="white"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  initial={{ pathLength: 0 }}
-                                  animate={{ pathLength: 1 }}
-                                  transition={{ duration: 0.22, ease: "easeOut" }}
-                                />
-                              </motion.svg>
-                            )}
-                          </motion.button>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {/* Check button — 44px touch target, spring animation */}
+                            <motion.button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleChecklist(item.key);
+                              }}
+                              whileTap={{ scale: 0.88 }}
+                              animate={isChecked
+                                ? { scale: [1, 1.18, 1], transition: { duration: 0.28, ease: "easeOut" } }
+                                : { scale: 1 }
+                              }
+                              className="min-w-[44px] min-h-[44px] rounded-full flex items-center justify-center flex-shrink-0"
+                              style={isChecked
+                                ? { background: "var(--grad-coral)", border: "2px solid transparent" }
+                                : { backgroundColor: "rgba(255,255,255,0.8)", border: "2px solid #E0DCD6" }
+                              }
+                              aria-label={isChecked ? "Desmarcar item" : "Marcar item"}
+                            >
+                              {isChecked && (
+                                <motion.svg
+                                  width="14" height="14" viewBox="0 0 12 12" fill="none"
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{ duration: 0.15 }}
+                                >
+                                  <motion.path
+                                    d="M2 6L5 9L10 3"
+                                    stroke="white"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    initial={{ pathLength: 0 }}
+                                    animate={{ pathLength: 1 }}
+                                    transition={{ duration: 0.22, ease: "easeOut" }}
+                                  />
+                                </motion.svg>
+                              )}
+                            </motion.button>
+                          </div>
                         )}
                       </div>
 
@@ -3507,6 +3529,7 @@ const Routine = () => {
           initialCategory={wizardItem?.type}
           initialStepLabel={wizardItem?.stepLabel}
           initialPeriod={wizardItem?.period}
+          initialRecurrence={wizardItem?.recurrence}
           currentProductName={wizardItem ? getDisplayProductName(wizardItem) : undefined}
           currentProductImage={wizardItem ? getDisplayImage(wizardItem) : undefined}
           isCurrentUserProduct={wizardItem?.isCustom ?? false}
@@ -3952,6 +3975,18 @@ const Routine = () => {
         stepLabel={stepInfoLabel ?? ""}
         skinType={analysis?.skinType}
         onClose={() => setStepInfoLabel(null)}
+      />
+
+      {/* Modal de informações do produto — usuários premium */}
+      <ProductInfoModal
+        open={productInfoItem !== null}
+        productName={productInfoItem ? getDisplayProductName(productInfoItem) : ""}
+        productImage={productInfoItem ? getDisplayImage(productInfoItem) : null}
+        recommendationReason={productInfoItem ? getDisplayReason(productInfoItem) : null}
+        stepLabel={productInfoItem?.stepLabel ?? ""}
+        stepTypeKey={productInfoItem?.stepTypeKey ?? ""}
+        skinType={analysis?.skinType}
+        onClose={() => setProductInfoItem(null)}
       />
 
       {/* Modal premium — abre automaticamente para usuários free (cooldown 24h após dispensa) */}

@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -8,7 +9,33 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     hmr: { overlay: false },
   },
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      registerType: "autoUpdate",
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
+      },
+      manifest: {
+        name: "FaceGlow",
+        short_name: "FaceGlow",
+        description: "Análise de pele com IA e rotina personalizada",
+        theme_color: "#E8748A",
+        background_color: "#FDF8F6",
+        display: "standalone",
+        orientation: "portrait",
+        start_url: "/",
+        scope: "/",
+        icons: [
+          { src: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+        ],
+      },
+    }),
+  ],
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],

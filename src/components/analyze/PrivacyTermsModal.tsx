@@ -72,7 +72,7 @@ const PrivacyTermsModal = ({ onAccept }: PrivacyTermsModalProps) => {
                 Nosso Compromisso com a Privacidade
               </h3>
               <div className="space-y-1.5" style={{ fontSize: 12, color: "#6B6B6B", lineHeight: 1.55 }}>
-                <p>Mínimo <strong style={{ color: "#1A1A1A" }}>16 anos</strong>. Imagens usadas apenas para análise e <strong style={{ color: "#1A1A1A" }}>excluídas logo após</strong>.</p>
+                <p>Mínimo <strong style={{ color: "#1A1A1A" }}>16 anos</strong>. Imagens usadas apenas para análise e <strong style={{ color: "#1A1A1A" }}>vinculadas somente ao seu perfil</strong>.</p>
                 <p>Serviço da <strong style={{ color: "#1A1A1A" }}>Soora</strong>. Caráter informativo — não substitui profissional de saúde.</p>
               </div>
             </div>

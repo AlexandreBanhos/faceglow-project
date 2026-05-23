@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ArrowRight, Shield, Zap } from "lucide-react";
 import heroImg from "@/assets/imagem_tela_inicial.png";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow.svg";
 
 const Onboarding = () => {
   const navigate = useNavigate();

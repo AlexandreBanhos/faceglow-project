@@ -48,7 +48,9 @@ public static class ProductEndpoints
             .OrderByDescending(p => p.CurationScore)
             .Select(p => new {
                 p.Id, p.Name, p.Brand, p.StepTypeKey,
-                p.Tagline, p.PriceRange, p.CurationScore, p.IsStaffPick,
+                p.Description, p.Tagline, p.PriceRange, p.PriceAvg,
+                p.CompatibleSkinTypes, p.TargetsConcerns,
+                p.CurationScore, p.IsStaffPick,
                 ImageUrl = p.Images.OrderBy(i => i.Position).Select(i => i.PublicUrl).FirstOrDefault(),
             })
             .Take(20)

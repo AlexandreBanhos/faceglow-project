@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 
 const STATS = [
-  { value: "12.400+", label: "análises realizadas" },
-  { value: "4,8",     label: "estrelas de avaliação" },
-  { value: "60s",     label: "para o resultado" },
-  { value: "100%",    label: "gratuito para começar" },
+  { value: "600+",  label: "produtos curados no catálogo" },
+  { value: "12+",   label: "parâmetros de pele analisados" },
+  { value: "60s",   label: "para o resultado completo" },
+  { value: "Grátis", label: "sua primeira análise" },
 ];
 
 export function StatsStrip() {

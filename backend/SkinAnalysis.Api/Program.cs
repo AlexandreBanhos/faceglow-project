@@ -146,6 +146,9 @@ builder.Services.AddScoped<RoutineSuggestionService>();
 builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<ProductEnrichmentService>();
+builder.Services.AddScoped<PushNotificationService>();
+builder.Services.AddScoped<AffiliateService>();
+builder.Services.AddHostedService<NotificationSchedulerService>();
 
 var app = builder.Build();
 
@@ -327,6 +330,8 @@ app.MapRoutineStepEndpoints();
 app.MapRoutineCompletionEndpoints();
 app.MapUserProductEndpoints();
 app.MapSuggestionEndpoints();
+app.MapNotificationEndpoints();
+app.MapAffiliateEndpoints();
 
 // ── Lifestyle refinement ─────────────────────────────────────────────────────
 app.MapPut("/profile/lifestyle", async (

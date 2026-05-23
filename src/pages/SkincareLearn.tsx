@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { LearnCard } from "@/components/LearnCard";
 import { LEARN_CARDS, CATEGORIES, CATEGORY_LABELS, type LearnCategory } from "@/data/skincareLearn";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-color.webp";
 
 export default function SkincareLearn() {
   const navigate = useNavigate();

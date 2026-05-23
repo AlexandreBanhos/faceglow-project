@@ -11,8 +11,8 @@ const SelfieGuidelines = ({ onStartCamera, onBack }: SelfieGuidelinesProps) => {
   const guidelines = [
     {
       icon: "✓",
-      title: "Sem maquiagem e óculos",
-      description: "Remova para análise mais precisa",
+      title: "Remova os óculos",
+      description: "Óculos interferem na leitura do rosto pela IA",
     },
     {
       icon: "✓",

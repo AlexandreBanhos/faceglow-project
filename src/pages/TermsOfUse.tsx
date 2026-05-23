@@ -54,24 +54,24 @@ export default function TermsOfUse() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-2">4. Créditos e planos</h2>
+          <h2 className="text-lg font-semibold mb-2">4. Planos e funcionalidades</h2>
           <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-            <li><strong>Plano Free:</strong> 1 análise gratuita vitalícia, sem cartão de crédito.</li>
-            <li><strong>Análise Avulsa:</strong> R$ 4,90 por análise (PIX via MercadoPago ou cartão).</li>
-            <li><strong>Premium Mensal:</strong> R$ 24,90/mês com 8 análises mensais e acesso completo (cartão via Stripe ou PIX).</li>
-            <li><strong>Premium Anual:</strong> R$ 197,90/ano (equivalente a R$ 16,49/mês) — 2 meses grátis em relação ao plano mensal.</li>
-            <li>Créditos avulsos não utilizados não expiram enquanto a conta estiver ativa.</li>
-            <li>Não há reembolso de créditos já utilizados em análises concluídas.</li>
+            <li><strong>Plano Gratuito:</strong> análise de pele completa com rotina de skincare (passos diários). Gratuito para todos os usuários cadastrados, sem cartão de crédito.</li>
+            <li><strong>Plano Premium:</strong> inclui tudo do plano gratuito, mais rotina personalizada com recomendações de produtos curados por IA, histórico avançado e funcionalidades exclusivas.</li>
+            <li>Os valores dos planos premium estão disponíveis na página de preços e podem ser atualizados mediante aviso prévio.</li>
+            <li>Créditos avulsos adquiridos não expiram enquanto a conta estiver ativa.</li>
+            <li>Não há reembolso de créditos já consumidos em análises concluídas.</li>
           </ul>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold mb-2">5. Cancelamento e reembolso</h2>
-          <p className="text-muted-foreground">
-            Você pode cancelar o plano mensal a qualquer momento. O acesso continua até o final do período pago.
-            Reembolsos são concedidos apenas para cobranças duplicadas ou falhas técnicas comprovadas.
-            Solicite por e-mail: <strong>suporte@faceglow.com.br</strong>
-          </p>
+          <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+            <li><strong>Direito de arrependimento (CDC Art. 49):</strong> para compras realizadas online, você tem direito ao cancelamento e reembolso integral em até 7 dias corridos da contratação, sem necessidade de justificativa. Solicite por e-mail: <strong>suporte@faceglow.com.br</strong></li>
+            <li>Após 7 dias, o cancelamento da assinatura encerra a renovação automática, mas o acesso continua até o fim do período já pago.</li>
+            <li>Reembolsos após 7 dias são concedidos apenas para cobranças duplicadas ou falhas técnicas comprovadas.</li>
+            <li>Para solicitar cancelamento ou reembolso: <strong>suporte@faceglow.com.br</strong></li>
+          </ul>
         </section>
 
         <section>

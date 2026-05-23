@@ -720,8 +720,12 @@ export type CatalogProduct = {
   name: string;
   brand: string;
   stepTypeKey: string;
+  description?: string | null;
   tagline?: string | null;
   priceRange?: string | null;
+  priceAvg?: number | null;
+  compatibleSkinTypes?: string[] | null;
+  targetsConcerns?: string[] | null;
   curationScore: number;
   isStaffPick: boolean;
   imageUrl?: string | null;

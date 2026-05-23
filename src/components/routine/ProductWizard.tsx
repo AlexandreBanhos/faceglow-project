@@ -19,6 +19,8 @@ import { uploadProductImage } from "@/lib/storage";
 import { StepIcon } from "@/components/routine/StepIcon";
 import { Mascot, SpeechBubble, useFloatAnimation } from "@/components/quiz/Mascot";
 import type { MascotMood } from "@/components/quiz/Mascot";
+import { BrandLogoFilter } from "@/components/routine/BrandLogoFilter";
+import { fetchBrandLogos, type BrandLogo } from "@/lib/brandLogos";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -52,12 +54,23 @@ interface ProductWizardProps {
   initialCategory?: string;
   initialStepLabel?: string;
   initialPeriod?: "morning" | "night";
+  initialRecurrence?: string;
   currentProductName?: string;
   currentProductImage?: string | null;
   /** Se o produto atual foi cadastrado pelo usuário (exibe opção de editar) */
   isCurrentUserProduct?: boolean;
   recommendations?: WizardProductOption[];
   onConfirm: (result: WizardResult) => void;
+}
+
+function recurrenceToState(recurrence?: string): { isDaily: boolean; days: string[] } {
+  switch (recurrence) {
+    case "3x_week":  return { isDaily: false, days: ["mon", "wed", "fri"] };
+    case "2x_week":  return { isDaily: false, days: ["mon", "thu"] };
+    case "weekly":   return { isDaily: false, days: ["mon"] };
+    case "as_needed":return { isDaily: false, days: [] };
+    default:         return { isDaily: true,  days: WEEK_DAYS.map(d => d.key) };
+  }
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -89,11 +102,14 @@ const WEEK_DAYS = [
 ];
 
 type Step =
+  | "action" | "frequency"
   | "category" | "source" | "recommendations" | "catalog"
   | "my_products" | "register" | "period"
   | "edit_name" | "edit_category" | "edit_brand" | "edit_photo";
 
 const STEP_TITLES: Partial<Record<Step, string>> = {
+  action:          "O que deseja fazer?",
+  frequency:       "Quando usar?",
   category:        "Qual passo?",
   source:          "De onde vem o produto?",
   recommendations: "Recomendações para você",
@@ -115,6 +131,8 @@ const slideVariants = {
 
 type StepMeta = { text: string; highlight: string; subtitle?: string; mood: MascotMood };
 const STEP_MASCOT: Record<Step, StepMeta> = {
+  action:          { text: "O que quer fazer com esse passo?",     highlight: "passo",           mood: "thinking" },
+  frequency:       { text: "Com que frequência usar?",             highlight: "frequência",      mood: "happy"    },
   category:        { text: "Qual categoria de passo?",             highlight: "categoria",       mood: "happy"    },
   source:          { text: "De onde vem o produto?",               highlight: "produto",         mood: "thinking" },
   recommendations: { text: "Recomendações para você!",             highlight: "Recomendações",   mood: "happy"    },
@@ -138,7 +156,7 @@ const BTN_SECONDARY = "w-full py-3 rounded-2xl border border-slate-200 bg-white 
 
 export function ProductWizard({
   open, onClose, mode,
-  initialCategory, initialStepLabel, initialPeriod,
+  initialCategory, initialStepLabel, initialPeriod, initialRecurrence,
   currentProductName, currentProductImage,
   isCurrentUserProduct = false,
   recommendations = [],
@@ -147,7 +165,7 @@ export function ProductWizard({
 
   useFloatAnimation();
 
-  const firstStep: Step = mode === "swap" ? "source" : "category";
+  const firstStep: Step = mode === "swap" ? "action" : "category";
 
   const [step, setStep]       = useState<Step>(firstStep);
   const [history, setHistory] = useState<Step[]>([]);
@@ -168,6 +186,9 @@ export function ProductWizard({
   const [isCatalogLoading, setIsCatalogLoading] = useState(false);
   const [catalogSearched, setCatalogSearched]   = useState(false);
   const catalogTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Brand logos
+  const [brandLogos, setBrandLogos]             = useState<BrandLogo[]>([]);
 
   // Meus produtos
   const [myProducts, setMyProducts]             = useState<UserCatalogProduct[]>([]);
@@ -191,7 +212,7 @@ export function ProductWizard({
   // Reset ao abrir
   useEffect(() => {
     if (open) {
-      setStep(mode === "swap" ? "source" : "category");
+      setStep(mode === "swap" ? "action" : "category");
       setHistory([]);
       setDir(1);
       setSelectedCategory(WIZARD_CATEGORIES.find(c => c.key === initialCategory) ?? null);
@@ -200,7 +221,8 @@ export function ProductWizard({
       setPeriod(initialPeriod === "morning" ? "morning" : initialPeriod === "night" ? "night" : "both");
       setCatalogQuery(""); setCatalogResults([]); setCatalogSearched(false);
       setRegName(""); setRegBrand(""); setRegImageUrl(undefined); setRegImageFile(null);
-      setRegIsDaily(true); setRegDays(WEEK_DAYS.map(d => d.key));
+      const freqState = recurrenceToState(initialRecurrence);
+      setRegIsDaily(freqState.isDaily); setRegDays(freqState.days);
       setIsEditMode(false); setEditingProductId(null);
       setCustomBrandInput("");
     }
@@ -238,6 +260,15 @@ export function ProductWizard({
       })
       .catch(() => {});
   }, [step, selectedCategory?.key]);
+
+  // Brand logos — carrega uma vez e usa cache
+  useEffect(() => {
+    if (brandLogos.length > 0) return;
+    fetchBrandLogos().then(setBrandLogos).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Passos que NÃO devem exibir filtro de marcas (medicamentos)
+  const isMedicalCategory = selectedCategory?.key === "retinoid" || selectedCategory?.key === "acid";
 
   // ── Navegação ───────────────────────────────────────────────────────────────
 
@@ -352,14 +383,33 @@ export function ProductWizard({
     }
   };
 
+  const calcRecurrence = () =>
+    regIsDaily ? "daily"
+    : regDays.length === 0 ? "as_needed"
+    : regDays.length >= 6 ? "daily"
+    : regDays.length === 3 ? "3x_week"
+    : regDays.length === 2 ? "2x_week"
+    : "weekly";
+
+  // Confirma apenas a frequência, mantendo o produto atual intacto
+  const handleConfirmFrequency = () => {
+    onConfirm({
+      productName:   currentProductName ?? "",
+      imageUrl:      currentProductImage ?? undefined,
+      category:      selectedCategory?.key ?? initialCategory ?? "",
+      categoryLabel: selectedCategory?.label ?? initialStepLabel ?? "",
+      stepLabel:     initialStepLabel ?? selectedCategory?.label ?? "",
+      recurrence:    calcRecurrence(),
+      scheduledDays: !regIsDaily && regDays.length > 0 ? regDays : undefined,
+      period,
+      source:        "recommendation",
+    });
+    onClose();
+  };
+
   const handleConfirm = () => {
     if (!selectedProduct || !selectedCategory) return;
-    const recurrence = regIsDaily ? "daily"
-      : regDays.length === 0 ? "as_needed"
-      : regDays.length >= 6 ? "daily"
-      : regDays.length === 3 ? "3x_week"
-      : regDays.length === 2 ? "2x_week"
-      : "weekly";
+    const recurrence = calcRecurrence();
 
     onConfirm({
       productName:   selectedProduct.name,
@@ -367,8 +417,8 @@ export function ProductWizard({
       category:      selectedCategory.key,
       categoryLabel: selectedCategory.label,
       stepLabel:     initialStepLabel ?? selectedCategory.label,
-      recurrence:    selectedSource === "new" ? recurrence : "daily",
-      scheduledDays: (!regIsDaily && selectedSource === "new") ? regDays : undefined,
+      recurrence:    recurrence,
+      scheduledDays: !regIsDaily && regDays.length > 0 ? regDays : undefined,
       period,
       source:        selectedSource ?? "new",
     });
@@ -475,6 +525,127 @@ export function ProductWizard({
                   </div>
                 );
               })()}
+
+              {/* ── AÇÃO (entrada do swap) ────────────────────────────────── */}
+              {step === "action" && (
+                <div className="space-y-3">
+                  {/* Card do produto atual */}
+                  {currentProductName && (
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100 mb-1">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 flex items-center justify-center"
+                        style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                        {currentProductImage
+                          ? <img src={currentProductImage} alt={currentProductName} className="w-full h-full object-contain p-0.5" referrerPolicy="no-referrer" />
+                          : <StepIcon stepTypeKey={selectedCategory?.key} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Produto atual</p>
+                        <p className="text-sm font-semibold text-slate-800 truncate">{currentProductName}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <SourceOption
+                    faIcon={faArrowRightArrowLeft}
+                    iconBg="linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)"
+                    iconColor="white"
+                    title="Trocar produto"
+                    sub="Substituir por outro produto ou da IA"
+                    onClick={() => goTo("source")}
+                    highlight
+                  />
+                  <SourceOption
+                    faIcon={faCalendarDays}
+                    iconBg="rgba(99,102,241,0.1)"
+                    iconColor="#6366f1"
+                    title="Editar frequência"
+                    sub="Mudar quando e quantas vezes usar"
+                    onClick={() => goTo("frequency")}
+                  />
+                  {isCurrentUserProduct && (
+                    <SourceOption
+                      faIcon={faPenToSquare}
+                      iconBg="rgba(245,158,11,0.1)"
+                      iconColor="#d97706"
+                      title="Editar produto"
+                      sub="Alterar nome, marca ou foto"
+                      onClick={() => { startEditCurrentProduct(); }}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* ── FREQUÊNCIA (sem trocar produto) ───────────────────────── */}
+              {step === "frequency" && (
+                <div className="space-y-5">
+                  {/* Card produto atual */}
+                  {currentProductName && (
+                    <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-slate-50"
+                        style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                        {currentProductImage
+                          ? <img src={currentProductImage} alt={currentProductName} className="w-full h-full object-contain p-0.5" referrerPolicy="no-referrer" />
+                          : <StepIcon stepTypeKey={selectedCategory?.key} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">{selectedCategory?.label}</p>
+                        <p className="text-sm font-bold text-slate-800 leading-tight truncate">{currentProductName}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Toggle diário */}
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 mb-3">Quando usar?</p>
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white border border-slate-100">
+                      <div className="flex items-center gap-2.5">
+                        <FontAwesomeIcon icon={faCalendarDays} style={{ fontSize: 14, color: "#94a3b8" }} />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">Uso diário</p>
+                          <p className="text-[11px] text-slate-400">
+                            {period === "morning" ? "Toda manhã" : period === "night" ? "Toda noite" : "Manhã e noite"}
+                          </p>
+                        </div>
+                      </div>
+                      <button onClick={() => { setRegIsDaily(v => !v); if (!regIsDaily) setRegDays(WEEK_DAYS.map(d => d.key)); }}>
+                        <FontAwesomeIcon
+                          icon={regIsDaily ? faToggleOn : faToggleOff}
+                          style={{ fontSize: 28, color: regIsDaily ? "#E8547A" : "#cbd5e1" }}
+                        />
+                      </button>
+                    </div>
+
+                    {!regIsDaily && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs font-semibold text-slate-700">Quais dias da semana?</p>
+                          <div className="flex gap-1.5">
+                            {WEEK_DAYS.map(d => (
+                              <button key={d.key} onClick={() => toggleDay(d.key)}
+                                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                                style={regDays.includes(d.key)
+                                  ? { background: "var(--grad-coral)", color: "#fff", boxShadow: "0 2px 8px rgba(232,84,122,0.3)" }
+                                  : { background: "rgba(255,255,255,0.9)", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                {d.label}
+                              </button>
+                            ))}
+                          </div>
+                          <button onClick={() => setRegDays([])}
+                            className="w-full py-2.5 rounded-xl bg-white/70 border border-slate-200 text-xs font-semibold text-slate-600 flex items-center justify-center gap-2">
+                            <FontAwesomeIcon icon={faArrowsRotate} style={{ fontSize: 11 }} />
+                            Quando necessário (sem dias fixos)
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  <button onClick={handleConfirmFrequency} className={BTN_PRIMARY}>
+                    <FontAwesomeIcon icon={faCheck} style={{ fontSize: 14 }} />
+                    Confirmar frequência
+                  </button>
+                </div>
+              )}
 
               {/* ── CATEGORIA ─────────────────────────────────────────────── */}
               {step === "category" && (
@@ -605,6 +776,15 @@ export function ProductWizard({
               {/* ── CATÁLOGO ──────────────────────────────────────────────── */}
               {step === "catalog" && (
                 <div className="space-y-3">
+                  {/* Filtro por marca — só para categorias não-medicamentos */}
+                  {!isMedicalCategory && brandLogos.length > 0 && (
+                    <BrandLogoFilter
+                      brands={brandLogos}
+                      selected={catalogQuery || null}
+                      onSelect={(name) => setCatalogQuery(name)}
+                      label="Filtrar por marca"
+                    />
+                  )}
                   <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-100 shadow-sm">
                     <FontAwesomeIcon icon={faMagnifyingGlass} style={{ fontSize: 13, color: "#94a3b8", flexShrink: 0 }} />
                     <input
@@ -877,29 +1057,49 @@ export function ProductWizard({
               {/* ── EDITAR: MARCA ────────────────────────────────────────── */}
               {step === "edit_brand" && (
                 <div className="space-y-4">
-                  {/* Marcas em pills */}
-                  <div className="flex flex-wrap gap-2">
-                    {brands.map(b => (
+                  {/* Logos de marcas — substituem os pills de texto */}
+                  {brandLogos.length > 0 ? (
+                    <div className="space-y-3">
+                      <BrandLogoFilter
+                        brands={brandLogos}
+                        selected={regBrand || null}
+                        onSelect={(name) => {
+                          setRegBrand(name);
+                          setCustomBrandInput("");
+                          if (name) goTo("edit_photo");
+                        }}
+                        label="Selecione a marca"
+                      />
+                      {/* Nenhuma */}
                       <button
-                        key={b}
-                        onClick={() => { setRegBrand(b); setCustomBrandInput(""); goTo("edit_photo"); }}
-                        className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border active:scale-95 ${
-                          regBrand === b
-                            ? "coral-button border-transparent"
-                            : "bg-white border-slate-200 text-slate-700"
-                        }`}
+                        onClick={() => { setRegBrand(""); setCustomBrandInput(""); goTo("edit_photo"); }}
+                        className="px-4 py-2 rounded-full text-xs font-semibold border bg-white border-slate-200 text-slate-400 active:scale-95"
                       >
-                        {b}
+                        Nenhuma / Outra
                       </button>
-                    ))}
-                    {/* Nenhuma */}
-                    <button
-                      onClick={() => { setRegBrand(""); setCustomBrandInput(""); goTo("edit_photo"); }}
-                      className="px-4 py-2 rounded-full text-sm font-semibold border bg-white border-slate-200 text-slate-500 active:scale-95"
-                    >
-                      Nenhuma
-                    </button>
-                  </div>
+                    </div>
+                  ) : (
+                    /* Fallback: pills de texto se logos não carregaram */
+                    <div className="flex flex-wrap gap-2">
+                      {brands.map(b => (
+                        <button
+                          key={b}
+                          onClick={() => { setRegBrand(b); setCustomBrandInput(""); goTo("edit_photo"); }}
+                          className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border active:scale-95 ${
+                            regBrand === b ? "coral-button border-transparent" : "bg-white border-slate-200 text-slate-700"
+                          }`}
+                        >
+                          {b}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => { setRegBrand(""); setCustomBrandInput(""); goTo("edit_photo"); }}
+                        className="px-4 py-2 rounded-full text-sm font-semibold border bg-white border-slate-200 text-slate-500 active:scale-95"
+                      >
+                        Nenhuma
+                      </button>
+                    </div>
+                  )}
 
                   {/* Adicionar marca customizada */}
                   <div className="space-y-2">
@@ -1021,6 +1221,68 @@ export function ProductWizard({
                         );
                       })}
                     </div>
+                  </div>
+
+                  {/* Quando usar */}
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 mb-3">Quando usar?</p>
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white border border-slate-100">
+                      <div className="flex items-center gap-2.5">
+                        <FontAwesomeIcon icon={faCalendarDays} style={{ fontSize: 14, color: "#94a3b8" }} />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">Uso diário</p>
+                          <p className="text-[11px] text-slate-400">
+                            {period === "morning" ? "Toda manhã" : period === "night" ? "Toda noite" : "Manhã e noite"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setRegIsDaily(v => !v);
+                          if (!regIsDaily) setRegDays(WEEK_DAYS.map(d => d.key));
+                        }}
+                        className="flex-shrink-0 ml-3"
+                      >
+                        <FontAwesomeIcon
+                          icon={regIsDaily ? faToggleOn : faToggleOff}
+                          style={{ fontSize: 28, color: regIsDaily ? "#E8547A" : "#cbd5e1" }}
+                        />
+                      </button>
+                    </div>
+
+                    {!regIsDaily && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs font-semibold text-slate-700">Quais dias da semana?</p>
+                          <div className="flex gap-1.5">
+                            {WEEK_DAYS.map(d => (
+                              <button
+                                key={d.key}
+                                onClick={() => toggleDay(d.key)}
+                                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                                style={regDays.includes(d.key) ? {
+                                  background: "var(--grad-coral)", color: "#fff",
+                                  boxShadow: "0 2px 8px rgba(232,84,122,0.3)",
+                                } : { background: "rgba(255,255,255,0.9)", color: "#64748b", border: "1px solid #e2e8f0" }}
+                              >
+                                {d.label}
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => setRegDays([])}
+                            className="w-full py-2.5 rounded-xl bg-white/70 border border-slate-200 text-xs font-semibold text-slate-600 flex items-center justify-center gap-2"
+                          >
+                            <FontAwesomeIcon icon={faArrowsRotate} style={{ fontSize: 11 }} />
+                            Quando necessário (sem dias fixos)
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
 
                   <button onClick={handleConfirm} className={`${BTN_PRIMARY} shadow-glow`}>

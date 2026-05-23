@@ -17,7 +17,9 @@ import { BookOpen } from "lucide-react";
 import { StatsRow } from "@/components/profile/StatsRow";
 import { SubscriptionCard } from "@/components/profile/SubscriptionCard";
 import { AccountCard } from "@/components/profile/AccountCard";
-import logoUrl from "@/assets/logo-faceglow.svg";
+import { NotificationSettings } from "@/components/profile/NotificationSettings";
+import logoUrl from "@/assets/logos/logo-faceglow-escrito-color.webp";
+import logoIcon from "@/assets/logos/logo-faceglow.svg";
 
 
 const APP_VERSION = "1.0.0";
@@ -161,12 +163,20 @@ const Profile = () => {
       icon: <HelpCircle size={17} className="text-foreground" />,
       onClick: () => navigate("/support"),
     },
-    ...(isAdmin ? [{
-      label: "Administrator",
-      icon: <Settings size={17} className="text-orange-500" />,
-      onClick: () => navigate("/admin/products"),
-      badge: "Admin",
-    }] : []),
+    ...(isAdmin ? [
+      {
+        label: "Admin Produtos",
+        icon: <Settings size={17} className="text-orange-500" />,
+        onClick: () => navigate("/admin/products"),
+        badge: "Admin",
+      },
+      {
+        label: "Admin Afiliados",
+        icon: <Settings size={17} className="text-orange-500" />,
+        onClick: () => navigate("/admin/afiliados"),
+        badge: "Admin",
+      },
+    ] : []),
   ];
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -181,7 +191,7 @@ const Profile = () => {
         className="flex flex-col items-center px-6 pt-10 pb-6"
       >
         {/* Logo FaceGlow como marca no topo */}
-        <img src={logoUrl} alt="FaceGlow" className="h-6 object-contain mb-5 opacity-70" />
+        <img src={logoIcon} alt="FaceGlow" className="h-6 object-contain mb-5 opacity-70" />
 
         {/* Avatar */}
         <div className="relative w-[88px] h-[88px] rounded-full gradient-primary flex items-center justify-center shadow-glow overflow-hidden flex-shrink-0">
@@ -275,6 +285,8 @@ const Profile = () => {
         />
 
         {/* 5. Conta */}
+        <NotificationSettings />
+
         <AccountCard items={accountItems} />
 
         {/* 6. Redes sociais */}

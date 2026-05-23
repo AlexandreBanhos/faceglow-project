@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-color.webp";
 
 export const LoadingScreen = () => {
   return (

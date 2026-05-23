@@ -116,7 +116,7 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
             zIndex: 2,
           }}
         >
-          Diagnóstico de pele<br />profissional em 60s
+          Análise de pele<br />personalizada em 60s
         </motion.h1>
 
         {/* 2. Badge */}
@@ -188,14 +188,6 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
             pointerEvents: "none",
           }} />
 
-          {/* Fade INFERIOR — espelho do superior, mescla com o fundo abaixo */}
-          <div style={{
-            position: "absolute",
-            bottom: 0, left: 0, right: 0,
-            height: "45%",
-            background: "linear-gradient(to top, rgba(255,235,228,1) 0%, rgba(255,235,228,0.85) 30%, rgba(255,235,228,0.4) 65%, transparent 100%)",
-            pointerEvents: "none",
-          }} />
         </motion.div>
 
         {/* 4. Parágrafo — sobreposto à base do vídeo */}
@@ -352,13 +344,6 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
         zIndex: 1, pointerEvents: "none",
       }} />
 
-      {/* Gradiente inferior */}
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0,
-        height: "35%",
-        background: "linear-gradient(to top, rgba(255,245,242,0.95) 0%, rgba(255,245,242,0.5) 50%, transparent 100%)",
-        zIndex: 1, pointerEvents: "none",
-      }} />
 
       {/* Sparkles */}
       {SPARKLES.map((s, i) => (
@@ -406,7 +391,7 @@ export const LandingHero = ({ onCTAPrimary, onCTASecondary }: HeroProps) => {
             variants={itemVariants}
             style={{ fontSize: "clamp(1.8rem, 3.5vw, 3rem)", fontWeight: 800, lineHeight: 1.1, color: "#1A0E0A", margin: 0 }}
           >
-            Diagnóstico de pele<br />profissional em 60s
+            Análise de pele<br />personalizada em 60s
           </motion.h1>
 
           <motion.p

@@ -221,7 +221,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
   }, [isPremium, analysis?.id, analysis?.routine]);
 
   const { morningSlots, nightSlots, morningExtra, nightExtra } = useMemo(() => {
-    const maxDisplay = 4;
+    const maxDisplay = 3;
 
     // Premium: steps estruturados com imagens reais
     if (isPremium && stepsLoaded && apiSteps.length > 0) {

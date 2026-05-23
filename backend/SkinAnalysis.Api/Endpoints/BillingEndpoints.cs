@@ -182,6 +182,7 @@ public static class BillingEndpoints
     private static async Task<IResult> MercadoPagoWebhookHandler(
         HttpRequest request, AppDbContext dbContext, IHttpClientFactory httpClientFactory,
         IBillingService billingService, IMemoryCache cache,
+        SkinAnalysis.Api.Services.AffiliateService affiliateService,
         ILoggerFactory loggerFactory, CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("MercadoPagoWebhook");
@@ -254,7 +255,10 @@ public static class BillingEndpoints
         }
 
         if (justActivated)
+        {
             await EndpointHelpers.GrantCreditsAsync(dbContext, subscription.UserId, subscription.PlanKey, cancellationToken);
+            await affiliateService.RecordConversionAsync(subscription.Id, subscription.UserId, subscription.PlanKey, subscription.AmountCents, cancellationToken);
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         cache.Remove($"billing_status_{subscription.UserId}");
@@ -264,7 +268,8 @@ public static class BillingEndpoints
 
     private static async Task<IResult> StripeWebhookHandler(
         HttpRequest request, AppDbContext dbContext, IConfiguration configuration,
-        IMemoryCache cache, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
+        IMemoryCache cache, SkinAnalysis.Api.Services.AffiliateService affiliateService,
+        ILoggerFactory loggerFactory, CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("StripeWebhook");
         var payload = await new StreamReader(request.Body).ReadToEndAsync(cancellationToken);
@@ -326,7 +331,10 @@ public static class BillingEndpoints
             }
 
             if (justActivated)
+            {
                 await EndpointHelpers.GrantCreditsAsync(dbContext, subscription.UserId, subscription.PlanKey, cancellationToken);
+                await affiliateService.RecordConversionAsync(subscription.Id, subscription.UserId, subscription.PlanKey, subscription.AmountCents, cancellationToken);
+            }
 
             await dbContext.SaveChangesAsync(cancellationToken);
             cache.Remove($"billing_status_{subscription.UserId}");

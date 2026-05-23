@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-escura.webp";
 
 /**
  * Página de retorno do OAuth (Google / Apple).

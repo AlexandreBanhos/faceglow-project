@@ -20,6 +20,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<UserCredit> UserCredits => Set<UserCredit>();
     public DbSet<RoutineChangeSuggestion> RoutineChangeSuggestions => Set<RoutineChangeSuggestion>();
+    public DbSet<Models.PushSubscription>    PushSubscriptions    => Set<Models.PushSubscription>();
+    public DbSet<Models.Affiliate>           Affiliates           => Set<Models.Affiliate>();
+    public DbSet<Models.AffiliateConversion> AffiliateConversions => Set<Models.AffiliateConversion>();
+    public DbSet<Models.AffiliatePayout>     AffiliatePayouts     => Set<Models.AffiliatePayout>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -354,6 +358,90 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(s => s.Analysis).WithMany().HasForeignKey(s => s.AnalysisId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(s => s.SuggestedProduct).WithMany().HasForeignKey(s => s.SuggestedProductId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => new { x.UserId, x.Status });
+        });
+
+        // ── users (referral fields) ────────────────────────────
+        mb.Entity<User>(e =>
+        {
+            e.Property(x => x.ReferralCode).HasColumnName("referral_code");
+            e.Property(x => x.ReferredBy).HasColumnName("referred_by");
+        });
+
+        // ── subscriptions (referral fields) ────────────────────
+        mb.Entity<Subscription>(e =>
+        {
+            e.Property(x => x.ReferralCode).HasColumnName("referral_code");
+            e.Property(x => x.AffiliateId).HasColumnName("affiliate_id");
+        });
+
+        // ── affiliates ─────────────────────────────────────────
+        mb.Entity<Models.Affiliate>(e =>
+        {
+            e.ToTable("affiliates");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Code).HasColumnName("code");
+            e.Property(x => x.Name).HasColumnName("name");
+            e.Property(x => x.Email).HasColumnName("email");
+            e.Property(x => x.CommissionRate).HasColumnName("commission_rate").HasPrecision(5, 4);
+            e.Property(x => x.IsActive).HasColumnName("is_active");
+            e.Property(x => x.Notes).HasColumnName("notes");
+            e.Property(x => x.CreatedBy).HasColumnName("created_by");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasIndex(x => x.Code).IsUnique();
+        });
+
+        mb.Entity<Models.AffiliateConversion>(e =>
+        {
+            e.ToTable("affiliate_conversions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.AffiliateId).HasColumnName("affiliate_id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.SubscriptionId).HasColumnName("subscription_id");
+            e.Property(x => x.PlanKey).HasColumnName("plan_key");
+            e.Property(x => x.AmountCents).HasColumnName("amount_cents");
+            e.Property(x => x.CommissionCents).HasColumnName("commission_cents");
+            e.Property(x => x.Status).HasColumnName("status");
+            e.Property(x => x.PaidAt).HasColumnName("paid_at");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.HasOne(x => x.Affiliate).WithMany().HasForeignKey(x => x.AffiliateId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.AffiliateId, x.Status });
+        });
+
+        mb.Entity<Models.AffiliatePayout>(e =>
+        {
+            e.ToTable("affiliate_payouts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.AffiliateId).HasColumnName("affiliate_id");
+            e.Property(x => x.TotalCents).HasColumnName("total_cents");
+            e.Property(x => x.ConversionIds).HasColumnName("conversion_ids").HasColumnType("uuid[]");
+            e.Property(x => x.Notes).HasColumnName("notes");
+            e.Property(x => x.PaidAt).HasColumnName("paid_at");
+            e.Property(x => x.CreatedBy).HasColumnName("created_by");
+            e.HasOne(x => x.Affiliate).WithMany().HasForeignKey(x => x.AffiliateId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── push_subscriptions ─────────────────────────────────
+        mb.Entity<Models.PushSubscription>(e =>
+        {
+            e.ToTable("push_subscriptions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.Endpoint).HasColumnName("endpoint");
+            e.Property(x => x.P256dh).HasColumnName("p256dh");
+            e.Property(x => x.Auth).HasColumnName("auth");
+            e.Property(x => x.UserAgent).HasColumnName("user_agent");
+            e.Property(x => x.PrefRoutineMorning).HasColumnName("pref_routine_morning");
+            e.Property(x => x.PrefRoutineNight).HasColumnName("pref_routine_night");
+            e.Property(x => x.PrefAnalysisWeekly).HasColumnName("pref_analysis_weekly");
+            e.Property(x => x.PrefPendingSteps).HasColumnName("pref_pending_steps");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_push_sub_user");
         });
     }
 }

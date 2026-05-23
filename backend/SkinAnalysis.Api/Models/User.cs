@@ -7,6 +7,8 @@ public sealed class User
     public bool IsAdmin { get; set; }
     public DateTime? DeactivatedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? ReferralCode { get; set; }
+    public Guid?   ReferredBy   { get; set; }
 
     public ICollection<SkinAnalysisRecord> SkinAnalyses { get; set; } = new List<SkinAnalysisRecord>();
     public ICollection<SkinProfile> SkinProfiles { get; set; } = new List<SkinProfile>();

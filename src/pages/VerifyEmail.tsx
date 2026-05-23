@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCw, CheckCircle2, AlertCircle, Mail, Hash, Send } from "lucide-react";
 import { resendConfirmationEmail } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-escura.webp";
 
 const RESEND_COOLDOWN_KEY = "faceglow-verify-resend-next-at";
 const OTP_COOLDOWN_KEY = "faceglow-verify-otp-next-at";

@@ -5,7 +5,7 @@ import { Mail, Lock, User, ArrowLeft, Eye, EyeOff, AlertCircle, CheckCircle2, Ch
 import { sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithApple, signUpWithEmail, updatePassword } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { AuroraBackdrop, FGGradientText } from "@/components/shared";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-color.webp";
 
 function getPasswordChecks(pwd: string) {
   return [

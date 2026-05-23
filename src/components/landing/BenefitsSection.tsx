@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { Search, TrendingDown, Clock, ScanFace, ArrowRight } from "lucide-react";
-import appPreview from "@/assets/imagem_tela_inicial.png";
+import { Search, TrendingDown, Clock, ArrowRight } from "lucide-react";
+import headerImage from "@/assets/header-landing-page.png";
 
 const PROBLEMS = [
   {
@@ -20,106 +20,124 @@ const PROBLEMS = [
   },
 ];
 
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.13 } },
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] } },
+};
+
 export function BenefitsSection() {
   return (
-    <section id="why-section" className="relative z-10 py-20 px-4 md:px-8">
-      <div className="max-w-6xl mx-auto">
+    <section
+      id="why-section"
+      className="relative z-10 overflow-hidden"
+      style={{ padding: "80px 0" }}
+    >
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-12 max-w-2xl"
-        >
-          <p className="fg-eyebrow mb-3">
-            <span className="mr-2 inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ background: "var(--grad-coral)" }} />
-            Por que FaceGlow
-          </p>
-          <h2 className="text-4xl md:text-5xl font-extrabold leading-tight mb-4">
-            A rotina certa para{" "}
-            <span style={{
-              background: "var(--grad-coral)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}>
-              cada pele
-            </span>
-            {" "}— não para todas.
-          </h2>
-          <p className="text-base md:text-lg" style={{ color: "var(--fg-ink-3)" }}>
-            Sua pele é única. As soluções genéricas não funcionam porque ignoram isso.
-          </p>
-        </motion.div>
+      <div className="max-w-6xl mx-auto px-4 md:px-8">
+        <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-stretch">
 
-        {/* 2-col layout */}
-        <div className="grid md:grid-cols-5 gap-5 items-start">
-
-          {/* Left: problem cards */}
-          <div className="md:col-span-3 space-y-3">
-            {PROBLEMS.map((item, i) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.4 }}
-                whileHover={{ x: 4 }}
-                className="lg-surface rounded-[1.5rem] p-5 flex gap-4 items-start cursor-default group"
-              >
-                <div
-                  className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "var(--grad-coral-soft)" }}
-                >
-                  <item.icon size={19} className="text-white" strokeWidth={2} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-sm mb-1" style={{ color: "var(--fg-ink)" }}>
-                    {item.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed" style={{ color: "var(--fg-ink-3)" }}>
-                    {item.description}
-                  </p>
-                </div>
-                <ArrowRight
-                  size={15}
-                  className="flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-60 transition-opacity"
-                  style={{ color: "var(--fg-ink-3)" }}
-                />
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Right: app visual */}
+          {/* ── Esquerda: imagem direta na página, sem card ── */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="md:col-span-2 sticky top-24"
+            initial={{ opacity: 0, x: -48, scale: 0.94 }}
+            whileInView={{ opacity: 1, x: 0, scale: 1 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center justify-center order-2 md:order-1 self-stretch"
           >
-            <div
-              className="lg-surface-strong rounded-[1.75rem] overflow-hidden relative"
-              style={{ aspectRatio: "9/16", maxHeight: 520 }}
-            >
-              <img
-                src={appPreview}
-                alt="Interface FaceGlow"
-                className="w-full h-full object-cover object-top"
+            <img
+              src={headerImage}
+              alt="FaceGlow — análise de pele e rotina personalizada"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                display: "block",
+                filter:
+                  "drop-shadow(0 28px 56px rgba(232,116,138,0.22)) drop-shadow(0 8px 18px rgba(0,0,0,0.09))",
+              }}
+            />
+          </motion.div>
+
+          {/* ── Direita: título + cards ── */}
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-60px" }}
+            className="order-1 md:order-2 flex flex-col gap-5"
+          >
+            {/* Eyebrow */}
+            <motion.p variants={fadeUp} className="fg-eyebrow">
+              <span
+                className="mr-2 inline-block w-1.5 h-1.5 rounded-full align-middle"
+                style={{ background: "var(--grad-coral)" }}
               />
-              <div
-                className="absolute inset-x-0 bottom-0 p-5"
-                style={{ background: "linear-gradient(to top, rgba(0,0,0,0.68) 0%, transparent 100%)" }}
+              Por que FaceGlow
+            </motion.p>
+
+            {/* Headline */}
+            <motion.h2
+              variants={fadeUp}
+              className="text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight"
+            >
+              A rotina certa para{" "}
+              <span
+                style={{
+                  background: "var(--grad-coral)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
               >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <ScanFace size={15} className="text-white" />
-                  <span className="text-white text-[11px] font-semibold uppercase tracking-wider">Análise em tempo real</span>
-                </div>
-                <p className="text-white/75 text-[11px] leading-relaxed">
-                  IA identifica tipo de pele, condições e monta rotina personalizada.
-                </p>
-              </div>
+                cada pele
+              </span>
+              {" "}— não para todas.
+            </motion.h2>
+
+            {/* Subtítulo */}
+            <motion.p
+              variants={fadeUp}
+              className="text-base md:text-lg leading-relaxed"
+              style={{ color: "var(--fg-ink-3)" }}
+            >
+              Sua pele é única. As soluções genéricas não funcionam porque ignoram isso.
+            </motion.p>
+
+            {/* Problem cards */}
+            <div className="flex flex-col gap-3 mt-1">
+              {PROBLEMS.map((item) => (
+                <motion.div
+                  key={item.title}
+                  variants={fadeUp}
+                  whileHover={{ x: 5 }}
+                  className="lg-surface rounded-[1.4rem] p-4 flex gap-4 items-start cursor-default group"
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "var(--grad-coral-soft)" }}
+                  >
+                    <item.icon size={17} className="text-white" strokeWidth={2} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm mb-0.5" style={{ color: "var(--fg-ink)" }}>
+                      {item.title}
+                    </h3>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--fg-ink-3)" }}>
+                      {item.description}
+                    </p>
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    className="flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-50 transition-opacity"
+                    style={{ color: "var(--fg-ink-3)" }}
+                  />
+                </motion.div>
+              ))}
             </div>
           </motion.div>
 

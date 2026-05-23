@@ -8,7 +8,7 @@ import {
   faArrowsLeftRight, faLayerGroup, faMicroscope,
   faChevronRight, faCrown, faCheckDouble,
 } from "@fortawesome/free-solid-svg-icons";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-escura.webp";
 import { createBillingCheckout, type BillingPlanKey, type BillingStatusResponse, fetchBillingStatus } from "@/lib/billing";
 import { getCurrentUser } from "@/lib/auth";
 import { getCachedLatestAnalysis } from "@/lib/analysisClient";
@@ -216,7 +216,7 @@ const Premium = () => {
 
             {/* Logo + headline */}
             <div className="text-center">
-              <img src={logoFaceglow} alt="FaceGlow" className="h-20 mx-auto mb-4" />
+              <img src={logoFaceglow} alt="FaceGlow" className="h-12 mx-auto mb-4" />
               <h1 className="text-2xl font-black text-foreground leading-tight mb-1">
                 Cuide da sua pele com <span className="text-primary">inteligência</span>
               </h1>

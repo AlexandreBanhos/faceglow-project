@@ -32,7 +32,12 @@ export default function PrivacyPolicy() {
           <h2 className="text-lg font-semibold mb-2">2. Dados que coletamos</h2>
           <ul className="list-disc pl-5 text-muted-foreground space-y-1">
             <li><strong>Dados de conta:</strong> e-mail e nome fornecidos no cadastro.</li>
-            <li><strong>Imagens faciais:</strong> fotos enviadas para análise de pele. Processadas pela IA e armazenadas de forma segura.</li>
+            <li>
+              <strong>Imagens faciais:</strong> fotos enviadas para análise de pele. Vinculadas <strong>exclusivamente à sua conta</strong> e identificadas pelo seu ID de usuário.
+              Permanecem armazenadas apenas enquanto sua conta estiver ativa.
+              Ao excluir sua conta, todas as suas imagens são removidas permanentemente dos nossos servidores em até 30 dias (LGPD Art. 15–16).
+              Não são acessíveis a outros usuários nem compartilhadas com terceiros para fins comerciais.
+            </li>
             <li><strong>Resultados de análise:</strong> pontuações, tipo de pele, condições identificadas e recomendações geradas.</li>
             <li><strong>Dados de uso:</strong> histórico de análises, rotinas criadas e progresso registrado.</li>
             <li><strong>Dados de pagamento:</strong> processados pelo Stripe e MercadoPago — não armazenamos dados de cartão em nossos servidores.</li>
@@ -65,11 +70,19 @@ export default function PrivacyPolicy() {
 
         <section>
           <h2 className="text-lg font-semibold mb-2">5. Armazenamento e segurança</h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-2">
             Seus dados são armazenados em servidores seguros com criptografia em trânsito (TLS) e em repouso.
-            Imagens são armazenadas no Supabase Storage com acesso controlado. Adotamos práticas de segurança
-            adequadas para proteger contra acesso não autorizado.
+            Adotamos práticas de segurança para proteger contra acesso não autorizado.
           </p>
+          <p className="text-muted-foreground font-medium mt-3 mb-1">Sobre suas imagens faciais:</p>
+          <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+            <li>São armazenadas no Supabase Storage vinculadas exclusivamente ao seu identificador de usuário (UUID).</li>
+            <li>Apenas você tem acesso às suas próprias imagens — nunca expostas a outros usuários.</li>
+            <li>Permanecem no sistema <strong>somente enquanto sua conta estiver ativa</strong>.</li>
+            <li>Ao excluir sua conta, todas as imagens são removidas permanentemente em até 30 dias, conforme exigido pela LGPD (Art. 15 e 16).</li>
+            <li>Não utilizamos suas imagens para treinar modelos de inteligência artificial sem seu consentimento explícito e prévio.</li>
+            <li>Não compartilhamos suas imagens com terceiros para fins publicitários ou comerciais.</li>
+          </ul>
         </section>
 
         <section>

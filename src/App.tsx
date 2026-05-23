@@ -44,6 +44,7 @@ const DeleteAccount  = lazy(() => import("./pages/DeleteAccount"));
 const Support        = lazy(() => import("./pages/Support"));
 const SkincareLearn  = lazy(() => import("./pages/SkincareLearn"));
 const AuthCallback   = lazy(() => import("./pages/AuthCallback"));
+const AdminAfiliados = lazy(() => import("./pages/AdminAfiliados"));
 
 const queryClient = new QueryClient();
 
@@ -89,7 +90,8 @@ const App = () => (
                     <Route path="/premium"           element={<Premium />} />
                     <Route path="/aprenda"           element={<SkincareLearn />} />
                     <Route element={<RequireAdmin />}>
-                      <Route path="/admin/products"  element={<AdminProducts />} />
+                      <Route path="/admin/products"   element={<AdminProducts />} />
+                      <Route path="/admin/afiliados"  element={<AdminAfiliados />} />
                     </Route>
                     <Route element={<RequirePremium />}>
                       <Route path="/meus-produtos"   element={<MeusProdutos />} />

@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ScanFace, LayoutDashboard, ListChecks } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getSessionUser } from "@/lib/auth";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import { attachReferralAfterSignup } from "@/lib/affiliate";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-escura.webp";
 
 const AUTO_REDIRECT_DELAY_MS = 5000;
 
@@ -46,6 +47,7 @@ const EmailConfirmed = () => {
     const listener = supabase?.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") {
         clearTimeout(timeout);
+        void attachReferralAfterSignup(); // grava referral após confirmar e-mail
         onConfirmed();
       }
     });

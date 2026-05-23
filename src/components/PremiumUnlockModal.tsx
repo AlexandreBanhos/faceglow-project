@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faStar, faSun, faDroplet, faCalendarCheck, faChevronRight, faXmark } from "@fortawesome/free-solid-svg-icons";
 import rotinaPreview from "@/assets/face-glow-rotina.webp";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow.svg";
 
 interface PremiumUnlockModalProps {
   isVisible: boolean;

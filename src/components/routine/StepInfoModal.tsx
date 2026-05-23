@@ -4,7 +4,7 @@ import { StepIcon } from "@/components/routine/StepIcon";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
-interface StepInfoData {
+export interface StepInfoData {
   stepTypeKey: string;
   title: string;
   about: string;
@@ -278,9 +278,30 @@ const DEFAULT_INFO: StepInfoData = {
   ],
 };
 
+// ─── Lookup direto por stepTypeKey ───────────────────────────────────────────
+
+const TYPE_KEY_MAP: Record<string, string> = {
+  cleanser:       "limpeza",
+  moisturizer:    "hidratante",
+  sunscreen:      "protetor solar",
+  toner:          "tônico",
+  serum:          "sérum",
+  retinoid:       "retinol",
+  exfoliant:      "esfoliante",
+  makeup_remover: "removedor de maquiagem",
+  demaquilante:   "removedor de maquiagem",
+  eye_cream:      "creme de olhos",
+  mask:           "máscara",
+};
+
+export function findStepInfoByTypeKey(typeKey: string): StepInfoData {
+  const label = TYPE_KEY_MAP[typeKey?.toLowerCase()] ?? "";
+  return (label && STEP_INFO[label]) ? STEP_INFO[label] : DEFAULT_INFO;
+}
+
 // ─── Normaliza o label do passo para buscar no dicionário ────────────────────
 
-function findStepInfo(label: string): StepInfoData {
+export function findStepInfo(label: string): StepInfoData {
   const normalized = label
     .toLowerCase()
     .normalize("NFD")

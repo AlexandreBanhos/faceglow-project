@@ -21,7 +21,7 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { ProductShowcase } from "@/components/landing/ProductShowcase";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { AuroraBackdrop, FGGradientText } from "@/components/shared";
-import logoFaceglow from "@/assets/logo-faceglow.svg";
+import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-color.webp";
 
 /**
  * Page Container — Sem lógica, apenas composição
@@ -52,7 +52,7 @@ export function LandingPageContent() {
         <div className="lg-surface px-4 py-3 rounded-full flex justify-between items-center gap-3">
           {/* Logo */}
           <div className="flex items-center">
-            <img src={logoFaceglow} alt="FaceGlow" className="h-10 w-auto" />
+            <img src={logoFaceglow} alt="FaceGlow" className="h-9 w-auto" />
           </div>
 
           {/* Nav Links — Hidden on mobile */}
@@ -164,57 +164,102 @@ export function LandingPageContent() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-gray-200/50 mt-20 py-12 px-4 md:px-8">
+      <footer className="relative z-10 border-t border-gray-200/50 mt-20 pt-12 pb-8 px-4 md:px-8">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            {/* Brand */}
-            <div>
-              <img src={logoFaceglow} alt="FaceGlow" className="h-10 w-auto" />
-              <p className="text-sm text-gray-600 mt-3">
-                Diagnóstico de pele com IA. Profissional, acessível, disponível 24/7.
+
+          {/* Colunas principais */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
+
+            {/* Marca */}
+            <div className="col-span-2 md:col-span-1">
+              <img src={logoFaceglow} alt="FaceGlow" className="h-8 w-auto mb-3" />
+              <p className="text-sm text-gray-500 leading-relaxed max-w-[220px]">
+                Análise de pele com inteligência artificial. Personalizada, acessível, disponível 24h.
               </p>
+              {/* Instagram */}
+              <a
+                href="https://instagram.com/faceglow.soora"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-4 text-xs text-gray-400 hover:text-coral transition-colors"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                </svg>
+                @faceglow.soora
+              </a>
             </div>
 
-            {/* Links */}
+            {/* Produto */}
             <div>
               <h4 className="font-semibold text-gray-900 mb-4 text-sm">Produto</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-coral transition-colors">Funcionalidades</a></li>
-                <li><a href="#" className="hover:text-coral transition-colors">Preços</a></li>
-                <li><a href="#" className="hover:text-coral transition-colors">Download</a></li>
+              <ul className="space-y-2.5 text-sm text-gray-500">
+                <li>
+                  <a href="#offers" className="hover:text-coral transition-colors">Funcionalidades</a>
+                </li>
+                <li>
+                  <a href="#pricing" className="hover:text-coral transition-colors">Planos e preços</a>
+                </li>
+                <li>
+                  <a href="#how" className="hover:text-coral transition-colors">Como funciona</a>
+                </li>
+                <li>
+                  <a href="/analyze" className="hover:text-coral transition-colors">Analisar minha pele</a>
+                </li>
               </ul>
             </div>
 
-            {/* Empresa */}
+            {/* Suporte */}
             <div>
-              <h4 className="font-semibold text-gray-900 mb-4 text-sm">Empresa</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-coral transition-colors">Sobre</a></li>
-                <li><a href="#" className="hover:text-coral transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-coral transition-colors">Contato</a></li>
+              <h4 className="font-semibold text-gray-900 mb-4 text-sm">Suporte</h4>
+              <ul className="space-y-2.5 text-sm text-gray-500">
+                <li>
+                  <a href="/support" className="hover:text-coral transition-colors">Central de ajuda</a>
+                </li>
+                <li>
+                  <a href="mailto:suporte@faceglow.com.br" className="hover:text-coral transition-colors">Fale conosco</a>
+                </li>
+                <li>
+                  <a href="mailto:privacidade@faceglow.com.br" className="hover:text-coral transition-colors">LGPD / Dados pessoais</a>
+                </li>
               </ul>
             </div>
 
             {/* Legal */}
             <div>
               <h4 className="font-semibold text-gray-900 mb-4 text-sm">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="/privacidade" className="hover:text-coral transition-colors">Política de Privacidade</a></li>
-                <li><a href="/termos" className="hover:text-coral transition-colors">Termos de Uso</a></li>
-                <li><a href="mailto:privacidade@faceglow.com.br" className="hover:text-coral transition-colors">LGPD / Dados</a></li>
+              <ul className="space-y-2.5 text-sm text-gray-500">
+                <li>
+                  <a href="/privacidade" className="hover:text-coral transition-colors">Política de Privacidade</a>
+                </li>
+                <li>
+                  <a href="/termos" className="hover:text-coral transition-colors">Termos de Uso</a>
+                </li>
               </ul>
             </div>
           </div>
 
-          {/* Bottom */}
-          <div className="border-t border-gray-200/50 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-600 gap-4">
+          {/* Aviso legal — saúde */}
+          <div className="border-t border-gray-200/50 pt-6 mb-6">
+            <p className="text-xs text-gray-400 leading-relaxed max-w-3xl">
+              <strong className="text-gray-500">Aviso:</strong> O FaceGlow é uma ferramenta de análise de pele para fins informativos e educativos.
+              Os resultados gerados por inteligência artificial <strong className="text-gray-500">não constituem diagnóstico médico</strong> e não substituem
+              avaliação presencial com dermatologista ou outro profissional de saúde habilitado.
+              Recomendamos consultar um médico antes de iniciar qualquer tratamento dermatológico.
+            </p>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="flex flex-col sm:flex-row justify-between items-center text-xs text-gray-400 gap-3">
             <p>© {new Date().getFullYear()} FaceGlow. Todos os direitos reservados.</p>
-            <div className="flex flex-wrap gap-4 md:gap-6 items-center justify-center">
-              <a href="/privacidade" className="hover:text-coral transition-colors">Política de Privacidade</a>
-              <a href="/termos" className="hover:text-coral transition-colors">Termos de Uso</a>
+            <div className="flex flex-wrap gap-4 items-center justify-center">
+              <a href="/privacidade" className="hover:text-coral transition-colors">Privacidade</a>
+              <a href="/termos" className="hover:text-coral transition-colors">Termos</a>
+              <a href="/support" className="hover:text-coral transition-colors">Suporte</a>
               <a href="mailto:suporte@faceglow.com.br" className="hover:text-coral transition-colors">Contato</a>
             </div>
           </div>
+
         </div>
       </footer>
     </main>
@@ -234,7 +279,7 @@ export default function Landing() {
     if (metaDescription) {
       metaDescription.setAttribute(
         "content",
-        "Tire uma selfie e descubra seu tipo de pele, condições e rotina personalizada. IA profissional, validado por dermatologistas, sem filas."
+        "Tire uma selfie e descubra seu tipo de pele, condições e rotina personalizada. Análise com IA, resultado em 60 segundos, gratuito para começar."
       );
     }
   }, []);

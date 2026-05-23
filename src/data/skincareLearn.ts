@@ -1,11 +1,11 @@
 // ─── Imports de imagem — todos em src/assets/skincare-edu/ ───────────────────
-import imgPeleNormal    from "@/assets/skincare-edu/pele-normal.png";
-import imgPeleOleosa    from "@/assets/skincare-edu/pele-oleosa.png";
+import imgPeleNormal    from "@/assets/skincare-edu/pele-normal.webp";
+import imgPeleOleosa    from "@/assets/skincare-edu/pele-oleosa.webp";
 import imgPeleSeca      from "@/assets/skincare-edu/pele-seca.jpg";
-import imgPeleMista     from "@/assets/skincare-edu/pele-mista.png";
-import imgPeleSensivel  from "@/assets/skincare-edu/pele-sensivel.png";
+import imgPeleMista     from "@/assets/skincare-edu/pele-mista.webp";
+import imgPeleSensivel  from "@/assets/skincare-edu/pele-sensivel.webp";
 
-import imgProbAcne        from "@/assets/skincare-edu/prob-acne.png";
+import imgProbAcne        from "@/assets/skincare-edu/prob-acne.webp";
 import imgProbManchas     from "@/assets/skincare-edu/prob-manchas.jpg";
 import imgProbPoros       from "@/assets/skincare-edu/prob-poros.jpg";
 import imgProbOlheiras    from "@/assets/skincare-edu/prob-olheiras.jpg";
@@ -14,21 +14,21 @@ import imgProbVermelhidao from "@/assets/skincare-edu/prob-vermelhidao.jpg";
 import imgProbOleosidade  from "@/assets/skincare-edu/prob-oleosidade.jpg";
 import imgProbRessecamento from "@/assets/skincare-edu/prob-ressecamento.jpg";
 
-import imgAtivoSpf        from "@/assets/skincare-edu/ativo-spf.jpg";
-import imgAtivoVitaminaC  from "@/assets/skincare-edu/ativo-vitamina-c.jpg";
-import imgAtivoRetinol    from "@/assets/skincare-edu/ativo-retinol.jpg";
-import imgAtivoHialuronico from "@/assets/skincare-edu/ativo-hialuronico.jpg";
-import imgAtivoNiacinamida from "@/assets/skincare-edu/ativo-niacinamida.jpg";
-import imgAtivoAha        from "@/assets/skincare-edu/ativo-aha.jpg";
-import imgAtivoBha        from "@/assets/skincare-edu/ativo-bha.jpg";
-import imgAtivoCeramidas  from "@/assets/skincare-edu/ativo-ceramidas.jpg";
+import imgAtivoSpf        from "@/assets/skincare-edu/ativo-spf.webp";
+import imgAtivoVitaminaC  from "@/assets/skincare-edu/ativo-vitamina-c.webp";
+import imgAtivoRetinol    from "@/assets/skincare-edu/ativo-retinol.webp";
+import imgAtivoHialuronico from "@/assets/skincare-edu/ativo-hialuronico.webp";
+import imgAtivoNiacinamida from "@/assets/skincare-edu/ativo-niacinamida.webp";
+import imgAtivoAha        from "@/assets/skincare-edu/ativo-aha.webp";
+import imgAtivoBha        from "@/assets/skincare-edu/ativo-bha.webp";
+import imgAtivoCeramidas  from "@/assets/skincare-edu/ativo-ceramidas.webp";
 
 import imgRotinaLimpeza      from "@/assets/skincare-edu/rotina-limpeza.jpg";
 import imgRotinaHidratante   from "@/assets/skincare-edu/rotina-hidratante.jpg";
-import imgRotinaProtetor     from "@/assets/skincare-edu/rotina-protetor.jpg";
+import imgRotinaProtetor     from "@/assets/skincare-edu/rotina-protetor.webp";
 import imgRotinaEsfoliacao   from "@/assets/skincare-edu/rotina-esfoliacao.jpg";
 import imgRotinaDoubleCleanse from "@/assets/skincare-edu/rotina-double-cleanse.jpg";
-import imgRotinaManhaNoite   from "@/assets/skincare-edu/rotina-manha-noite.jpg";
+import imgRotinaManhaNoite   from "@/assets/skincare-edu/rotina-manha-noite.webp";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 

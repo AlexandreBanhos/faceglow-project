@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, Droplets, ChevronDown, ChevronUp, AlertCircle, Eye, Zap, Wind, Sun, Sparkles, ScanFace, ListChecks, Target, Clock, Flame, CircleDot, ShieldAlert } from "lucide-react";
-import logoUrl from "@/assets/logo-faceglow.svg";
+import logoUrl from "@/assets/logos/logo-faceglow-escrito-color.webp";
 import { useNavigate, useLocation } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import SkinTypeInfoSection from "@/components/SkinTypeInfoSection";
