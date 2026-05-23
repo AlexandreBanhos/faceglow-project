@@ -17,7 +17,7 @@ import { ScanInstructionsPage } from "@/components/analyze/ScanInstructionsPage"
 import { AnalysisTermsModal } from "@/components/analyze/AnalysisTermsModal";
 import { type LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
 import SkinQuiz from "@/components/quiz/SkinQuiz";
-import { PRE_ANALYSIS_QUESTIONS, ROUTINE_QUESTIONS, quizToLifestyle } from "@/components/quiz/quizQuestions";
+import { PRE_ANALYSIS_QUESTIONS, quizToLifestyle } from "@/components/quiz/quizQuestions";
 import { updateLifestyle } from "@/lib/lifestyle";
 
 const MAX_IMAGE_BYTES = 1600 * 1024;
@@ -145,11 +145,6 @@ const Analyze = () => {
   const [phase, setPhase] = useState<AnalyzePhase>("info");
   const [isStarting, setIsStarting] = useState(false);
   const [preAnswers, setPreAnswers] = useState<LifestyleAnswers | null>(null);
-  const [routineAnswers, setRoutineAnswers] = useState<LifestyleAnswers | null>(null);
-  // Se já fez o quiz completo antes, não mostra o quiz de rotina durante o loading
-  const [routineQuizDone, setRoutineQuizDone] = useState(
-    () => !!localStorage.getItem(QUIZ_COMPLETED_KEY)
-  );
   // Mantido para compatibilidade com startAnalysis
   const [lifestyleAnswers, setLifestyleAnswers] = useState<LifestyleAnswers | null>(null);
   const [image, setImage] = useState<string | null>(null);
@@ -200,19 +195,18 @@ const Analyze = () => {
   }, [image]);
 
   useEffect(() => {
-    if (phase === "loading" && loadingFinished && analysisResult && routineQuizDone) {
-      // Salva respostas de rotina em background (não bloqueia navegação)
-      if (routineAnswers) {
+    if (phase === "loading" && loadingFinished && analysisResult) {
+      if (preAnswers) {
         updateLifestyle({
-          usesMakeup: routineAnswers.makeupUsage === "daily" || routineAnswers.makeupUsage === "sometimes",
-          budgetRange: routineAnswers.budgetRange || null,
+          usesMakeup: false,
+          budgetRange: null,
           pregnancySafe: false,
-          lifestyleData: { ...preAnswers, ...routineAnswers } as LifestyleAnswers,
+          lifestyleData: preAnswers as LifestyleAnswers,
         }).catch(() => {});
       }
       navigate("/results", { state: { analysis: analysisResult } });
     }
-  }, [analysisResult, loadingFinished, navigate, phase, routineQuizDone, routineAnswers, preAnswers]);
+  }, [analysisResult, loadingFinished, navigate, phase, preAnswers]);
 
 
 
@@ -483,27 +477,7 @@ const Analyze = () => {
           onError={handleAnalysisError}
         />
 
-        {/* Quiz de rotina — aparece sobre o loading apenas na primeira análise */}
-        {!routineQuizDone && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 40, overflow: "hidden" }}>
-            <SkinQuiz
-              questions={ROUTINE_QUESTIONS}
-              analysisInProgress={!analysisResult}
-              onComplete={(raw) => {
-                const answers = quizToLifestyle(raw);
-                setRoutineAnswers(answers);
-                setRoutineQuizDone(true);
-                // Persiste no localStorage para futuras análises não precisarem repetir
-                try {
-                  const merged = { ...(preAnswers ?? {}), ...answers } as LifestyleAnswers;
-                  localStorage.setItem(QUIZ_ANSWERS_KEY, JSON.stringify(merged));
-                  localStorage.setItem(QUIZ_COMPLETED_KEY, "1");
-                } catch { /* quota */ }
-              }}
-              onBack={() => {/* não permite voltar durante o loading */}}
-            />
-          </div>
-        )}
+
       </div>
     );
   }
@@ -588,6 +562,18 @@ const Analyze = () => {
           </div>
         )}
       </div>
+
+      {/* Confirmação de captura */}
+      {faceValidation !== "invalid" && (
+        <div className="px-5 pb-2 text-center">
+          <p style={{ fontWeight: 700, fontSize: 15, color: "#1A1A1A", marginBottom: 3 }}>
+            Seu rosto foi capturado corretamente?
+          </p>
+          <p style={{ fontSize: 12, color: "#6B6B6B", lineHeight: 1.5 }}>
+            Verifique se está centralizado e bem iluminado
+          </p>
+        </div>
+      )}
 
       {/* Footer actions */}
       <div className="px-5 pb-8 pt-3 space-y-3" style={{ borderTop: "1px solid #F0EDE8", background: "#FAFAF8" }}>

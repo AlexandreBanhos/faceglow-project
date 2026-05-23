@@ -385,20 +385,22 @@ public static class RoutineStepEndpoints
         var (userId, valid) = GetUserId(user);
         if (!valid) return Results.Unauthorized();
 
-        var profile = await db.SkinProfiles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.AnalysisId == id && p.UserId == userId, ct);
-        if (profile is null) return Results.NotFound(new { error = "Análise não encontrada." });
+        if (request.StepIds.Count == 0)
+            return Results.BadRequest(new { error = "Nenhum step informado." });
 
-        var routine = await db.Routines
-            .FirstOrDefaultAsync(r => r.SkinProfileId == profile.Id
-                                   && r.Period == request.Period
-                                   && r.IsActive, ct);
-        if (routine is null) return Results.NotFound(new { error = "Rotina não encontrada." });
-
+        // Busca os steps diretamente pelos IDs — funciona mesmo quando os steps
+        // vêm do fallback (rotina de outra análise exibida enquanto a atual não tem rotina própria).
         var steps = await db.RoutineSteps
-            .Where(s => s.RoutineId == routine.Id && s.IsActive)
+            .Include(s => s.Routine)
+            .Where(s => request.StepIds.Contains(s.Id)
+                     && s.Routine.UserId == userId
+                     && s.Routine.Period == request.Period
+                     && s.Routine.IsActive
+                     && s.IsActive)
             .ToListAsync(ct);
+
+        if (steps.Count == 0)
+            return Results.NotFound(new { error = "Nenhum passo encontrado para reordenar." });
 
         var stepMap = steps.ToDictionary(s => s.Id);
         for (int i = 0; i < request.StepIds.Count; i++)
@@ -410,12 +412,19 @@ public static class RoutineStepEndpoints
             }
         }
 
-        routine.IsCustomized = true;
-        routine.UpdatedAt = DateTime.UtcNow;
+        // Marca as rotinas envolvidas como customizadas
+        var routineIds = steps.Select(s => s.RoutineId).Distinct().ToList();
+        var routines = await db.Routines.Where(r => routineIds.Contains(r.Id)).ToListAsync(ct);
+        foreach (var r in routines)
+        {
+            r.IsCustomized = true;
+            r.UpdatedAt = DateTime.UtcNow;
+        }
+
         await db.SaveChangesAsync(ct);
         cache.Remove($"v2_steps_{id}_{userId}");
 
-        return Results.Ok(new { updated = request.StepIds.Count });
+        return Results.Ok(new { updated = steps.Count });
     }
 
     // ── PATCH /analysis/{id}/steps/{stepId}/select-slot ──────────────────

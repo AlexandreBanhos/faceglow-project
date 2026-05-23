@@ -9,18 +9,24 @@ interface Props {
 const STEPS = [
   {
     number: "1",
+    title: "Rosto limpo, sem maquiagem",
+    sub: "Remova maquiagem, base e protetor solar. Para resultados mais precisos, faça a análise 30 min após lavar o rosto",
+    emoji: "🧴",
+  },
+  {
+    number: "2",
     title: "Remova os óculos",
     sub: "E encontre um ambiente bem iluminado",
     emoji: "👓",
   },
   {
-    number: "2",
+    number: "3",
     title: "Posicione seu rosto",
     sub: "Centralize no enquadramento e mantenha a cabeça reta",
     emoji: "🧍",
   },
   {
-    number: "3",
+    number: "4",
     title: "Fique parado",
     sub: "Aguarde a IA processar sua pele — leva menos de 5 segundos",
     emoji: "🤳",

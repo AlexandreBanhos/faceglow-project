@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { X, ChevronRight, AlertCircle, Sparkles, Shield, Star, Zap } from "lucide-react";
+import { X, ChevronRight, AlertCircle, Sparkles, Shield, Zap } from "lucide-react";
 import logoFaceglow from "@/assets/logos/logo-faceglow.svg";
 
 interface Props {
@@ -68,27 +68,16 @@ export const AnalysisInfoPage = ({ onStart, onClose, noCredits, creditsRemaining
     {/* Scrollable body */}
     <div className="flex-1 overflow-y-auto px-5 pb-6">
 
-      {/* Pulsing orb icon */}
-      <div className="flex justify-center mt-4 mb-7">
-        <div className="relative">
-          {[1.4, 1.7].map((scale, i) => (
-            <motion.div
-              key={i}
-              className="absolute inset-0 rounded-full"
-              style={{ background: "rgba(244,168,199,0.18)" }}
-              animate={{ scale: [1, scale], opacity: [0.6, 0] }}
-              transition={{ repeat: Infinity, duration: 2.2, delay: i * 0.5, ease: "easeOut" }}
-            />
-          ))}
-          <motion.div
-            className="relative w-24 h-24 rounded-full flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)", boxShadow: "0 8px 32px rgba(244,168,199,0.4)" }}
-            animate={{ scale: [1, 1.04, 1] }}
-            transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-          >
-            <Star size={38} color="white" fill="white" />
-          </motion.div>
-        </div>
+      {/* Logo FaceGlow */}
+      <div className="flex justify-center mt-6 mb-7">
+        <motion.img
+          src={logoFaceglow}
+          alt="FaceGlow"
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          style={{ height: 56 }}
+        />
       </div>
 
       {/* Title */}
