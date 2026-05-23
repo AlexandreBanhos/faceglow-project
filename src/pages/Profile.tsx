@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  LogOut, Pencil, Lock, Shield, HelpCircle, Settings,
-  Mail, Instagram, Globe,
+  LogOut, Pencil, Lock, Shield, HelpCircle,
+  Mail, Instagram, Globe, ChevronRight, Bell,
+  MessageCircle, FileText, Share2, Trash2,
+  ScanFace, Settings2, BookOpen, ClipboardList,
+  Coins, Sparkles, CreditCard, Settings,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
@@ -12,54 +15,115 @@ import { useIsPremium } from "@/hooks/useIsPremium";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { AuroraBackdrop } from "@/components/shared";
 import type { AnalysisResponse } from "@/lib/analysis";
-import { SkinCard } from "@/components/profile/SkinCard";
-import { BookOpen } from "lucide-react";
-import { StatsRow } from "@/components/profile/StatsRow";
-import { SubscriptionCard } from "@/components/profile/SubscriptionCard";
-import { AccountCard } from "@/components/profile/AccountCard";
+import type { LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
 import { NotificationSettings } from "@/components/profile/NotificationSettings";
-import logoUrl from "@/assets/logos/logo-faceglow-escrito-color.webp";
+import { StatsRow } from "@/components/profile/StatsRow";
+import { UserProfileModal } from "@/components/profile/UserProfileModal";
+import { PreferenciasModal, OutrasRespostasModal } from "@/components/profile/PreferenciasModal";
 import logoIcon from "@/assets/logos/logo-faceglow.svg";
-
+import logoUrl from "@/assets/logos/logo-faceglow-escrito-color.webp";
 
 const APP_VERSION = "1.0.0";
 
+// ── Componentes de layout de seção ───────────────────────────────────────────
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <p className="text-[11px] font-extrabold text-muted-foreground/70 uppercase tracking-widest px-1 mb-2">
+      {title}
+    </p>
+  );
+}
+
+interface RowItem {
+  icon: React.ReactNode;
+  label: string;
+  sub?: string;
+  value?: string;
+  badge?: string;
+  danger?: boolean;
+  onClick: () => void;
+}
+
+function ProfileCard({ items }: { items: RowItem[] }) {
+  return (
+    <div className="lg-surface rounded-2xl overflow-hidden">
+      {items.map((item, i) => (
+        <button
+          key={item.label}
+          onClick={item.onClick}
+          className={`w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-muted/40 transition-colors text-left ${
+            i < items.length - 1 ? "border-b border-border/30" : ""
+          } ${item.danger ? "bg-red-500/5" : ""}`}
+        >
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            item.danger ? "bg-red-100" : "bg-muted/60"
+          }`}>
+            {item.icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold leading-tight ${item.danger ? "text-red-600" : "text-foreground"}`}>
+              {item.label}
+            </p>
+            {item.sub && <p className="text-xs text-muted-foreground mt-0.5">{item.sub}</p>}
+            {item.badge && (
+              <span className="text-[10px] font-bold text-orange-600">{item.badge}</span>
+            )}
+          </div>
+          {item.value && (
+            <span className="text-xs text-muted-foreground truncate max-w-[38%]">{item.value}</span>
+          )}
+          <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Página principal ──────────────────────────────────────────────────────────
+
 const Profile = () => {
   const navigate = useNavigate();
-  const { isPremium, creditsRemaining, isFullAccess, subscriptionType, subscriptionStatus, expiresAtUtc } = useIsPremium();
+  const { isPremium, isFullAccess, subscriptionType, subscriptionStatus, expiresAtUtc, creditsRemaining } = useIsPremium();
   const { isAdmin } = useIsAdmin();
 
-  // ── Identidade ───────────────────────────────────────────────────────────
-  const [displayName, setDisplayName]       = useState("Usuario");
-  const [displayEmail, setDisplayEmail]     = useState("");
-  const [avatarUrl, setAvatarUrl]           = useState("");
-  const [isImageLoaded, setIsImageLoaded]   = useState(false);
+  // Identidade
+  const [displayName, setDisplayName]     = useState("Usuário");
+  const [displayEmail, setDisplayEmail]   = useState("");
+  const [avatarUrl, setAvatarUrl]         = useState("");
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [isCustomAvatar, setIsCustomAvatar] = useState(false);
-  const [userReady, setUserReady]           = useState(false);
+  const [userReady, setUserReady]         = useState(false);
 
-  // ── Estatísticas ─────────────────────────────────────────────────────────
+  // Estatísticas
   const [totalAnalyses, setTotalAnalyses]   = useState(0);
   const [bestScore, setBestScore]           = useState(0);
   const [streakDays, setStreakDays]         = useState(0);
   const [activeProducts, setActiveProducts] = useState(0);
   const [statsLoading, setStatsLoading]     = useState(true);
 
-  // ── Análise mais recente ─────────────────────────────────────────────────
-  const [lastSkinType, setLastSkinType]         = useState("");
-  const [lastScore, setLastScore]               = useState(0);
-  const [lastImageUrl, setLastImageUrl]         = useState("");
-  const [lastConditions, setLastConditions]     = useState<Record<string, boolean>>({});
-  const [lastAnalysisDate, setLastAnalysisDate] = useState<string | undefined>();
-  const [latestAnalysis, setLatestAnalysis]     = useState<AnalysisResponse | null>(null);
+  // Análise recente
+  const [lastSkinType, setLastSkinType]     = useState("");
+  const [lastScore, setLastScore]           = useState(0);
+  const [lastImageUrl, setLastImageUrl]     = useState("");
+  const [latestAnalysis, setLatestAnalysis] = useState<AnalysisResponse | null>(null);
 
+  // Questionário
+  const [quizAnswers, setQuizAnswers] = useState<LifestyleAnswers | null>(null);
 
-  // ── Efeito 1: dados do usuário ───────────────────────────────────────────
+  // UI state
+  const [showProfileModal, setShowProfileModal]       = useState(false);
+  const [showPreferencias, setShowPreferencias]       = useState(false);
+  const [showOutrasRespostas, setShowOutrasRespostas] = useState(false);
+  const [showNotifications, setShowNotifications]     = useState(false);
+  const [shareToast, setShareToast]                   = useState(false);
+
   useEffect(() => {
     let mounted = true;
     getCurrentUser().then((user) => {
       if (!mounted || !user) { setUserReady(true); return; }
       const name = (user.user_metadata?.full_name ?? user.user_metadata?.name ?? "").trim();
-      setDisplayName(name || user.email?.split("@")[0] || "Usuario");
+      setDisplayName(name || user.email?.split("@")[0] || "Usuário");
       setDisplayEmail(user.email ?? "");
       const custom = user.user_metadata?.avatar_url ?? "";
       setAvatarUrl(custom);
@@ -69,12 +133,10 @@ const Profile = () => {
     return () => { mounted = false; };
   }, []);
 
-  // ── Efeito 2: estatísticas + análise ────────────────────────────────────
   useEffect(() => {
     if (!userReady) return;
     let mounted = true;
     setStatsLoading(true);
-
     Promise.all([
       fetchProfileSummary().catch(() => null),
       fetchDashboardSummary(false).catch(() => null),
@@ -89,11 +151,9 @@ const Profile = () => {
       if (latest) {
         setLastSkinType(latest.skinType ?? "");
         setLastScore(latest.overallScore ?? 0);
-        setLastAnalysisDate(latest.createdAtUtc);
         setLatestAnalysis(latest);
         if (latest.imageUrl) setLastImageUrl(latest.imageUrl);
         if (!isCustomAvatar && latest.imageUrl) setAvatarUrl(latest.imageUrl);
-        // Busca contagem real de passos ativos via v2 API
         try {
           const steps = await fetchRoutineSteps(latest.id);
           if (mounted) setActiveProducts(steps.length);
@@ -101,24 +161,23 @@ const Profile = () => {
       }
       setStatsLoading(false);
     });
-
     return () => { mounted = false; };
   }, [userReady, isCustomAvatar]);
 
-  // ── Efeito 3: localStorage ───────────────────────────────────────────────
   useEffect(() => {
     try {
       const raw = localStorage.getItem("faceglow-last-analysis");
       if (raw) {
-        const parsed = JSON.parse(raw) as { imageUrl?: string; conditions?: Record<string, boolean> };
-        if (parsed.imageUrl)   setLastImageUrl(parsed.imageUrl);
-        if (parsed.conditions) setLastConditions(parsed.conditions);
+        const parsed = JSON.parse(raw) as { imageUrl?: string };
+        if (parsed.imageUrl) setLastImageUrl(parsed.imageUrl);
       }
     } catch { /* ignora */ }
-
+    try {
+      const qRaw = localStorage.getItem("faceglow-quiz-answers");
+      if (qRaw) setQuizAnswers(JSON.parse(qRaw) as LifestyleAnswers);
+    } catch { /* ignora */ }
   }, []);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
   const avatarLetter = useMemo(() => {
     const src = displayName.trim() || displayEmail.trim() || "U";
     return src.charAt(0).toUpperCase();
@@ -126,60 +185,34 @@ const Profile = () => {
 
   const handleLogout = async () => {
     invalidateAnalysisCache();
-    [
-      "faceglow-last-analysis",
-      "faceglow-pending-analyze-image",
-      "faceglow-pending-analyze-face-validation",
-      "faceglow-pending-analyze-at",
-    ].forEach((k) => localStorage.removeItem(k));
+    ["faceglow-last-analysis","faceglow-pending-analyze-image",
+     "faceglow-pending-analyze-face-validation","faceglow-pending-analyze-at"]
+      .forEach((k) => localStorage.removeItem(k));
     await signOut();
     navigate("/auth?mode=login", { replace: true });
   };
 
-  const accountItems = [
-    {
-      label: "Editar perfil",
-      icon: <Pencil size={17} className="text-foreground" />,
-      onClick: () => navigate("/profile/edit"),
-    },
-    {
-      label: "Alterar e-mail",
-      icon: <Mail size={17} className="text-foreground" />,
-      onClick: () => navigate("/profile/email"),
-      value: displayEmail ? displayEmail.split("@")[0] + "@…" : undefined,
-    },
-    {
-      label: "Alterar senha",
-      icon: <Lock size={17} className="text-foreground" />,
-      onClick: () => navigate("/profile/password"),
-    },
-    {
-      label: "Privacidade e dados",
-      icon: <Shield size={17} className="text-foreground" />,
-      onClick: () => navigate("/privacidade"),
-    },
-    {
-      label: "Ajuda e Suporte",
-      icon: <HelpCircle size={17} className="text-foreground" />,
-      onClick: () => navigate("/support"),
-    },
-    ...(isAdmin ? [
-      {
-        label: "Admin Produtos",
-        icon: <Settings size={17} className="text-orange-500" />,
-        onClick: () => navigate("/admin/products"),
-        badge: "Admin",
-      },
-      {
-        label: "Admin Afiliados",
-        icon: <Settings size={17} className="text-orange-500" />,
-        onClick: () => navigate("/admin/afiliados"),
-        badge: "Admin",
-      },
-    ] : []),
-  ];
+  const handleShare = async () => {
+    const url = "https://app.faceglow-soora.me";
+    const text = "Descobri um app incrível de skincare com IA! Analisa sua pele e monta uma rotina personalizada com produtos. 🌿✨";
+    if (navigator.share) {
+      try { await navigator.share({ title: "FaceGlow", text, url }); } catch { /* cancelado */ }
+    } else {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setShareToast(true);
+      setTimeout(() => setShareToast(false), 2500);
+    }
+  };
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  const planLabel: Record<string, string> = {
+    monthly: "Acesso 30 dias", annual: "Acesso 365 dias",
+    credits: "Análise Avulsa", test: "Teste",
+  };
+  const expiresFormatted = expiresAtUtc
+    ? new Date(expiresAtUtc).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="relative w-full min-h-screen pb-28 overflow-x-hidden" style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
@@ -188,22 +221,15 @@ const Profile = () => {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center px-6 pt-10 pb-6"
+        className="flex flex-col items-center px-6 pt-8 pb-5"
       >
-        {/* Logo FaceGlow como marca no topo */}
-        <img src={logoIcon} alt="FaceGlow" className="h-6 object-contain mb-5 opacity-70" />
-
-        {/* Avatar */}
-        <div className="relative w-[88px] h-[88px] rounded-full gradient-primary flex items-center justify-center shadow-glow overflow-hidden flex-shrink-0">
-          <span className="text-2xl font-extrabold text-primary-foreground select-none">{avatarLetter}</span>
+        <div className="relative w-20 h-20 rounded-full gradient-primary flex items-center justify-center shadow-glow overflow-hidden flex-shrink-0">
+          <span className="text-xl font-extrabold text-primary-foreground select-none">{avatarLetter}</span>
           {avatarUrl && (
             <motion.img
-              key={avatarUrl}
-              src={avatarUrl}
-              alt={displayName}
+              key={avatarUrl} src={avatarUrl} alt={displayName}
               className="absolute inset-0 w-full h-full object-cover"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: isImageLoaded ? 1 : 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: isImageLoaded ? 1 : 0 }}
               transition={{ duration: 0.3 }}
               onLoad={() => setIsImageLoaded(true)}
               onError={() => { setAvatarUrl(""); setIsImageLoaded(false); }}
@@ -214,58 +240,57 @@ const Profile = () => {
         <h1 className="font-heading text-xl font-extrabold text-foreground mt-3 text-center">{displayName}</h1>
         {displayEmail && <p className="text-sm text-muted-foreground mt-0.5">{displayEmail}</p>}
 
-        {/* Badge de plano */}
         <div className={`mt-3 px-4 py-1.5 rounded-full text-xs font-bold tracking-wide ${
-          isFullAccess
-            ? "gradient-primary text-primary-foreground shadow-glow"
-            : "bg-muted text-muted-foreground"
+          isFullAccess ? "gradient-primary text-primary-foreground shadow-glow" : "bg-muted text-muted-foreground"
         }`}>
-          {isFullAccess
-            ? "✦ Premium"
-            : creditsRemaining > 0
-            ? `${creditsRemaining} crédito${creditsRemaining !== 1 ? "s" : ""}`
-            : "Plano gratuito"}
+          {isFullAccess ? "✦ Premium" : creditsRemaining > 0 ? `${creditsRemaining} crédito${creditsRemaining !== 1 ? "s" : ""}` : "Plano gratuito"}
         </div>
       </motion.div>
 
-      {/* ── Cards ── */}
-      <div className="px-5 space-y-4">
+      {/* ── Conteúdo ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="px-5 space-y-6"
+      >
 
-        {/* 1. Análise de Pele */}
-        <SkinCard
-          skinType={lastSkinType}
-          overallScore={lastScore > 0 ? lastScore : undefined}
-          conditions={lastConditions}
-          imageUrl={lastImageUrl}
-          analysisDate={lastAnalysisDate}
-          latestAnalysis={latestAnalysis}
-          isFullAccess={isFullAccess}
-        />
-
-        {/* 2. Aprenda sobre skincare */}
-        <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.22 }}
-          onClick={() => navigate("/aprenda")}
-          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl lg-surface active:scale-[0.98] transition-transform"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "linear-gradient(135deg, #E8748A 0%, #F4A8C7 100%)", boxShadow: "0 4px 12px rgba(232,116,138,0.3)" }}>
-              <BookOpen size={18} color="white" />
+        {/* Perfil de pele — card compacto */}
+        <div className="lg-surface rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setShowProfileModal(true)}
+            className="w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-muted/40 transition-colors"
+          >
+            <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0">
+              {lastImageUrl ? (
+                <img src={lastImageUrl} alt="" className="w-full h-full object-cover object-top" />
+              ) : (
+                <div className="w-full h-full gradient-primary flex items-center justify-center">
+                  <ScanFace size={17} className="text-white" />
+                </div>
+              )}
             </div>
-            <div className="text-left">
-              <p className="text-sm font-bold text-foreground leading-tight">Aprenda sobre Skincare</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Guias, ingredientes, mitos e rotinas</p>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-foreground">
+                {lastSkinType ? `Pele ${lastSkinType.toLowerCase()}` : "Ver meu diagnóstico"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Análise · Scores · Questionário
+              </p>
             </div>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-muted-foreground flex-shrink-0">
-            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </motion.button>
+            {lastScore > 0 && (
+              <span
+                className="text-base font-extrabold flex-shrink-0 mr-0.5"
+                style={{ color: lastScore >= 70 ? "#22c55e" : lastScore >= 50 ? "#f59e0b" : "#ef4444" }}
+              >
+                {lastScore}
+              </span>
+            )}
+            <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
+          </button>
+        </div>
 
-        {/* 3. Estatísticas */}
+        {/* Estatísticas */}
         <StatsRow
           totalAnalyses={statsLoading ? 0 : totalAnalyses}
           currentScore={statsLoading ? 0 : bestScore}
@@ -273,89 +298,322 @@ const Profile = () => {
           streakDays={statsLoading ? 0 : streakDays}
         />
 
-        {/* 4. Assinatura */}
-        <SubscriptionCard
-          isPremium={isPremium}
-          isFullAccess={isFullAccess}
-          subscriptionType={subscriptionType}
-          subscriptionStatus={subscriptionStatus}
-          expiresAtUtc={expiresAtUtc}
-          creditsRemaining={creditsRemaining}
-          onManage={() => navigate("/premium")}
-        />
+        {/* ── Seção: Conta ── */}
+        <div>
+          <SectionHeader title="Conta" />
+          <ProfileCard items={[
+            {
+              icon: <Pencil size={15} className="text-foreground" />,
+              label: "Editar perfil",
+              sub: "Nome e foto",
+              onClick: () => navigate("/profile/edit"),
+            },
+            {
+              icon: <Mail size={15} className="text-foreground" />,
+              label: "Alterar e-mail",
+              value: displayEmail ? displayEmail.split("@")[0] + "@…" : undefined,
+              onClick: () => navigate("/profile/email"),
+            },
+            {
+              icon: <Lock size={15} className="text-foreground" />,
+              label: "Alterar senha",
+              onClick: () => navigate("/profile/password"),
+            },
+          ]} />
+        </div>
 
-        {/* 5. Conta */}
-        <NotificationSettings />
+        {/* ── Seção: Pessoal ── */}
+        <div>
+          <SectionHeader title="Pessoal" />
+          <ProfileCard items={[
+            {
+              icon: <ScanFace size={15} className="text-foreground" />,
+              label: "Perfil de pele",
+              sub: lastSkinType ? lastSkinType : "Análise, scores e questionário",
+              onClick: () => setShowProfileModal(true),
+            },
+            {
+              icon: <Settings2 size={15} className="text-foreground" />,
+              label: "Preferências",
+              sub: "Budget, rotina, alergias, tom de pele",
+              onClick: () => setShowPreferencias(true),
+            },
+            {
+              icon: <BookOpen size={15} className="text-foreground" />,
+              label: "Minha estante",
+              sub: "Produtos que você usa",
+              onClick: () => navigate("/meus-produtos"),
+            },
+            {
+              icon: <ClipboardList size={15} className="text-foreground" />,
+              label: "Outras respostas",
+              sub: "Tipo de pele, makeup, condições",
+              onClick: () => setShowOutrasRespostas(true),
+            },
+          ]} />
+        </div>
 
-        <AccountCard items={accountItems} />
+        {/* ── Seção: Assinatura ── */}
+        <div>
+          <SectionHeader title="Assinatura" />
+          <div className="lg-surface rounded-2xl overflow-hidden">
+            <button
+              onClick={() => navigate("/premium")}
+              className="w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-muted/40 transition-colors"
+            >
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                isFullAccess ? "gradient-primary shadow-glow" : isPremium ? "bg-emerald-100" : "bg-muted/60"
+              }`}>
+                {isFullAccess ? <Sparkles size={15} className="text-white" />
+                  : isPremium ? <Coins size={15} className="text-emerald-600" />
+                  : <CreditCard size={15} className="text-muted-foreground" />}
+              </div>
+              <div className="flex-1 text-left">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {isFullAccess
+                      ? `${planLabel[subscriptionType ?? ""] ?? "Premium"}`
+                      : isPremium ? "Créditos avulsos"
+                      : "Plano gratuito"}
+                  </p>
+                  {isFullAccess && (
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full gradient-primary text-white">✦ ATIVO</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isFullAccess && expiresFormatted
+                    ? `Acesso válido até ${expiresFormatted}`
+                    : isPremium
+                    ? `${creditsRemaining} crédito${creditsRemaining !== 1 ? "s" : ""} restante${creditsRemaining !== 1 ? "s" : ""}`
+                    : `${creditsRemaining} crédito${creditsRemaining !== 1 ? "s" : ""} · Sem renovação automática`}
+                </p>
+              </div>
+              <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
+            </button>
+          </div>
+        </div>
 
-        {/* 6. Redes sociais */}
-        <SocialSection />
+        {/* ── Seção: Precisa de ajuda ── */}
+        <div>
+          <SectionHeader title="Precisa de ajuda" />
+          <ProfileCard items={[
+            {
+              icon: <HelpCircle size={15} className="text-foreground" />,
+              label: "Perguntas frequentes",
+              sub: "Dúvidas sobre o app e análises",
+              onClick: () => navigate("/support"),
+            },
+            {
+              icon: <Bell size={15} className={showNotifications ? "text-primary" : "text-foreground"} />,
+              label: "Configurar notificações",
+              sub: "Lembretes de rotina e análise",
+              onClick: () => setShowNotifications((v) => !v),
+            },
+            {
+              icon: <MessageCircle size={15} className="text-foreground" />,
+              label: "Fale conosco",
+              sub: "suporte@faceglow.com.br",
+              onClick: () => window.open("mailto:suporte@faceglow.com.br", "_blank"),
+            },
+          ]} />
 
-        {/* Sair */}
+          {/* Notificações — expansão inline */}
+          <AnimatePresence>
+            {showNotifications && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-2 overflow-hidden"
+              >
+                <NotificationSettings />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Seção: Participe ── */}
+        <div>
+          <SectionHeader title="Participe" />
+          <div className="lg-surface rounded-2xl overflow-hidden">
+            {/* Logo + tagline */}
+            <div className="flex flex-col items-center py-5 px-5 text-center border-b border-border/30">
+              <img src={logoUrl} alt="FaceGlow" className="h-7 mb-1.5 object-contain" />
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
+                Skincare inteligente com IA para a sua pele.
+              </p>
+            </div>
+
+            {/* Redes sociais */}
+            <div className="flex items-center justify-center gap-3 py-4 px-5 border-b border-border/30">
+              <a
+                href="https://instagram.com/faceglow.soora"
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-muted/60 border border-border/40 text-xs font-bold text-foreground active:scale-95 transition-transform"
+              >
+                <Instagram size={13} className="text-rose-500" />
+                Instagram
+              </a>
+              <a
+                href="https://app.faceglow-soora.me"
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-muted/60 border border-border/40 text-xs font-bold text-foreground active:scale-95 transition-transform"
+              >
+                <Globe size={13} className="text-blue-500" />
+                Site
+              </a>
+            </div>
+
+            {/* Compartilhar */}
+            <div className="px-4 py-3.5 relative">
+              <button
+                onClick={handleShare}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm coral-button active:scale-[0.97] transition-transform shadow-glow"
+              >
+                <Share2 size={15} />
+                Compartilhar FaceGlow com amigos
+              </button>
+              <AnimatePresence>
+                {shareToast && (
+                  <motion.p
+                    initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className="text-center text-xs text-emerald-600 font-semibold mt-2"
+                  >
+                    Link copiado!
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Seção: Aprenda ── */}
+        <div>
+          <SectionHeader title="Aprenda" />
+          <ProfileCard items={[
+            {
+              icon: <BookOpen size={15} className="text-foreground" />,
+              label: "Skincare & Educação",
+              sub: "Ativos, tipos de pele, rotinas e mitos",
+              onClick: () => navigate("/aprenda"),
+            },
+          ]} />
+        </div>
+
+        {/* ── Seção: Legal ── */}
+        <div>
+          <SectionHeader title="Legal" />
+          <ProfileCard items={[
+            {
+              icon: <Shield size={15} className="text-foreground" />,
+              label: "Política de privacidade",
+              onClick: () => navigate("/privacidade"),
+            },
+            {
+              icon: <FileText size={15} className="text-foreground" />,
+              label: "Termos de uso",
+              onClick: () => navigate("/termos"),
+            },
+          ]} />
+        </div>
+
+        {/* ── Admin (só admin) ── */}
+        {isAdmin && (
+          <div>
+            <SectionHeader title="Admin" />
+            <ProfileCard items={[
+              {
+                icon: <Settings size={15} className="text-orange-500" />,
+                label: "Produtos",
+                badge: "Admin",
+                onClick: () => navigate("/admin/products"),
+              },
+              {
+                icon: <Settings size={15} className="text-orange-500" />,
+                label: "Afiliados",
+                badge: "Admin",
+                onClick: () => navigate("/admin/afiliados"),
+              },
+            ]} />
+          </div>
+        )}
+
+        {/* ── Sair ── */}
         <motion.button
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
+          whileTap={{ scale: 0.97 }}
           onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-destructive/10 text-destructive font-bold active:scale-[0.97] transition-transform"
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base active:scale-[0.97] transition-transform"
+          style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.15)" }}
         >
-          <LogOut size={16} />
-          Sair da Conta
+          <LogOut size={17} />
+          Sair da conta
         </motion.button>
-      </div>
+
+        {/* ── Excluir conta ── */}
+        <div className="flex justify-center pb-2">
+          <button
+            onClick={() => {
+              if (window.confirm("Excluir sua conta é irreversível. Todos os seus dados serão apagados permanentemente. Tem certeza?")) {
+                window.open("mailto:suporte@faceglow.com.br?subject=Excluir minha conta&body=Olá, solicito a exclusão permanente da minha conta.", "_blank");
+              }
+            }}
+            className="text-xs text-muted-foreground/40 font-medium flex items-center gap-1.5 active:opacity-70 transition-opacity"
+          >
+            <Trash2 size={11} />
+            Excluir minha conta
+          </button>
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="text-center pb-4 space-y-1">
+          <img src={logoIcon} alt="FaceGlow" className="h-5 mx-auto opacity-30 mb-2" />
+          <p className="text-[10px] text-muted-foreground/40">
+            FaceGlow © {new Date().getFullYear()} · v{APP_VERSION}
+          </p>
+          <p className="text-[10px] text-muted-foreground/30">
+            Desenvolvido com IA para cuidar da sua pele
+          </p>
+        </div>
+
+      </motion.div>
+
+      <UserProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        latestAnalysis={latestAnalysis}
+        quizAnswers={quizAnswers}
+        onEdit={() => { setShowProfileModal(false); navigate("/analyze"); }}
+        onViewAnalysis={() => {
+          setShowProfileModal(false);
+          if (latestAnalysis) navigate("/results", { state: { analysis: latestAnalysis } });
+          else navigate("/analyze");
+        }}
+        totalAnalyses={totalAnalyses}
+        bestScore={bestScore}
+        activeProducts={activeProducts}
+        streakDays={streakDays}
+      />
+
+      <PreferenciasModal
+        isOpen={showPreferencias}
+        onClose={() => setShowPreferencias(false)}
+        quizAnswers={quizAnswers}
+        onAnswersChanged={(a) => setQuizAnswers(a)}
+        routineCount={activeProducts}
+        onViewRoutine={() => { setShowPreferencias(false); navigate("/routine"); }}
+      />
+
+      <OutrasRespostasModal
+        isOpen={showOutrasRespostas}
+        onClose={() => setShowOutrasRespostas(false)}
+        quizAnswers={quizAnswers}
+        onAnswersChanged={(a) => setQuizAnswers(a)}
+        analyzedSkinType={latestAnalysis?.skinType}
+      />
 
       <BottomNav />
     </div>
   );
 };
-
-// ── Seção de Redes Sociais ────────────────────────────────────────────────────
-function SocialSection() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.42 }}
-      className="lg-surface rounded-3xl overflow-hidden"
-    >
-      {/* Logo + tagline */}
-      <div className="flex flex-col items-center py-6 px-5 text-center"
-        style={{ borderBottom: "1px solid rgba(232,84,122,0.08)" }}>
-        <img src={logoUrl} alt="FaceGlow" className="h-8 mb-2 object-contain" />
-        <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
-          Skincare inteligente com IA para a sua pele. Personalize sua rotina e evolua com cada análise.
-        </p>
-      </div>
-
-      {/* Links sociais */}
-      <div className="flex items-center justify-center gap-4 py-4 px-5">
-        <a
-          href="https://instagram.com/faceglow.soora"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full lg-surface border border-border/40 text-xs font-bold text-foreground active:scale-95 transition-transform"
-        >
-          <Instagram size={14} className="text-rose-500" />
-          @faceglow.soora
-        </a>
-        <a
-          href="https://app.faceglow-soora.me"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full lg-surface border border-border/40 text-xs font-bold text-foreground active:scale-95 transition-transform"
-        >
-          <Globe size={14} className="text-blue-500" />
-          faceglow-soora.me
-        </a>
-      </div>
-
-      {/* Versão */}
-      <p className="text-center text-[10px] text-muted-foreground/60 pb-4">
-        v{APP_VERSION} · FaceGlow © {new Date().getFullYear()}
-      </p>
-    </motion.div>
-  );
-}
 
 export default Profile;

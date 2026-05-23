@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
+import type { ReactNode } from "react";
 
 interface LoadingState {
   isLoading: boolean;
@@ -9,15 +10,11 @@ interface LoadingState {
 
 const LoadingContext = createContext<LoadingState | undefined>(undefined);
 
-/**
- * Provider de Loading Global
- * Deve envolver a aplica��o
- */
-export const LoadingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export function LoadingProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("Carregando...");
 
-  const handleSetLoading = useCallback((loading: boolean, newMessage?: string) => {
+  const setLoading = useCallback((loading: boolean, newMessage?: string) => {
     setIsLoading(loading);
     if (newMessage) setMessage(newMessage);
   }, []);
@@ -27,23 +24,15 @@ export const LoadingProvider: React.FC<{ children: ReactNode }> = ({ children })
     setMessage("Carregando...");
   }, []);
 
-  const value: LoadingState = {
-    isLoading,
-    message,
-    setLoading: handleSetLoading,
-    clearLoading,
-  };
+  return (
+    <LoadingContext.Provider value={{ isLoading, message, setLoading, clearLoading }}>
+      {children}
+    </LoadingContext.Provider>
+  );
+}
 
-  return <LoadingContext.Provider value={value}>{children}</LoadingContext.Provider>;
-};
-
-/**
- * Hook para usar o loading global
- */
-export const useLoadingStore = () => {
+export function useLoadingStore(): LoadingState {
   const context = useContext(LoadingContext);
-  if (!context) {
-    throw new Error("useLoadingStore deve ser usado dentro de LoadingProvider");
-  }
+  if (!context) throw new Error("useLoadingStore deve ser usado dentro de LoadingProvider");
   return context;
-};
+}

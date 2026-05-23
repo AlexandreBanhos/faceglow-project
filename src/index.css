@@ -152,15 +152,35 @@
 
   html {
     scroll-behavior: auto;
-    overscroll-behavior-y: none; /* impede scroll além do conteúdo */
+    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
+    /*
+     * iOS standalone PWA — status bar fix
+     * Separar background-color (sólido) de background-image (gradiente)
+     * evita que paradas semi-transparentes do aurora revelem branco.
+     * #fbf6f1 é a cor base do linear-gradient interno ao aurora.
+     */
+    background-color: #fbf6f1;
+    background-image: var(--grad-aurora);
+    min-height: 100%;
+    min-height: 100dvh;
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    background: var(--grad-aurora);
+    /* Não usar @apply bg-background — evita conflito com o gradiente aurora.
+       background-color explícito garante base sólida sob as paradas semi-transparentes. */
+    @apply text-foreground font-sans antialiased;
+    background-color: #fbf6f1;
+    background-image: var(--grad-aurora);
     color: var(--fg-ink);
     overscroll-behavior-y: none;
+    min-height: 100svh;
+    min-height: 100dvh;
+    /*
+     * Empurra conteúdo abaixo da status bar transparente (black-translucent).
+     * A área de padding exibe o background do body — aurora + cor sólida.
+     */
+    padding-top: env(safe-area-inset-top, 0px);
   }
 }
 
@@ -407,6 +427,26 @@
 
   .bottom-nav-safe {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+
+  /* Safe area utilities — iOS standalone PWA */
+  .pt-safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mt-safe-top {
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 
   @keyframes card-wiggle {

@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,10 +14,12 @@ import { uploadProductImage } from "@/lib/storage";
 import { type UserCatalogProduct, getUserCatalog, saveUserCatalog } from "@/lib/userCatalog";
 import { fetchMyProducts, createMyProduct, updateMyProduct, deleteMyProduct } from "@/lib/userProducts";
 import { getCurrentUser } from "@/lib/auth";
-import { getCachedLatestAnalysis, fetchRoutineSteps, addRoutineStep, invalidateAnalysisCache } from "@/lib/analysisClient";
+import { getCachedLatestAnalysis, fetchRoutineSteps, addRoutineStep, invalidateAnalysisCache, type RoutineStep } from "@/lib/analysisClient";
 import { PeriodSelector, type Period } from "@/components/routine/PeriodSelector";
 import { toast } from "@/components/ui/sonner";
 import { AuroraBackdrop } from "@/components/shared";
+import { StepIcon } from "@/components/routine/StepIcon";
+import { ProgressiveImage } from "@/components/ProgressiveImage";
 
 // ── Constantes (sincronizadas com step_types e products do banco) ─────────────
 
@@ -59,6 +61,36 @@ const TREATMENTS = [
 
 const PRODUCT_TYPES = ["Leave-on", "Rinse-off", "Pontual", "Proteção solar", "Tratamento noturno"];
 
+// ── Tradução de step type key → nome em português ────────────────────────────
+const STEP_TYPE_PT: Record<string, string> = {
+  cleanser: "Limpeza", toner: "Tônico", serum: "Sérum", acid: "Ácido",
+  retinoid: "Retinol/Retinoide", eye_cream: "Creme p/ Olhos",
+  moisturizer: "Hidratante", oil: "Óleo Facial", sunscreen: "Protetor Solar",
+  spot_treatment: "Tratamento Pontual", mask: "Máscara", exfoliant: "Esfoliante",
+  makeup_remover: "Demaquilante", treatment: "Tratamento",
+};
+const translateCat = (key?: string): string =>
+  key ? (STEP_TYPE_PT[key.toLowerCase()] ?? key) : "";
+
+// ── Mapeia categoria → stepTypeKey para StepIcon ────────────────────────────
+const CATEGORY_TO_STEP_TYPE: Record<string, string> = {
+  "Limpeza":            "cleanser",
+  "Tônico":             "toner",
+  "Sérum":              "serum",
+  "Ácido":              "acid",
+  "Retinol/Retinoide":  "retinoid",
+  "Retinol":            "retinoid",
+  "Creme para Olhos":   "eye_cream",
+  "Contorno dos Olhos": "eye_cream",
+  "Hidratante":         "moisturizer",
+  "Óleo Facial":        "oil",
+  "Óleo":               "oil",
+  "Protetor Solar":     "sunscreen",
+  "Tratamento Pontual": "spot_treatment",
+  "Máscara":            "mask",
+  "Esfoliante":         "exfoliant",
+};
+
 // ── Ícone por categoria (alinhado com step_types) ────────────────────────────
 const CATEGORY_ICON: Record<string, { Icon: LucideIcon; color: string; bg: string }> = {
   "Limpeza":            { Icon: Droplets,    color: "text-cyan-500",    bg: "bg-cyan-50"    },
@@ -95,13 +127,12 @@ const periodLabel = (p: "morning" | "night" | "both") =>
 
 const PeriodBadge = ({ period }: { period: "morning" | "night" | "both" }) => {
   if (period === "both") return (
-    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold text-white"
-      style={{ background: "linear-gradient(90deg,#f59e0b 0%,#6366f1 100%)" }}>
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-white gradient-primary">
       ☀️🌙 Ambas
     </span>
   );
   return (
-    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
       period === "morning" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
     }`}>
       {period === "morning" ? "☀️ Manhã" : "🌙 Noite"}
@@ -169,13 +200,10 @@ export default function MeusProdutos() {
   const [products, setProducts] = useState<UserCatalogProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [activeTab, setActiveTab] = useState<"meus" | "indicados">("meus");
+  const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
 
   // "Indicados" data
-  const [recommendedProducts, setRecommendedProducts] = useState<Array<{
-    type: string; product: string; description: string; imageUrl?: string;
-  }>>([]);
-  const [analysisRoutine, setAnalysisRoutine] = useState<{ morning: string[]; night: string[] }>({ morning: [], night: [] });
-  const [additionalRecs, setAdditionalRecs] = useState<string>("");
+  const [routineSteps, setRoutineSteps] = useState<RoutineStep[]>([]);
   const [routineUsage, setRoutineUsage] = useState<RoutineUsage>(new Map());
 
   // ── Form Sheet ────────────────────────────────────────────────────────────
@@ -207,17 +235,13 @@ export default function MeusProdutos() {
 
         try {
           const analysis = getCachedLatestAnalysis();
-          if (analysis?.recommendations?.length) {
-            setRecommendedProducts(analysis.recommendations);
-          }
-          if (analysis?.routine) {
-            setAnalysisRoutine(analysis.routine);
-          }
-          if (analysis?.additionalRecommendations) {
-            setAdditionalRecs(analysis.additionalRecommendations);
-          }
           if (analysis?.id) {
-            setRoutineUsage(await fetchRoutineUsage(analysis.id));
+            const [steps, usage] = await Promise.all([
+              fetchRoutineSteps(analysis.id).catch(() => [] as RoutineStep[]),
+              fetchRoutineUsage(analysis.id),
+            ]);
+            setRoutineSteps(steps);
+            setRoutineUsage(usage);
           }
         } catch { /* silent */ }
 
@@ -352,18 +376,20 @@ export default function MeusProdutos() {
     b.toLowerCase().includes(form.brand.toLowerCase()) && form.brand.length > 0
   );
 
-  // ── Grouped products ──────────────────────────────────────────────────────
-  const grouped = products.reduce<Record<string, UserCatalogProduct[]>>((acc, p) => {
-    const key = p.category || "Sem categoria";
-    acc[key] = [...(acc[key] ?? []), p];
-    return acc;
-  }, {});
+  // ── Categories + filter ────────────────────────────────────────────────────
+  const categories = useMemo(() => {
+    const cats = [...new Set(products.map((p) => p.category || "Sem categoria"))];
+    return ["Todos", ...cats];
+  }, [products]);
+
+  const filteredProducts = useMemo(() =>
+    selectedCategory === "Todos"
+      ? products
+      : products.filter((p) => (p.category || "Sem categoria") === selectedCategory),
+  [products, selectedCategory]);
 
   // ── Indicados: check if any data ──────────────────────────────────────────
-  const hasIndicados =
-    recommendedProducts.length > 0 ||
-    analysisRoutine.morning.length > 0 ||
-    analysisRoutine.night.length > 0;
+  const hasIndicados = routineSteps.length > 0;
 
   return (
     <div className="relative min-h-screen overflow-x-hidden pb-28" style={{ background: "var(--grad-aurora)" }}>
@@ -381,7 +407,7 @@ export default function MeusProdutos() {
               <p className="text-xs text-muted-foreground">
                 {activeTab === "meus"
                   ? `${products.length} produto${products.length !== 1 ? "s" : ""}`
-                  : `${recommendedProducts.length} indicado${recommendedProducts.length !== 1 ? "s" : ""}`}
+                  : `${routineSteps.length} passo${routineSteps.length !== 1 ? "s" : ""} na rotina`}
               </p>
             </div>
             {activeTab === "meus" && (
@@ -429,62 +455,105 @@ export default function MeusProdutos() {
               </motion.div>
             )}
 
-            {Object.entries(grouped).map(([category, items]) => (
-              <div key={category} className="space-y-1.5">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">{category}</p>
-                <div className="space-y-1.5">
-                  {items.map((p, idx) => {
-                    const usagePeriod = inRoutine(p.name);
-                    const displayPeriod = usagePeriod ?? p.defaultPeriod;
-                    return (
-                      <motion.div key={p.id} layout
-                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.03 }}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
-                        style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.6)", boxShadow: "0 1px 6px rgba(244,168,199,0.08)" }}
-                      >
-                        {/* Category icon */}
-                        <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
-                          <CategoryIcon category={p.category} size={16} />
-                        </div>
-
-                        {/* Name + brand */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate leading-tight">{p.name}</p>
-                          {p.brand && <p className="text-[11px] text-muted-foreground truncate">{p.brand}</p>}
-                        </div>
-
-                        {/* Period badge */}
-                        {displayPeriod && (
-                          <PeriodBadge period={displayPeriod} />
-                        )}
-
-                        {/* In-routine indicator */}
-                        {usagePeriod && (
-                          <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                            <Check size={10} className="text-white" />
-                          </div>
-                        )}
-
-                        {/* Edit */}
-                        <button onClick={() => openEdit(p)}
-                          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-                          style={{ background: "rgba(244,168,199,0.12)", border: "1px solid rgba(244,168,199,0.25)" }}>
-                          <Pencil size={13} style={{ color: "#E8748A" }} />
-                        </button>
-
-                        {/* Delete */}
-                        <button onClick={() => remove(p.id)}
-                          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-                          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                          <Trash2 size={13} className="text-destructive" />
-                        </button>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+            {/* ── Filtro por categoria ── */}
+            {products.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+                {categories.map((cat) => {
+                  const active = selectedCategory === cat;
+                  return (
+                    <button key={cat} onClick={() => setSelectedCategory(cat)}
+                      className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95"
+                      style={active
+                        ? { background: "linear-gradient(135deg,#E8748A,#F4A8C7)", color: "#fff", boxShadow: "0 2px 8px rgba(232,116,138,0.3)" }
+                        : { background: "rgba(255,255,255,0.6)", color: "var(--muted-foreground)", border: "1px solid rgba(0,0,0,0.08)" }
+                      }
+                    >
+                      {cat === "Todos" ? `Todos (${products.length})` : (translateCat(cat) || cat)}
+                    </button>
+                  );
+                })}
               </div>
-            ))}
+            )}
+
+            {/* ── Grid mostruário ── */}
+            {filteredProducts.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                {filteredProducts.map((p, idx) => {
+                  const usagePeriod = inRoutine(p.name);
+                  const displayPeriod = usagePeriod ?? p.defaultPeriod;
+                  return (
+                    <motion.div key={p.id} layout
+                      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.04 }}
+                      className="rounded-2xl overflow-hidden flex flex-col"
+                      style={{
+                        background: "rgba(255,255,255,0.75)",
+                        border: "1px solid rgba(255,255,255,0.9)",
+                        boxShadow: "0 2px 12px rgba(244,168,199,0.10)",
+                      }}
+                    >
+                      {/* Área de imagem — padrão idêntico ao card de rotina */}
+                      <div className="p-2" style={{ background: "#f5f1ff" }}>
+                        <div className="relative aspect-square rounded-xl border border-border/30 overflow-hidden" style={{ background: "#f5f1ff" }}>
+                          {p.imageUrl ? (
+                            <ProgressiveImage
+                              src={p.imageUrl}
+                              alt={p.name}
+                              objectFit="contain"
+                              stepTypeKey={CATEGORY_TO_STEP_TYPE[p.category] ?? p.category}
+                              className="w-full h-full p-1.5 bg-white"
+                              containerClassName="w-full h-full bg-white"
+                            />
+                          ) : (
+                            <StepIcon stepTypeKey={CATEGORY_TO_STEP_TYPE[p.category] ?? p.category} />
+                          )}
+                          {displayPeriod && (
+                            <div className="absolute bottom-1.5 left-1.5">
+                              <PeriodBadge period={displayPeriod} />
+                            </div>
+                          )}
+                          {usagePeriod && (
+                            <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
+                              <Check size={9} className="text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Nome + ações */}
+                      <div className="px-2.5 pt-1.5 pb-2.5 flex flex-col flex-1">
+                        <p className="text-xs font-bold text-foreground line-clamp-2 leading-tight">{p.name}</p>
+                        {p.brand
+                          ? <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{p.brand}</p>
+                          : p.category
+                          ? <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{translateCat(p.category) || p.category}</p>
+                          : null
+                        }
+                        <div className="flex gap-1.5 mt-2">
+                          <button onClick={() => openEdit(p)}
+                            className="flex-1 h-6 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold active:scale-90 transition-transform"
+                            style={{ background: "rgba(232,116,138,0.10)", color: "#E8748A" }}>
+                            <Pencil size={9} /> Editar
+                          </button>
+                          <button onClick={() => remove(p.id)}
+                            className="flex-1 h-6 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold active:scale-90 transition-transform"
+                            style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>
+                            <Trash2 size={9} /> Remover
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Empty filtered state */}
+            {filteredProducts.length === 0 && products.length > 0 && (
+              <div className="py-10 text-center">
+                <p className="text-sm text-muted-foreground">Nenhum produto em <strong>{selectedCategory}</strong>.</p>
+              </div>
+            )}
           </>
         )}
 
@@ -497,192 +566,160 @@ export default function MeusProdutos() {
                 <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center">
                   <Lightbulb size={36} className="text-primary/60" />
                 </div>
-                <p className="font-bold text-foreground">Nenhuma recomendação disponível</p>
-                <p className="text-sm text-muted-foreground">Realize uma análise para receber produtos indicados.</p>
+                <p className="font-bold text-foreground">Nenhuma rotina criada ainda</p>
+                <p className="text-sm text-muted-foreground">Realize uma análise para receber uma rotina personalizada.</p>
                 <button onClick={() => navigate("/analyze")} className="coral-button h-11 px-6 rounded-full text-sm font-bold text-white">
                   Fazer análise
                 </button>
               </motion.div>
             ) : (
               <>
-                {/* Recomendados — agrupados por tipo */}
-                {recommendedProducts.length > 0 && (() => {
-                  const grouped = recommendedProducts.reduce<Record<string, typeof recommendedProducts>>((acc, p) => {
-                    const key = p.type || "Outros";
-                    acc[key] = [...(acc[key] ?? []), p];
-                    return acc;
-                  }, {});
-                  return Object.entries(grouped).map(([type, items]) => (
-                    <div key={type} className="space-y-1.5">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">{type}</p>
-                      <div className="space-y-1.5">
-                        {items.map((p, idx) => {
-                          const usagePeriod = inRoutine(p.product);
-                          const typeNorm = (p.type ?? "").toLowerCase();
-                          const defaultPeriod: Period =
-                            typeNorm.includes("protetor") || typeNorm.includes("solar") ? "morning" :
-                            typeNorm.includes("retinol") || typeNorm.includes("retinoide") ? "night" : "both";
-                          const recId = `rec-${p.product}`;
+                {/* Em uso — produtos ativos na rotina */}
+                {(() => {
+                  const activeSteps = routineSteps.filter((s) => s.overrideProductName ?? s.productName);
+                  if (!activeSteps.length) return null;
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-xs font-extrabold text-muted-foreground/70 uppercase tracking-widest px-1">Em uso</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {activeSteps.map((s, idx) => {
+                          const name = s.overrideProductName ?? s.productName ?? "";
+                          const imgUrl = s.overrideImageUrl ?? s.imageUrl;
                           return (
-                            <motion.div key={`${type}-${idx}`}
-                              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                            <motion.div key={s.id}
+                              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                               transition={{ delay: idx * 0.04 }}
-                              className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
+                              className="rounded-2xl overflow-hidden flex flex-col"
                               style={{
-                                background: usagePeriod ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.72)",
-                                border: usagePeriod ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(255,255,255,0.6)",
-                                boxShadow: "0 1px 6px rgba(244,168,199,0.08)",
+                                background: "rgba(255,255,255,0.75)",
+                                border: "1px solid rgba(255,255,255,0.9)",
+                                boxShadow: "0 2px 12px rgba(244,168,199,0.10)",
                               }}
                             >
-                              {/* Category icon */}
-                              <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
-                                <CategoryIcon category={p.type} size={16} />
+                              <div className="p-2" style={{ background: "#f5f1ff" }}>
+                                <div className="relative aspect-square rounded-xl border border-border/30 overflow-hidden" style={{ background: "#f5f1ff" }}>
+                                  {imgUrl ? (
+                                    <ProgressiveImage
+                                      src={imgUrl}
+                                      alt={name}
+                                      objectFit="contain"
+                                      stepTypeKey={s.stepTypeKey}
+                                      className="w-full h-full p-1.5 bg-white"
+                                      containerClassName="w-full h-full bg-white"
+                                    />
+                                  ) : (
+                                    <StepIcon stepTypeKey={s.stepTypeKey} />
+                                  )}
+                                  <div className="absolute bottom-1.5 left-1.5">
+                                    <PeriodBadge period={s.period} />
+                                  </div>
+                                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
+                                    <Check size={9} className="text-white" />
+                                  </div>
+                                </div>
                               </div>
-
-                              {/* Name + description */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate leading-tight">{p.product}</p>
-                                {p.description && (
-                                  <p className="text-[11px] text-muted-foreground line-clamp-1">{p.description}</p>
+                              <div className="px-2.5 pt-1.5 pb-2.5">
+                                <p className="text-xs font-bold text-foreground line-clamp-2 leading-tight">{name}</p>
+                                {(s.stepTypeKey || s.category) && (
+                                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                                    {translateCat(s.stepTypeKey ?? s.category)}
+                                  </p>
                                 )}
                               </div>
-
-                              {/* Period badge */}
-                              <PeriodBadge period={defaultPeriod} />
-
-                              {/* In-routine indicator */}
-                              {usagePeriod ? (
-                                <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                                  <Check size={10} className="text-white" />
-                                </div>
-                              ) : addedToRoutine[recId] ? (
-                                <Check size={14} className="text-green-500 flex-shrink-0" />
-                              ) : (
-                                <button
-                                  disabled={!!addingToRoutine[recId]}
-                                  onClick={() => requestAdd(p.product, p.imageUrl, p.type ?? "", defaultPeriod, recId)}
-                                  className="flex-shrink-0 h-8 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 disabled:opacity-50"
-                                  style={{ background: "linear-gradient(135deg,#E8748A,#F4A8C7)" }}
-                                >
-                                  {addingToRoutine[recId] ? <Loader2 size={11} className="animate-spin" /> : "+ Rotina"}
-                                </button>
-                              )}
                             </motion.div>
                           );
                         })}
                       </div>
                     </div>
-                  ));
+                  );
                 })()}
 
-                {/* Rotina sugerida — manhã */}
-                {analysisRoutine.morning.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">☀️ Rotina manhã sugerida</p>
-                    <div className="space-y-1.5">
-                      {analysisRoutine.morning.map((name, idx) => {
-                        const usagePeriod = inRoutine(name);
-                        const recId = `morning-${name}-${idx}`;
-                        return (
-                          <motion.div key={recId}
-                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.03 }}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
-                            style={{
-                              background: usagePeriod ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.72)",
-                              border: usagePeriod ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(255,255,255,0.6)",
-                              boxShadow: "0 1px 6px rgba(244,168,199,0.08)",
-                            }}
-                          >
-                            <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
-                              <div className="w-full h-full flex items-center justify-center bg-amber-50">
-                                <span style={{ fontSize: 16 }}>☀️</span>
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-foreground truncate">{name}</p>
-                            </div>
-                            <PeriodBadge period="morning" />
-                            {usagePeriod ? (
-                              <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                                <Check size={10} className="text-white" />
-                              </div>
-                            ) : (
-                              <button
-                                disabled={!!addingToRoutine[recId]}
-                                onClick={() => requestAdd(name, undefined, "", "morning", recId)}
-                                className="flex-shrink-0 h-8 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 disabled:opacity-50"
-                                style={{ background: "linear-gradient(135deg,#E8748A,#F4A8C7)" }}
-                              >
-                                {addingToRoutine[recId] ? <Loader2 size={11} className="animate-spin" /> : "+ Rotina"}
-                              </button>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                {/* Recomendados — slots não selecionados */}
+                {(() => {
+                  const altSlots = routineSteps.flatMap((s) =>
+                    (s.slots ?? [])
+                      .filter((sl) => !sl.isSelected && sl.productName)
+                      .map((sl) => ({ slot: sl, step: s }))
+                  );
+                  if (!altSlots.length) return null;
+                  return (
+                    <div className="space-y-3">
+                      <div className="px-1">
+                        <p className="text-xs font-extrabold text-muted-foreground/70 uppercase tracking-widest">Recomendados</p>
+                      </div>
 
-                {/* Rotina sugerida — noite */}
-                {analysisRoutine.night.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">🌙 Rotina noite sugerida</p>
-                    <div className="space-y-1.5">
-                      {analysisRoutine.night.map((name, idx) => {
-                        const usagePeriod = inRoutine(name);
-                        const recId = `night-${name}-${idx}`;
-                        return (
-                          <motion.div key={recId}
-                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.03 }}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-2xl"
-                            style={{
-                              background: usagePeriod ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.72)",
-                              border: usagePeriod ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(255,255,255,0.6)",
-                              boxShadow: "0 1px 6px rgba(244,168,199,0.08)",
-                            }}
-                          >
-                            <div className="w-9 h-9 rounded-xl flex-shrink-0 overflow-hidden">
-                              <div className="w-full h-full flex items-center justify-center bg-indigo-50">
-                                <span style={{ fontSize: 16 }}>🌙</span>
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-foreground truncate">{name}</p>
-                            </div>
-                            <PeriodBadge period="night" />
-                            {usagePeriod ? (
-                              <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                                <Check size={10} className="text-white" />
-                              </div>
-                            ) : (
-                              <button
-                                disabled={!!addingToRoutine[recId]}
-                                onClick={() => requestAdd(name, undefined, "", "night", recId)}
-                                className="flex-shrink-0 h-8 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 disabled:opacity-50"
-                                style={{ background: "linear-gradient(135deg,#E8748A,#F4A8C7)" }}
-                              >
-                                {addingToRoutine[recId] ? <Loader2 size={11} className="animate-spin" /> : "+ Rotina"}
-                              </button>
-                            )}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                      {/* Informativo */}
+                      <div className="rounded-2xl px-3.5 py-3"
+                        style={{ background: "rgba(139,92,246,0.07)", border: "1px solid rgba(139,92,246,0.12)" }}>
+                        <p className="text-xs text-foreground font-semibold leading-snug">
+                          Produtos que não estão em uso, mas que selecionamos com base na sua condição de pele atual.
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          Seriam boas alternativas para substituir os passos correspondentes da sua rotina — troque quando quiser.
+                        </p>
+                      </div>
 
-                {/* Observações adicionais */}
-                {additionalRecs && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">Observações adicionais</p>
-                    <div className="px-4 py-3 rounded-2xl text-sm text-muted-foreground leading-relaxed"
-                      style={{ background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.6)" }}>
-                      {additionalRecs}
+                      <div className="grid grid-cols-2 gap-3">
+                        {altSlots.map(({ slot, step }, idx) => {
+                          const recId = `slot-${slot.id}`;
+                          const added = !!addedToRoutine[recId];
+                          const adding = !!addingToRoutine[recId];
+                          return (
+                            <motion.div key={slot.id}
+                              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: idx * 0.04 }}
+                              className="rounded-2xl overflow-hidden flex flex-col"
+                              style={{
+                                background: "rgba(255,255,255,0.75)",
+                                border: "1px solid rgba(255,255,255,0.9)",
+                                boxShadow: "0 2px 12px rgba(244,168,199,0.10)",
+                              }}
+                            >
+                              <div className="p-2" style={{ background: "#f5f1ff" }}>
+                                <div className="relative aspect-square rounded-xl border border-border/30 overflow-hidden" style={{ background: "#f5f1ff" }}>
+                                  {slot.imageUrl ? (
+                                    <ProgressiveImage
+                                      src={slot.imageUrl}
+                                      alt={slot.productName ?? ""}
+                                      objectFit="contain"
+                                      stepTypeKey={step.stepTypeKey}
+                                      className="w-full h-full p-1.5 bg-white"
+                                      containerClassName="w-full h-full bg-white"
+                                    />
+                                  ) : (
+                                    <StepIcon stepTypeKey={step.stepTypeKey} />
+                                  )}
+                                  <div className="absolute bottom-1.5 left-1.5">
+                                    <PeriodBadge period={step.period} />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="px-2.5 pt-1.5 pb-2.5 flex flex-col flex-1">
+                                <p className="text-xs font-bold text-foreground line-clamp-2 leading-tight">{slot.productName}</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                                  {translateCat(step.stepTypeKey ?? step.category)}
+                                </p>
+                                <button
+                                  disabled={adding || added}
+                                  onClick={() => requestAdd(slot.productName!, slot.imageUrl, step.category ?? "", step.period, recId)}
+                                  className="mt-2 w-full h-6 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold text-white disabled:opacity-60 active:scale-95 transition-transform"
+                                  style={{ background: added ? "rgba(34,197,94,0.8)" : "linear-gradient(135deg,#E8748A,#F4A8C7)" }}
+                                >
+                                  {adding
+                                    ? <Loader2 size={9} className="animate-spin" />
+                                    : added
+                                    ? <><Check size={9} /> Adicionado</>
+                                    : "+ Usar na rotina"
+                                  }
+                                </button>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </>
             )}
           </>
