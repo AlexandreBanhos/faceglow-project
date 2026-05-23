@@ -34,7 +34,23 @@ export const PRE_ANALYSIS_QUESTIONS: QuizQuestion[] = [
       { id: "over60",  label: "Mais de 60 anos"  },
     ],
   },
-  // Pergunta 2 — tom de pele (ajuda a IA calibrar manchas, vermelhidão e risco de hiperpigmentação)
+  // Pergunta 2 — gênero (influência hormonal na pele)
+  {
+    id: "gender",
+    question: "Com qual gênero você se identifica?",
+    highlight: "gênero",
+    subtitle: "Os hormônios influenciam bastante no comportamento da pele.",
+    mascotMood: "happy",
+    type: "single",
+    columns: 2,
+    options: [
+      { id: "female",     label: "Feminino",             faIcon: faVenus     },
+      { id: "male",       label: "Masculino",            faIcon: faMars      },
+      { id: "nonbinary",  label: "Não binário",          faIcon: faVenusMars },
+      { id: "prefer_not", label: "Prefiro não informar", faIcon: faMinus     },
+    ],
+  },
+  // Pergunta 3 — tom de pele (ajuda a IA calibrar manchas, vermelhidão e risco de hiperpigmentação)
   {
     id: "skinTone",
     question: "Qual o seu tom de pele?",
@@ -195,7 +211,7 @@ export const FULL_QUESTIONS: QuizQuestion[] = [
     highlight: "tom de pele",
     subtitle: "Tons mais escuros têm maior risco de hiperpigmentação pós-inflamatória — isso muda os ativos recomendados.",
     mascotMood: "happy",
-    type: "single",
+    type: "tone-picker",
     columns: 1,
     options: [
       { id: "very_light", label: "Muito clara",    sublabel: "Tons brancos/rosados · queima facilmente, alto risco de vermelhidão" },

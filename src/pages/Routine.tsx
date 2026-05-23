@@ -39,7 +39,6 @@ import { Mascot, useFloatAnimation } from "@/components/quiz/Mascot";
 import { ProductSwitchSheet } from "@/components/routine/ProductSwitchSheet";
 import { ProductWizard, type WizardResult, type WizardProductOption } from "@/components/routine/ProductWizard";
 import { RoutineSuggestionsPanel } from "@/components/routine/RoutineSuggestionsPanel";
-import { PeriodSelector } from "@/components/routine/PeriodSelector";
 import { SortableRoutineList, SortableRoutineItem, RoutineDragHandle } from "@/components/routine/SortableRoutineList";
 import { ProgressiveImage } from "@/components/ProgressiveImage";
 import { StepIcon } from "@/components/routine/StepIcon";
@@ -1460,6 +1459,8 @@ const Routine = () => {
   const isScheduledForDay = (itemKey: string, day: WeekDayKey) =>
     (productSchedule.daysByItem[itemKey] ?? allDays).includes(day);
 
+
+
   const getProductCheckKey = (itemKey: string, day: string) => `${day}::${itemKey}`;
 
   const getSelectedOption = useMemo(() => (item: RoutineItem): ProductOption => {
@@ -2760,13 +2761,13 @@ const Routine = () => {
                           {isEditing && (
                             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                               {canEditDays && (
-                                <button
-                                  onClick={() => setEditingDaysItem(editingDaysItem === item.key ? null : item.key)}
-                                  className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center transition-colors"
-                                  aria-label="Editar dias"
-                                >
-                                  <Edit size={12} className="text-muted-foreground" />
-                                </button>
+                              <button
+                                onClick={() => setEditingDaysItem(editingDaysItem === item.key ? null : item.key)}
+                                className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${editingDaysItem === item.key ? "bg-violet-100" : "hover:bg-muted/40"}`}
+                                aria-label="Editar dias"
+                              >
+                                <Edit size={12} className={editingDaysItem === item.key ? "text-violet-500" : "text-muted-foreground"} />
+                              </button>
                               )}
                               {hasRoutineFromAnalysis && (
                                 <button
@@ -2962,8 +2963,8 @@ const Routine = () => {
 
                       {/* Edit Days Section */}
                       {editingDaysItem === item.key && canEditDays && (
-                        <div className="mx-3 mb-3 rounded-xl border border-border/70 bg-background p-2">
-                          <p className="text-xs font-semibold text-muted-foreground mb-2">Editar dias desse passo</p>
+                        <div className="mx-3 mb-3 rounded-xl border border-border/70 bg-background p-3">
+                          <p className="text-xs font-semibold text-muted-foreground mb-2">Dias da semana</p>
                           <div className="grid grid-cols-7 gap-1.5">
                             {weekDays.map((day) => {
                               const active = isScheduledForDay(item.key, day.key);
@@ -3580,11 +3581,41 @@ const Routine = () => {
               }
 
             } else if (wizardItem) {
-              // ── Trocar produto em passo existente ──
-              await addCatalogProductToStep(
-                wizardItem.key,
-                { productName: result.productName, imageUrl: result.imageUrl }
-              ).catch(() => {});
+              // ── Período mudou — mover ou duplicar passo ──
+              const currentPeriod = wizardItem.period as "morning" | "night";
+              if (result.period !== currentPeriod) {
+                if (result.period === "both") {
+                  // Adicionar cópia do passo na outra rotina
+                  const otherPeriod = currentPeriod === "morning" ? "night" : "morning";
+                  const toastId = toast.loading("Adicionando à rotina de " + (otherPeriod === "morning" ? "manhã" : "noite") + "…");
+                  try {
+                    await addRoutineStep(analysis!.id, {
+                      period: otherPeriod,
+                      productName: getDisplayProductName(wizardItem),
+                      category: wizardItem.type,
+                      imageUrl: wizardItem.imageUrl ?? undefined,
+                    });
+                    await reloadApiSteps(true);
+                    invalidateAnalysisCache();
+                    toast.dismiss(toastId);
+                    toast.success("Adicionado à rotina de " + (otherPeriod === "morning" ? "manhã" : "noite"), { duration: 2500 });
+                  } catch {
+                    toast.dismiss(toastId);
+                    toast.error("Erro ao adicionar. Tente novamente.");
+                  }
+                } else {
+                  // Mover passo para outra rotina
+                  await patchStep(wizardItem.key, { period: result.period }).catch(() => {});
+                }
+              }
+
+              // ── Trocar produto (só se um novo produto foi selecionado) ──
+              if (result.source !== "recommendation") {
+                await addCatalogProductToStep(
+                  wizardItem.key,
+                  { productName: result.productName, imageUrl: result.imageUrl }
+                ).catch(() => {});
+              }
             }
 
             setWizardOpen(false);
@@ -3642,18 +3673,12 @@ const Routine = () => {
 
       {/* ── Card "Refinar minha rotina" + Histórico ── */}
       <div className="mx-auto max-w-md px-5 pb-6 space-y-3">
-        {(refineSuccess || questionnaireCompletedAt) ? (
+        {refineSuccess ? (
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
             <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-emerald-800">
-                {refineSuccess ? "Sugestões geradas!" : "Questionário já respondido"}
-              </p>
-              <p className="text-xs text-emerald-600">
-                {refineSuccess
-                  ? "Verifique as sugestões acima para aplicar à sua rotina."
-                  : "As sugestões foram geradas com base nas suas respostas."}
-              </p>
+              <p className="text-sm font-semibold text-emerald-800">Sugestões geradas!</p>
+              <p className="text-xs text-emerald-600">Verifique as sugestões acima para aplicar à sua rotina.</p>
             </div>
           </div>
         ) : questionnaireCompletedAt === null ? (

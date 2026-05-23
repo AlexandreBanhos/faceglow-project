@@ -14,7 +14,8 @@ public record PatchRoutineStepRequest(
     string? OverrideProductName,
     string? OverrideImageUrl,
     Guid? ProductId,
-    string? ScheduleDays = null    // JSON array ex: "[\"mon\",\"tue\",\"wed\"]"
+    string? ScheduleDays = null,   // JSON array ex: "[\"mon\",\"tue\",\"wed\"]"
+    string? Period = null          // "morning" | "night"
 );
 
 public record ReorderStepsRequest(

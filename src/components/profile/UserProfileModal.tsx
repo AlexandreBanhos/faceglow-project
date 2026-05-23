@@ -23,8 +23,8 @@ const SKIN_TONE_LABELS: Record<string, string> = {
   medium: "Média / Trigal", tan: "Morena", dark: "Negra / Escura",
 };
 const SKIN_TONE_COLORS: Record<string, string> = {
-  very_light: "#f5e0d2", light: "#e8c5a0",
-  medium: "#c68642", tan: "#8b5e3c", dark: "#3d1f0e",
+  very_light: "#FDDBB4", light: "#E8AC7E",
+  medium: "#C17F4A", tan: "#8B5A2B", dark: "#3D1F0E",
 };
 const GENDER_ICONS = {
   female:     faVenus,

@@ -210,6 +210,18 @@ public static class RoutineStepEndpoints
 
         var resolvedKey = StepDisplayNames.ResolveKey(request.Category);
 
+        // Check for duplicate BEFORE inserting to avoid ghost rows
+        var nameLower = request.ProductName.ToLower();
+        var duplicateExists = await db.RoutineSteps
+            .AnyAsync(s => s.RoutineId == routine.Id
+                        && s.IsActive
+                        && s.Slots.Any(sl => sl.IsSelected
+                            && (sl.Product != null && sl.Product.Name.ToLower() == nameLower
+                                || sl.UserProduct != null && sl.UserProduct.CustomName != null
+                                   && sl.UserProduct.CustomName.ToLower() == nameLower)), ct);
+        if (duplicateExists)
+            return Results.Conflict(new { error = "Este produto já existe nessa rotina." });
+
         var step = new UserRoutineStep
         {
             RoutineId = routine.Id,
@@ -220,16 +232,6 @@ public static class RoutineStepEndpoints
         };
         db.RoutineSteps.Add(step);
         await db.SaveChangesAsync(ct);
-
-        // Check for duplicate step with same product in this routine
-        var duplicateExists = await db.RoutineSteps
-            .AnyAsync(s => s.RoutineId == routine.Id
-                        && s.IsActive
-                        && s.Slots.Any(sl => sl.IsSelected
-                            && (sl.Product!.Name.ToLower() == request.ProductName.ToLower()
-                                || sl.UserProduct!.CustomName!.ToLower() == request.ProductName.ToLower())), ct);
-        if (duplicateExists)
-            return Results.Conflict(new { error = "Este produto já existe nessa rotina." });
 
         StepProductSlot slot;
         if (request.ProductId.HasValue)
@@ -318,6 +320,24 @@ public static class RoutineStepEndpoints
         if (request.ScheduleDays is not null)
         {
             step.ScheduleDays = ParseScheduleDays(request.ScheduleDays);
+        }
+
+        // If Period provided, move step to the target routine
+        if (request.Period is "morning" or "night" && step.Routine.Period != request.Period)
+        {
+            var targetRoutine = await db.Routines
+                .FirstOrDefaultAsync(r => r.UserId == userId
+                                       && r.Period == request.Period
+                                       && r.IsActive, ct);
+            if (targetRoutine is null)
+                return Results.NotFound(new { error = $"Rotina de '{request.Period}' não encontrada." });
+
+            var maxOrder = await db.RoutineSteps
+                .Where(s => s.RoutineId == targetRoutine.Id && s.IsActive)
+                .MaxAsync(s => (int?)s.StepOrder, ct) ?? -1;
+
+            step.RoutineId = targetRoutine.Id;
+            step.StepOrder = maxOrder + 1;
         }
 
         if (request.SelectedTier is null) // only save again if tier wasn't already saved above

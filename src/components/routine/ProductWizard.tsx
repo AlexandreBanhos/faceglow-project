@@ -21,6 +21,7 @@ import { Mascot, SpeechBubble, useFloatAnimation } from "@/components/quiz/Masco
 import type { MascotMood } from "@/components/quiz/Mascot";
 import { BrandLogoFilter } from "@/components/routine/BrandLogoFilter";
 import { fetchBrandLogos, type BrandLogo } from "@/lib/brandLogos";
+import { PeriodSelector } from "@/components/routine/PeriodSelector";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -594,6 +595,12 @@ export function ProductWizard({
                     </div>
                   )}
 
+                  {/* Período */}
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 mb-3">Para qual rotina?</p>
+                    <PeriodSelector size="sm" value={period} onChange={(v) => setPeriod(v)} />
+                  </div>
+
                   {/* Toggle diário */}
                   <div>
                     <p className="text-xs font-bold text-slate-700 mb-3">Quando usar?</p>
@@ -602,9 +609,6 @@ export function ProductWizard({
                         <FontAwesomeIcon icon={faCalendarDays} style={{ fontSize: 14, color: "#94a3b8" }} />
                         <div>
                           <p className="text-sm font-semibold text-slate-800">Uso diário</p>
-                          <p className="text-[11px] text-slate-400">
-                            {period === "morning" ? "Toda manhã" : period === "night" ? "Toda noite" : "Manhã e noite"}
-                          </p>
                         </div>
                       </div>
                       <button onClick={() => { setRegIsDaily(v => !v); if (!regIsDaily) setRegDays(WEEK_DAYS.map(d => d.key)); }}>

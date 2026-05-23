@@ -648,6 +648,7 @@ export const updateRoutineStep = async (
     overrideImageUrl?: string | null;
     productId?: string | null;
     scheduleDays?: string | null;
+    period?: "morning" | "night" | null;
   },
 ): Promise<boolean> => {
   const token = await getAccessTokenWithWait(5000);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Mascot, useFloatAnimation } from "@/components/quiz/Mascot";
+import SkinTonePicker from "@/components/quiz/SkinTonePicker";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ export interface QuizQuestion {
   highlight?: string;
   subtitle?: string;
   mascotMood?: import("@/components/quiz/Mascot").MascotMood;
-  type: "single" | "multi";
+  type: "single" | "multi" | "tone-picker";
   columns?: 1 | 2;
   options: QuizOption[];
 }
@@ -285,22 +286,29 @@ function QuizPage({ question, currentAnswers, onAnswer }: QuizPageProps) {
         </p>
       )}
 
-      {/* Options grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: cols === 2 ? "1fr 1fr" : "1fr",
-        gap: cols === 2 ? "10px" : "8px",
-      }}>
-        {question.options.map((opt) => (
-          <OptionCard
-            key={opt.id}
-            option={opt}
-            selected={currentAnswers.includes(opt.id)}
-            onClick={() => onAnswer(opt.id)}
-            columns={cols}
-          />
-        ))}
-      </div>
+      {/* Options grid / tone picker */}
+      {question.type === "tone-picker" ? (
+        <SkinTonePicker
+          value={currentAnswers[0] ?? null}
+          onChange={onAnswer}
+        />
+      ) : (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: cols === 2 ? "1fr 1fr" : "1fr",
+          gap: cols === 2 ? "10px" : "8px",
+        }}>
+          {question.options.map((opt) => (
+            <OptionCard
+              key={opt.id}
+              option={opt}
+              selected={currentAnswers.includes(opt.id)}
+              onClick={() => onAnswer(opt.id)}
+              columns={cols}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -321,7 +329,7 @@ export default function SkinQuiz({ questions, onComplete, onBack, analysisInProg
   function handleAnswer(optionId: string) {
     setAllAnswers((prev) => {
       const current = prev[question.id] ?? [];
-      if (question.type === "single") {
+      if (question.type === "single" || question.type === "tone-picker") {
         return { ...prev, [question.id]: [optionId] };
       }
       const already = current.includes(optionId);
