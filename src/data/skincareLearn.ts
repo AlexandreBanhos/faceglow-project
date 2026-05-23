@@ -16,7 +16,7 @@ import imgProbRessecamento from "@/assets/skincare-edu/prob-ressecamento.jpg";
 
 import imgAtivoSpf        from "@/assets/skincare-edu/ativo-spf.webp";
 import imgAtivoVitaminaC  from "@/assets/skincare-edu/ativo-vitamina-c.webp";
-import imgAtivoRetinol    from "@/assets/skincare-edu/ativo-retinol.webp";
+import imgAtivoRetinol    from "@/assets/skincare-edu/ativo-aha.webp";
 import imgAtivoHialuronico from "@/assets/skincare-edu/ativo-hialuronico.webp";
 import imgAtivoNiacinamida from "@/assets/skincare-edu/ativo-niacinamida.webp";
 import imgAtivoAha        from "@/assets/skincare-edu/ativo-aha.webp";
