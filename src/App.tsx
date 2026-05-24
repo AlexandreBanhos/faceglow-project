@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import * as Sentry from "@sentry/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -46,6 +47,8 @@ const SkincareLearn  = lazy(() => import("./pages/SkincareLearn"));
 const AuthCallback   = lazy(() => import("./pages/AuthCallback"));
 const AdminAfiliados = lazy(() => import("./pages/AdminAfiliados"));
 
+const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -71,7 +74,7 @@ const App = () => (
             <ScrollToTop />
             <ErrorBoundary>
               <Suspense fallback={<LoadingScreen />}>
-                <Routes>
+                <SentryRoutes>
                   <Route path="/"                 element={<Landing />} />
                   <Route path="/onboarding"       element={<Onboarding />} />
                   <Route path="/auth"             element={<Auth />} />
@@ -109,7 +112,7 @@ const App = () => (
                     </Route>
                   </Route>
                   <Route path="*" element={<NotFound />} />
-                </Routes>
+                </SentryRoutes>
               </Suspense>
             </ErrorBoundary>
           </BrowserRouter>

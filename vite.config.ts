@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -46,6 +47,14 @@ export default defineConfig(({ mode }) => ({
         ],
       },
     }),
+    // Source maps para Sentry — só ativo com SENTRY_AUTH_TOKEN no CI/CD
+    ...(process.env.SENTRY_AUTH_TOKEN ? [sentryVitePlugin({
+      org: process.env.SENTRY_ORG ?? "faceglow",
+      project: process.env.SENTRY_PROJECT ?? "faceglow-frontend",
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: { filesToDeleteAfterUpload: ["dist/**/*.map"] },
+      telemetry: false,
+    })] : []),
   ],
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
@@ -53,6 +62,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     // Vendors legítimos podem ser maiores — threshold 500KB
+    sourcemap: true,
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
