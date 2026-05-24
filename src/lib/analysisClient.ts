@@ -59,6 +59,14 @@ export const readDashboardCache = (): DashboardSummary | null => {
   return loadDashboardFromStorage();
 };
 
+/** Lê análises da cache in-memory para init síncrono (History page). */
+export const readAnalysesCache = (limit: number): AnalysisResponse[] | null => {
+  const cacheKey = `${limit}:0:false`;
+  const cached = analysesCache.get(cacheKey);
+  if (cached && Date.now() - cached.cachedAt <= ANALYSES_CACHE_TTL_MS) return cached.data;
+  return null;
+};
+
 /** Call this after a new analysis is created so Dashboard and History show fresh data. */
 export const invalidateAnalysisCache = () => {
   dashboardCache = null;

@@ -14,7 +14,7 @@ import { AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import {
-  getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache,
+  getCachedLatestAnalysis, fetchDashboardSummary, setCachedLatestAnalysis, invalidateAnalysisCache, readDashboardCache,
   addRoutineStep, updateRoutineStep, selectRoutineSlot, fetchCatalogProducts, addCatalogSlot,
   type RoutineStep as ApiRoutineStep,
   type SlotTier,
@@ -394,8 +394,12 @@ const Routine = () => {
   const [showingCustomFormByItem, setShowingCustomFormByItem] = useState<Record<string, boolean>>({});
   const [catalogSearchByItem, setCatalogSearchByItem] = useState<Record<string, string>>({});
   const [catalogSearchOpenByItem, setCatalogSearchOpenByItem] = useState<Record<string, boolean>>({});
-  const [loadedAnalysis, setLoadedAnalysis] = useState<AnalysisResponse | null>(analysis);
-  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(!analysis);
+  const [loadedAnalysis, setLoadedAnalysis] = useState<AnalysisResponse | null>(
+    () => analysis ?? getCachedLatestAnalysis() ?? readDashboardCache()?.latest ?? null
+  );
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(
+    () => !analysis && !getCachedLatestAnalysis() && readDashboardCache() === null
+  );
   const [customProductByItem, setCustomProductByItem] = useState<Record<string, MyProduct>>(() => {
     try {
       const raw = localStorage.getItem(getMyProductsStorageKey(analysis?.id));

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
-import { fetchProfileSummary, fetchDashboardSummary, fetchRoutineSteps, invalidateAnalysisCache } from "@/lib/analysisClient";
+import { fetchProfileSummary, fetchDashboardSummary, fetchRoutineSteps, invalidateAnalysisCache, readDashboardCache } from "@/lib/analysisClient";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { AuroraBackdrop } from "@/components/shared";
@@ -104,11 +104,14 @@ const Profile = () => {
   const [activeProducts, setActiveProducts] = useState(0);
   const [statsLoading, setStatsLoading]     = useState(true);
 
-  // Análise recente
-  const [lastSkinType, setLastSkinType]     = useState("");
-  const [lastScore, setLastScore]           = useState(0);
-  const [lastImageUrl, setLastImageUrl]     = useState("");
-  const [latestAnalysis, setLatestAnalysis] = useState<AnalysisResponse | null>(null);
+  // Análise recente — init síncrono do cache para evitar flash vazio
+  const [lastSkinType, setLastSkinType]     = useState(() => readDashboardCache()?.latest?.skinType ?? "");
+  const [lastScore, setLastScore]           = useState(() => readDashboardCache()?.latest?.overallScore ?? 0);
+  const [lastImageUrl, setLastImageUrl]     = useState(() => readDashboardCache()?.latest?.imageUrl ?? "");
+  const [latestAnalysis, setLatestAnalysis] = useState<AnalysisResponse | null>(() => readDashboardCache()?.latest ?? null);
+
+  // Ref para evitar waterfall: isCustomAvatar lido de forma assíncrona pelo getCurrentUser
+  const isCustomAvatarRef = useRef(false);
 
   // Questionário
   const [quizAnswers, setQuizAnswers] = useState<LifestyleAnswers | null>(null);
@@ -129,6 +132,7 @@ const Profile = () => {
       setDisplayEmail(user.email ?? "");
       setUserId(user.id ?? "");
       const custom = user.user_metadata?.avatar_url ?? "";
+      isCustomAvatarRef.current = !!custom;
       setAvatarUrl(custom);
       setIsCustomAvatar(!!custom);
       setUserReady(true);
@@ -136,8 +140,8 @@ const Profile = () => {
     return () => { mounted = false; };
   }, []);
 
+  // Roda em paralelo com getCurrentUser — sem waterfall de userReady
   useEffect(() => {
-    if (!userReady) return;
     let mounted = true;
     setStatsLoading(true);
     Promise.all([
@@ -156,7 +160,8 @@ const Profile = () => {
         setLastScore(latest.overallScore ?? 0);
         setLatestAnalysis(latest);
         if (latest.imageUrl) setLastImageUrl(latest.imageUrl);
-        if (!isCustomAvatar && latest.imageUrl) setAvatarUrl(latest.imageUrl);
+        // isCustomAvatarRef é preenchido pelo effect getCurrentUser (que resolve antes da rede)
+        if (!isCustomAvatarRef.current && latest.imageUrl) setAvatarUrl(latest.imageUrl);
         try {
           const steps = await fetchRoutineSteps(latest.id);
           if (mounted) setActiveProducts(steps.length);
@@ -165,7 +170,7 @@ const Profile = () => {
       setStatsLoading(false);
     });
     return () => { mounted = false; };
-  }, [userReady, isCustomAvatar]);
+  }, []); // sem userReady — paralelo ao getCurrentUser
 
   useEffect(() => {
     try {

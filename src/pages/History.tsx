@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FloatingComparatorCard } from "@/components/FloatingComparatorCard";
 import { ScoreChart } from "@/components/history/ScoreChart";
 import { type AnalysisResponse } from "@/lib/analysis";
-import { fetchUserAnalyses } from "@/lib/analysisClient";
+import { fetchUserAnalyses, readAnalysesCache } from "@/lib/analysisClient";
 import { AuroraBackdrop } from "@/components/shared";
 
 const formatDate = (value: string) =>
@@ -33,8 +33,8 @@ const MORE_PAGE_SIZE = 10;
 const History = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [analyses, setAnalyses] = useState<AnalysisResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [analyses, setAnalyses] = useState<AnalysisResponse[]>(() => readAnalysesCache(INITIAL_LOAD) ?? []);
+  const [isLoading, setIsLoading] = useState(() => readAnalysesCache(INITIAL_LOAD) === null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [isComparatorOpen, setIsComparatorOpen] = useState(false);
@@ -45,7 +45,6 @@ const History = () => {
 
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
 
     fetchUserAnalyses(INITIAL_LOAD, 0, { forceRefresh: false })
       .then((loaded) => {
@@ -63,7 +62,7 @@ const History = () => {
       });
 
     return () => { mounted = false; };
-  }, [location.pathname]);
+  }, []); // in-memory cache (180s TTL) gerencia revalidação — sem re-fetch a cada navegação
 
   const loadMore = async () => {
     if (isLoadingMore || !hasMore) return;
