@@ -53,7 +53,8 @@ public static class AnalysisEndpoints
 
         // Main analysis creation
         app.MapPost("/analysis", CreateAnalysisHandler)
-            .WithName("CreateAnalysis").WithOpenApi().RequireAuthorization();
+            .WithName("CreateAnalysis").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("analysis");
     }
 
     private static async Task<IResult> GetStatsHandler(

@@ -23,4 +23,5 @@ export const apiRoutes = {
   adminProducts: `/admin/products`,
   myProducts: `/products/my`,
   routineMarkComplete: `/routine/mark-complete`,
+  billingCancel: `/billing/cancel`,
 };

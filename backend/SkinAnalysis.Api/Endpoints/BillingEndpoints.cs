@@ -14,19 +14,24 @@ public static class BillingEndpoints
     public static void MapBillingEndpoints(this WebApplication app)
     {
         app.MapPost("/billing/checkout", CheckoutHandler)
-            .WithName("CreateBillingCheckout").WithOpenApi().RequireAuthorization();
+            .WithName("CreateBillingCheckout").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("billing");
 
         app.MapPost("/billing/checkout/pix", CheckoutPixDefaultHandler)
-            .WithName("CreateBillingCheckoutPixDefault").WithOpenApi().RequireAuthorization();
+            .WithName("CreateBillingCheckoutPixDefault").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("billing");
 
         app.MapPost("/billing/checkout/stripe", CheckoutStripeDefaultHandler)
-            .WithName("CreateBillingCheckoutStripeDefault").WithOpenApi().RequireAuthorization();
+            .WithName("CreateBillingCheckoutStripeDefault").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("billing");
 
         app.MapPost("/billing/mercadopago/pix", MercadoPagoPixHandler)
-            .WithName("CreateMercadoPagoPixCheckout").WithOpenApi().RequireAuthorization();
+            .WithName("CreateMercadoPagoPixCheckout").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("billing");
 
         app.MapPost("/billing/mercadopago/checkout", MercadoPagoCheckoutHandler)
-            .WithName("CreateMercadoPagoCardCheckout").WithOpenApi().RequireAuthorization();
+            .WithName("CreateMercadoPagoCardCheckout").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("billing");
 
         app.MapGet("/billing/status", GetStatusHandler)
             .WithName("GetBillingStatus").WithOpenApi().AllowAnonymous();

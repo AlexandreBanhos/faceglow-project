@@ -1,11 +1,15 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from "workbox-precaching";
+import { NavigationRoute, registerRoute } from "workbox-routing";
 
 declare const self: ServiceWorkerGlobalScope;
 
 // Precache assets gerados pelo Vite
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Offline fallback: serve index.html para todas as navegações (SPA + offline)
+registerRoute(new NavigationRoute(createHandlerBoundToURL("/index.html")));
 
 // ── Push notifications ────────────────────────────────────────────────────────
 

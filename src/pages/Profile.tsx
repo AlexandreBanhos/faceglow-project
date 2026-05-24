@@ -6,11 +6,12 @@ import {
   Mail, Instagram, Globe, ChevronRight, Bell,
   MessageCircle, FileText, Share2, Trash2,
   ScanFace, Settings2, BookOpen, ClipboardList,
-  Coins, Sparkles, CreditCard, Settings, Copy, Check,
+  Coins, Sparkles, CreditCard, Settings, Copy, Check, XCircle,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
 import { fetchProfileSummary, fetchDashboardSummary, fetchRoutineSteps, invalidateAnalysisCache, readDashboardCache } from "@/lib/analysisClient";
+import { clearUserStatusCache } from "@/contexts/UserContext";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { AuroraBackdrop } from "@/components/shared";
@@ -122,6 +123,7 @@ const Profile = () => {
   const [showOutrasRespostas, setShowOutrasRespostas] = useState(false);
   const [showNotifications, setShowNotifications]     = useState(false);
   const [shareToast, setShareToast]                   = useState(false);
+  const [cancelLoading, setCancelLoading]             = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -198,6 +200,31 @@ const Profile = () => {
       .forEach((k) => localStorage.removeItem(k));
     await signOut();
     navigate("/auth?mode=login", { replace: true });
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!window.confirm("Cancelar sua assinatura encerrará o acesso premium imediatamente. Tem certeza?")) return;
+    setCancelLoading(true);
+    try {
+      const { supabase } = await import("@/lib/auth");
+      const { data: { session } } = await supabase.auth.getSession();
+      const { apiBaseUrl } = await import("@/lib/api");
+      const res = await fetch(`${apiBaseUrl}/billing/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert((err as { error?: string }).error ?? "Erro ao cancelar assinatura.");
+        return;
+      }
+      clearUserStatusCache();
+      navigate("/profile");
+    } catch {
+      alert("Erro ao cancelar assinatura. Tente novamente.");
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -398,6 +425,21 @@ const Profile = () => {
               </div>
               <ChevronRight size={14} className="text-muted-foreground/50 flex-shrink-0" />
             </button>
+
+            {isFullAccess && subscriptionStatus === "active" && (
+              <button
+                onClick={handleCancelSubscription}
+                disabled={cancelLoading}
+                className="w-full flex items-center gap-3.5 px-4 py-3 border-t border-border/30 active:bg-red-50/50 transition-colors disabled:opacity-50"
+              >
+                <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <XCircle size={15} className="text-red-500" />
+                </div>
+                <p className="text-sm font-semibold text-red-600 text-left flex-1">
+                  {cancelLoading ? "Cancelando..." : "Cancelar assinatura"}
+                </p>
+              </button>
+            )}
           </div>
         </div>
                 {/* ── Seção: Aprenda ── */}

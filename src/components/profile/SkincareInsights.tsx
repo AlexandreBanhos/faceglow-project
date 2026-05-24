@@ -2,7 +2,7 @@
  * SkincareInsights — carrossel de cards informativos sobre skincare.
  * Conteúdo parametrizável: os artigos podem ser enriquecidos sem alterar o componente.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, BookOpen } from "lucide-react";
 
@@ -99,6 +99,12 @@ const ARTICLES: Article[] = [
   },
 ];
 
+// Renderiza texto com **negrito** de forma segura (sem dangerouslySetInnerHTML)
+function renderBoldText(text: string): React.ReactNode {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, i) => (i % 2 === 1 ? <strong key={i}>{part}</strong> : part));
+}
+
 // ── Card individual ────────────────────────────────────────────────────────────
 
 function InsightCard({ article, onClick }: { article: Article; onClick: () => void }) {
@@ -138,7 +144,37 @@ function InsightCard({ article, onClick }: { article: Article; onClick: () => vo
 // ── Modal de artigo ────────────────────────────────────────────────────────────
 
 function ArticleModal({ article, onClose }: { article: Article; onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
   const paragraphs = article.content.split("\n\n").filter(Boolean);
+
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const focusables = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      prev?.focus();
+    };
+  }, [onClose]);
 
   return (
     <motion.div
@@ -148,14 +184,18 @@ function ArticleModal({ article, onClose }: { article: Article; onClose: () => v
       className="fixed inset-0 z-[800] flex items-end justify-center"
       style={{ backgroundColor: "rgba(15,10,30,0.55)", backdropFilter: "blur(6px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="article-modal-title"
     >
       <motion.div
+        ref={modalRef}
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 32, stiffness: 360 }}
         className="w-full max-w-md flex flex-col rounded-t-3xl overflow-hidden"
-        style={{ background: "white", maxHeight: "88svh" }}
+        style={{ background: "white", maxHeight: "88dvh" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header colorido */}
@@ -164,16 +204,17 @@ function ArticleModal({ article, onClose }: { article: Article; onClose: () => v
           style={{ background: `linear-gradient(135deg, ${article.categoryColor}15, ${article.categoryColor}06)` }}
         >
           <div className="flex items-start gap-3">
-            <span className="text-3xl leading-none mt-0.5">{article.emoji}</span>
+            <span className="text-3xl leading-none mt-0.5" aria-hidden="true">{article.emoji}</span>
             <div>
               <span className="text-[10px] font-bold" style={{ color: article.categoryColor }}>
                 {article.category}
               </span>
-              <h2 className="text-base font-extrabold text-foreground leading-tight mt-0.5">{article.title}</h2>
+              <h2 id="article-modal-title" className="text-base font-extrabold text-foreground leading-tight mt-0.5">{article.title}</h2>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Fechar artigo"
             className="w-8 h-8 rounded-full bg-white/70 border border-white/60 flex items-center justify-center flex-shrink-0 mt-0.5"
           >
             <X size={14} className="text-slate-600" />
@@ -183,12 +224,9 @@ function ArticleModal({ article, onClose }: { article: Article; onClose: () => v
         {/* Conteúdo */}
         <div className="flex-1 overflow-y-auto px-5 py-4 pb-8 space-y-3" style={{ scrollbarWidth: "none" }}>
           {paragraphs.map((p, i) => {
-            const isBold = p.startsWith("**") && p.endsWith("**");
-            const isSubtitle = p.startsWith("**") && p.includes(":**");
-            if (isSubtitle || isBold) {
-              // Render bold sections with proper formatting
-              const rendered = p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-              return <p key={i} className="text-sm text-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: rendered }} />;
+            const hasBold = p.includes("**");
+            if (hasBold) {
+              return <p key={i} className="text-sm text-foreground leading-relaxed">{renderBoldText(p)}</p>;
             }
             return <p key={i} className="text-sm text-muted-foreground leading-relaxed">{p}</p>;
           })}
