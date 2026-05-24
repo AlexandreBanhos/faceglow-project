@@ -197,7 +197,7 @@ export const FloatingComparatorCard = ({
         {/* Info Bar */}
         <div className="bg-slate-50 border-t border-slate-200 px-6 py-3">
           <p className="text-xs text-slate-600 text-center">
-            Arrasteeee o slider para comparar antes e depois
+            Arraste o slider para comparar antes e depois
           </p>
         </div>
       </motion.div>

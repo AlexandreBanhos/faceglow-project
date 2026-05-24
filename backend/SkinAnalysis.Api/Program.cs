@@ -270,6 +270,16 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-XSS-Protection"] = "0";
     if (context.Request.IsHttps)
         context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+
+    var path = context.Request.Path.Value ?? "";
+    if (path.StartsWith("/billing", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/analysis/credits", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/analysis/dashboard", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/analysis/stats", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Headers["Cache-Control"] = "no-store";
+    }
+
     await next();
 });
 

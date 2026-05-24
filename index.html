@@ -42,9 +42,25 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="FaceGlow" />
 
+    <!-- CSP: limita origens permitidas para scripts, conexões e imagens -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co;
+      connect-src 'self' https://api.faceglow-soora.me https://*.supabase.co wss://*.supabase.co;
+      font-src 'self' data:;
+      frame-src 'none';
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
+
     <!-- Preconnect: estabelece conexão antecipada com origens críticas -->
-    <link rel="preconnect" href="https://supabase.co" />
+    <link rel="preconnect" href="https://supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://supabase.co" />
+    <link rel="preconnect" href="https://api.faceglow-soora.me" crossorigin />
+    <link rel="dns-prefetch" href="https://api.faceglow-soora.me" />
   </head>
 
   <body>
