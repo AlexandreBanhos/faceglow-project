@@ -86,7 +86,29 @@
       "Bash(findstr /I /N \"isFreeMode\" src\\\\pages\\\\Routine.tsx)",
       "Bash(findstr /I /N \"retinoid\\\\|retinol\\\\|acid\\\\|retin\" src\\\\pages\\\\Routine.tsx)",
       "PowerShell(cd \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\"; Select-String -Path src\\\\pages\\\\Routine.tsx -Pattern \"isFreeMode\" | Select-Object -First 15 | ForEach-Object { $_.LineNumber.ToString\\(\\) + \": \" + $_.Line })",
-      "PowerShell(cd \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\"; Select-String -Path src\\\\pages\\\\Routine.tsx -Pattern \"retinoid|retinol|ácido\" | Select-Object -First 25 | ForEach-Object { $_.LineNumber.ToString\\(\\) + \": \" + $_.Line })"
+      "PowerShell(cd \"C:\\\\Users\\\\Comprador\\\\OneDrive\\\\Documentos\\\\faceglow-project-main\\\\faceglow-project-main\"; Select-String -Path src\\\\pages\\\\Routine.tsx -Pattern \"retinoid|retinol|ácido\" | Select-Object -First 25 | ForEach-Object { $_.LineNumber.ToString\\(\\) + \": \" + $_.Line })",
+      "Bash(Select-String -Pattern \"\\(auth|supabase\\)\")",
+      "Bash(dir *,)",
+      "Bash(sed -i 's|import logoFaceglow from \"@/assets/logo-faceglow.svg\";|import logoFaceglow from \"@/assets/logos/logo-faceglow-escrito-color.webp\";|g' src/pages/Auth.tsx src/pages/Onboarding.tsx src/pages/SkincareLearn.tsx src/components/LoadingScreen.tsx)",
+      "Bash(sed -i 's|import logoFaceglow from \"@/assets/logo-faceglow.svg\";|import logoFaceglow from \"@/assets/logos/logo-faceglow-escrito-escura.webp\";|g' src/pages/AuthCallback.tsx src/pages/VerifyEmail.tsx src/pages/EmailConfirmed.tsx src/pages/Premium.tsx src/components/PremiumUnlockModal.tsx src/components/analyze/AnalysisInfoPage.tsx)",
+      "Bash(sed -i 's|import logoUrl from \"@/assets/logo-faceglow.svg\";|import logoUrl from \"@/assets/logos/logo-faceglow-escrito-color.webp\";|g' src/pages/Dashboard.tsx src/pages/Profile.tsx)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(node -e \"const {generateVAPIDKeys}=require\\('./node_modules/web-push/src/index.js'\\); try{const k=generateVAPIDKeys\\(\\); console.log\\(JSON.stringify\\(k\\)\\);}catch\\(e\\){console.log\\('need web-push'\\);}\")",
+      "Bash(rtk npx *)",
+      "Bash(dotnet add *)",
+      "Bash(Select-Object Name)",
+      "mcp__claude_ai_Stripe__list_products",
+      "mcp__claude_ai_Stripe__get_stripe_account_info",
+      "mcp__claude_ai_Stripe__stripe_api_search",
+      "mcp__claude_ai_Stripe__stripe_api_execute",
+      "mcp__claude_ai_Stripe__create_product",
+      "mcp__claude_ai_Stripe__create_price",
+      "mcp__claude_ai_Stripe__search_stripe_documentation",
+      "Bash(npm ls *)",
+      "Bash(Select-Object Name, FullName)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(Get-Content backend/SkinAnalysis.Api/Program.cs)",
+      "Bash(Select-Object -First 120)"
     ]
   }
 }

@@ -60,8 +60,16 @@ export default defineConfig(({ mode }) => ({
           if (!id.includes("node_modules")) return;
           // Framer Motion — 100KB, raramente atualizado — cache independente
           if (id.includes("/framer-motion/")) return "vendor-framer";
-          // Supabase — 180KB, raramente atualizado — cache independente
+          // Supabase — 180KB, raramente atualizado
           if (id.includes("/@supabase/")) return "vendor-supabase";
+          // Sentry — carregado em paralelo, não bloqueia hydration
+          if (id.includes("/@sentry/")) return "vendor-sentry";
+          // Recharts + D3 — usado só em ScoreChart
+          if (id.includes("/recharts/") || id.includes("/d3-") || id.includes("/victory-")) return "vendor-charts";
+          // Radix UI — muitos sub-pacotes, raramente atualizado
+          if (id.includes("/@radix-ui/")) return "vendor-radix";
+          // FontAwesome — ícones, só em UserProfileModal
+          if (id.includes("/@fortawesome/")) return "vendor-icons";
           // Todo o restante de node_modules num único chunk estável
           return "vendor";
         },
