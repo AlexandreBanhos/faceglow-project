@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 
@@ -26,6 +26,31 @@ export const FloatingComparatorCard = ({
   fallbackImage = "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=900&q=80",
 }: FloatingComparatorCardProps) => {
   const [sliderPosition, setSliderPosition] = useState(50);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.activeElement as HTMLElement | null;
+    const modal = modalRef.current;
+    if (!modal) return;
+    const focusables = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    focusables[0]?.focus();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => { document.removeEventListener("keydown", handleKeyDown); prev?.focus(); };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -54,16 +79,21 @@ export const FloatingComparatorCard = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 100 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="comparator-title"
       className="fixed inset-0 z-[999] flex items-end justify-center px-4 pb-4 bg-black/40 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
+        ref={modalRef}
         className="relative w-full max-w-4xl h-[80vh] max-h-screen rounded-3xl border border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label="Fechar comparador"
           className="absolute top-3 right-3 z-50 p-2 rounded-full bg-black/45 backdrop-blur-md border border-white/35 text-white hover:bg-black/60 transition-colors"
         >
           <X size={20} className="text-white" />
@@ -72,7 +102,7 @@ export const FloatingComparatorCard = ({
         {/* Header with Score Change */}
         <div className="px-6 pt-6 pb-4 border-b border-slate-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-foreground">Comparador Antes e Depois</h2>
+            <h2 id="comparator-title" className="text-lg font-bold text-foreground">Comparador Antes e Depois</h2>
             {scoreChange !== 0 && (
               <span className={`text-sm font-bold ${scoreChange > 0 ? "text-green-500" : "text-orange-500"}`}>
                 {scoreChange > 0 ? "+" : ""}

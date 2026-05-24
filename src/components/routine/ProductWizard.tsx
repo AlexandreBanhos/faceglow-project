@@ -1358,6 +1358,7 @@ function ProductCard({
           <img
             src={imageUrl}
             alt={name}
+            loading="lazy"
             className="w-full h-full object-contain p-2"
             referrerPolicy="no-referrer"
             onError={() => setImgErrored(true)}

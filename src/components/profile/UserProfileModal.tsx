@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, RefreshCw, TrendingUp, Trophy, Coins, Flame,
@@ -183,6 +184,31 @@ export function UserProfileModal({
   onEdit, onViewAnalysis,
   totalAnalyses, bestScore, activeProducts, streakDays,
 }: UserProfileModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.activeElement as HTMLElement | null;
+    const modal = modalRef.current;
+    if (!modal) return;
+    const focusables = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    focusables[0]?.focus();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => { document.removeEventListener("keydown", handleKeyDown); prev?.focus(); };
+  }, [isOpen, onClose]);
   const scores      = latestAnalysis?.scores ?? {};
   const conditions  = latestAnalysis?.conditions ?? {};
   const overall     = latestAnalysis?.overallScore ?? 0;
@@ -295,6 +321,10 @@ export function UserProfileModal({
           />
 
           <motion.div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-modal-title"
             initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
             className="fixed bottom-0 left-0 right-0 z-[100] rounded-t-3xl flex flex-col"
@@ -308,8 +338,9 @@ export function UserProfileModal({
             {/* Top bar */}
             <div className="flex items-center justify-between px-5 pt-3 pb-3.5 flex-shrink-0"
               style={{ borderBottom: "1px solid rgba(180,160,220,0.22)" }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: "#2d1f3d" }}>Meu Perfil</h2>
+              <h2 id="profile-modal-title" style={{ fontSize: 16, fontWeight: 800, color: "#2d1f3d" }}>Meu Perfil</h2>
               <button onClick={onClose}
+                aria-label="Fechar perfil"
                 className="w-8 h-8 rounded-full flex items-center justify-center active:scale-95 transition-transform"
                 style={{ background: "rgba(0,0,0,0.07)" }}>
                 <X size={15} style={{ color: "#6b5f7a" }} />

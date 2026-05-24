@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, ChevronRight } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AnalysisPoints } from "@/lib/analysis";
 
 type LandmarkPoint = { x: number; y: number };
@@ -150,6 +150,31 @@ export const FloatingAnalysisCard = ({
   confidence,
 }: FloatingAnalysisCardProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.activeElement as HTMLElement | null;
+    const modal = modalRef.current;
+    if (!modal) return;
+    const focusables = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    focusables[0]?.focus();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => { document.removeEventListener("keydown", handleKeyDown); prev?.focus(); };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -164,10 +189,14 @@ export const FloatingAnalysisCard = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 80 }}
       transition={{ type: "spring", damping: 28, stiffness: 300 }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Análise da pele"
       className="fixed inset-0 z-[999]"
       onClick={onClose}
     >
       <div
+        ref={modalRef}
         className="relative h-full w-full overflow-hidden pointer-events-auto"
         style={{ background: "#fbf6f1" }}
         onClick={e => e.stopPropagation()}
