@@ -32,13 +32,32 @@ type FetchAnalysisByIdOptions = {
 
 const ANALYSES_CACHE_TTL_MS = 180_000;
 const READ_REQUEST_TIMEOUT_MS = 12_000;
+const DASHBOARD_LS_KEY = "fg-dashboard-v1";
+const DASHBOARD_LS_TTL_MS = 10 * 60_000; // 10 min — sobrevive entre aberturas do PWA
 const analysesCache = new Map<string, { cachedAt: number; data: AnalysisResponse[] }>();
 let dashboardCache: { cachedAt: number; data: DashboardSummary } | null = null;
+
+function loadDashboardFromStorage(): DashboardSummary | null {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_LS_KEY);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw) as { ts: number; data: DashboardSummary };
+    if (Date.now() - ts > DASHBOARD_LS_TTL_MS) return null;
+    return data;
+  } catch { return null; }
+}
+
+function saveDashboardToStorage(data: DashboardSummary): void {
+  try {
+    localStorage.setItem(DASHBOARD_LS_KEY, JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* sem espaço em disco — silencioso */ }
+}
 
 /** Call this after a new analysis is created so Dashboard and History show fresh data. */
 export const invalidateAnalysisCache = () => {
   dashboardCache = null;
   analysesCache.clear();
+  try { localStorage.removeItem(DASHBOARD_LS_KEY); } catch { /* sem acesso ao storage */ }
 };
 
 /** Returns the latest analysis from in-memory dashboard cache (no network call). */
@@ -235,6 +254,15 @@ export const fetchDashboardSummary = async (forceRefresh = false): Promise<Dashb
     return dashboardCache.data;
   }
 
+  // Cache persistente entre sessões — retorna imediatamente enquanto revalida em background
+  if (!forceRefresh) {
+    const fromStorage = loadDashboardFromStorage();
+    if (fromStorage) {
+      dashboardCache = { cachedAt: Date.now(), data: fromStorage };
+      return fromStorage;
+    }
+  }
+
   const token = await getAccessTokenWithWait(5000);
   if (!token) {
     return {
@@ -286,6 +314,7 @@ export const fetchDashboardSummary = async (forceRefresh = false): Promise<Dashb
     cachedAt: Date.now(),
     data,
   };
+  saveDashboardToStorage(data);
 
   return data;
 };

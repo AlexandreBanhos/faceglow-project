@@ -168,7 +168,7 @@ export const FloatingAnalysisCard = ({
       onClick={onClose}
     >
       <div
-        className="relative h-[100svh] w-full overflow-hidden pointer-events-auto"
+        className="relative h-full w-full overflow-hidden pointer-events-auto"
         style={{ background: "#fbf6f1" }}
         onClick={e => e.stopPropagation()}
       >
@@ -249,7 +249,7 @@ export const FloatingAnalysisCard = ({
               className="px-4 pb-2"
               style={{
                 overflowY: "auto",
-                maxHeight: "calc(60svh - 148px)",
+                maxHeight: "calc(60dvh - 148px)",
                 scrollbarWidth: "none",
               }}
             >

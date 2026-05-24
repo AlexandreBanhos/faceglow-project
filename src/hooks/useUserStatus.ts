@@ -3,7 +3,7 @@ import { useUserContext } from "./useUserContext";
 import { getAccessToken } from "@/lib/auth";
 import { apiClient } from "@/shared/services/api/ApiClient";
 import { UserStatus } from "@/contexts/UserContextTypes";
-import { writeUserStatusCache } from "@/contexts/UserContext";
+import { writeUserStatusCache, readUserStatusCache, setStatusRefreshFn } from "@/contexts/UserContext";
 
 interface BillingStatusResponse {
   isActive?: boolean;
@@ -16,43 +16,25 @@ interface CreditsResponse {
   creditsRemaining?: number;
 }
 
-/**
- * Hook que carrega status de premium e créditos do backend
- * Deve ser chamado uma vez após autenticação
- */
 export const useUserStatus = (enabled = true) => {
   const { setUserStatus, userStatus } = useUserContext();
 
   const fetchUserStatus = useCallback(async () => {
-    if (!enabled) {
-      setUserStatus((prev) => ({ ...prev, isLoading: false }));
-      return;
-    }
-
     try {
       setUserStatus((prev) => ({ ...prev, isLoading: true }));
 
-      // Aguarda token estar disponível
       const token = await getAccessToken();
       if (!token) {
         setUserStatus((prev) => ({ ...prev, isLoading: false }));
         return;
       }
 
-      // Timeout global para o carregamento todo (não deixar ficar mais de 6s)
-      const promise = Promise.allSettled([
-        apiClient.get<BillingStatusResponse>("/billing/status", {
-          timeout: 4000, // Timeout individual de 4s
-        }),
-        apiClient.get<CreditsResponse>("/analysis/credits", {
-          timeout: 4000, // Timeout individual de 4s
-        }),
-      ]);
-
-      // Aguarda com timeout global de 6s
       const results = await Promise.race([
-        promise,
-        new Promise((_, reject) =>
+        Promise.allSettled([
+          apiClient.get<BillingStatusResponse>("/billing/status", { timeout: 4000 }),
+          apiClient.get<CreditsResponse>("/analysis/credits", { timeout: 4000 }),
+        ]),
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error("Timeout ao carregar status")), 6000)
         ),
       ]);
@@ -62,33 +44,22 @@ export const useUserStatus = (enabled = true) => {
       let subscriptionStatus: UserStatus["subscriptionStatus"];
       let expiresAtUtc: string | undefined;
 
-      // Parse billing status
       const billingRes = (results as PromiseSettledResult<any>[])[0];
       if (billingRes.status === "fulfilled") {
         const response = billingRes.value;
-        // 404 significa sem assinatura (novo usuário) - não é erro, é esperado
-        if (response?.status === 404) {
-          isPremium = false;
-          subscriptionType = "test";
-          subscriptionStatus = "inactive";
-        } else if (response?.data) {
+        if (response?.status !== 404 && response?.data) {
           const billing = response.data;
           isPremium = billing.isActive === true;
-          
-          // Type-safe assignment
           if (billing.planKey && ["credits", "monthly", "annual", "test"].includes(billing.planKey)) {
             subscriptionType = billing.planKey as UserStatus["subscriptionType"];
           }
-          
           if (billing.status && ["active", "expired", "pending", "failed"].includes(billing.status)) {
             subscriptionStatus = billing.status as UserStatus["subscriptionStatus"];
           }
-          
           expiresAtUtc = billing.expiresAtUtc;
         }
       }
 
-      // Parse créditos
       let creditsRemaining = 0;
       const creditsRes = (results as PromiseSettledResult<any>[])[1];
       if (creditsRes.status === "fulfilled" && creditsRes.value?.data?.creditsRemaining) {
@@ -96,11 +67,7 @@ export const useUserStatus = (enabled = true) => {
       }
 
       const userId = (() => {
-        try {
-          return JSON.parse(atob(token.split(".")[1]))?.sub ?? "";
-        } catch {
-          return "";
-        }
+        try { return JSON.parse(atob(token.split(".")[1]))?.sub ?? ""; } catch { return ""; }
       })();
 
       const newStatus: UserStatus = {
@@ -115,36 +82,33 @@ export const useUserStatus = (enabled = true) => {
       };
 
       setUserStatus(newStatus);
-      writeUserStatusCache(newStatus); // persiste para evitar flash na próxima navegação
+      writeUserStatusCache(newStatus);
     } catch (error) {
       console.warn("[useUserStatus] Erro ao carregar status:", error);
-      // Mantém estado anterior — não sobrescreve isPremium com false em caso de falha de rede
-      // statusUnknown=true impede que o app exiba upsell premium indevidamente
-      setUserStatus((prev) => ({
-        ...prev,
-        isLoading: false,
-        statusUnknown: true,
-      }));
+      setUserStatus((prev) => ({ ...prev, isLoading: false, statusUnknown: true }));
     }
-  }, [enabled, setUserStatus]);
+  }, [setUserStatus]);
+
+  // Registra o fetch real para que refreshPremiumStatus() do context funcione
+  useEffect(() => {
+    setStatusRefreshFn(fetchUserStatus);
+    return () => setStatusRefreshFn(null);
+  }, [fetchUserStatus]);
 
   useEffect(() => {
-    if (!enabled) {
-      setUserStatus((prev) => ({ ...prev, isLoading: false }));
+    if (!enabled) return;
+
+    // Cache válido → não precisa buscar, garante isLoading: false
+    const cached = readUserStatusCache();
+    if (cached) {
+      setUserStatus((prev) => (prev.isLoading ? { ...prev, isLoading: false } : prev));
       return;
     }
 
-    // Carregar status uma vez ao montar
+    // Cache expirado ou primeira sessão → busca do backend
     fetchUserStatus();
-
-    // Recarregar a cada 5 minutos (billing pode mudar)
-    const interval = setInterval(fetchUserStatus, 5 * 60 * 1000);
-
-    return () => clearInterval(interval);
+    // Sem setInterval — o TTL do cache controla quando o próximo fetch acontece
   }, [enabled, fetchUserStatus, setUserStatus]);
 
-  return {
-    ...userStatus,
-    refetch: fetchUserStatus,
-  };
+  return { ...userStatus, refetch: fetchUserStatus };
 };

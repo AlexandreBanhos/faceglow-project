@@ -9,7 +9,7 @@
  * - Dependency Inversion: Todos components dependem de ILandingContentService via Provider
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSessionUser } from "@/lib/auth";
 import { LandingProvider } from "@/shared/providers/LandingProvider";
@@ -27,16 +27,24 @@ import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-color.webp";
  */
 export function LandingPageContent() {
   const navigate = useNavigate();
+  const [authChecked, setAuthChecked] = useState(false);
 
-  // Redireciona usuários autenticados para o dashboard — sem bloquear o render.
-  // getSessionUser() usa a sessão cacheada localmente (sem rede), é quase síncrono.
   useEffect(() => {
     let mounted = true;
     getSessionUser().then(user => {
-      if (mounted && user) navigate("/dashboard", { replace: true });
-    }).catch(() => {});
+      if (!mounted) return;
+      if (user) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        setAuthChecked(true);
+      }
+    }).catch(() => {
+      if (mounted) setAuthChecked(true);
+    });
     return () => { mounted = false; };
   }, [navigate]);
+
+  if (!authChecked) return null;
 
   return (
     <main className="relative w-full overflow-hidden" style={{ background: "var(--grad-aurora)" }}>

@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, Clock, LoaderCircle, Sparkles, XCircle, Zap, Gift, ListChecks } from "lucide-react";
 import { fetchBillingStatus, fetchAnalysisCredits } from "@/lib/billing";
 import { invalidateAnalysisCache } from "@/lib/analysisClient";
+import { clearUserStatusCache } from "@/contexts/UserContext";
 import { apiClient } from "@/shared/services/api/ApiClient";
 
 type PollState = "loading" | "pending" | "active" | "timeout" | "error";
@@ -65,6 +66,7 @@ const BillingSuccess = () => {
         if (result.isActive) {
           setState("active");
           invalidateAnalysisCache();
+          clearUserStatusCache(); // força fetch fresco na próxima navegação
           
           // Fetch updated credits after subscription is confirmed
           try {

@@ -293,8 +293,8 @@ const Dashboard = () => {
         // revalida em background quando stale (5min). Não força re-fetch toda navegação.
         const summary = await staleWhileRevalidate(
           'dashboard-summary',
-          () => fetchDashboardSummary(true),
-          false // usa cache se disponível para evitar spinner desnecessário
+          () => fetchDashboardSummary(false),
+          false
         );
 
         if (!mounted) return;
@@ -536,7 +536,7 @@ const Dashboard = () => {
     <div className="relative w-full min-h-screen pb-28 overflow-x-hidden"
          style={{ background: "var(--grad-aurora)" }}>
       <AuroraBackdrop tone="warm" className="-z-10" />
-      
+
       <div className="relative z-10 mx-auto w-full max-w-md">
       {/* Header */}
       <div className="px-6 pt-14 pb-2">

@@ -24,7 +24,10 @@ export function useRoutineSteps(analysisId: string | undefined): UseRoutineSteps
   const [isLoading, setIsLoading] = useState(true); // começa carregando
 
   const reload = useCallback(async (silent = false) => {
-    if (!analysisId) return;
+    if (!analysisId) {
+      setIsLoading(false);
+      return;
+    }
     if (!silent) setIsLoading(true);
     try {
       const fresh = await fetchRoutineSteps(analysisId);
