@@ -53,6 +53,12 @@ function saveDashboardToStorage(data: DashboardSummary): void {
   } catch { /* sem espaço em disco — silencioso */ }
 }
 
+/** Lê o cache do dashboard (in-memory > localStorage) para init síncrono no componente. */
+export const readDashboardCache = (): DashboardSummary | null => {
+  if (dashboardCache) return dashboardCache.data;
+  return loadDashboardFromStorage();
+};
+
 /** Call this after a new analysis is created so Dashboard and History show fresh data. */
 export const invalidateAnalysisCache = () => {
   dashboardCache = null;

@@ -11,6 +11,8 @@ import SerumSvg from "@/assets/icones/serum-svg.svg";
 interface RoutineSummaryCardProps {
   analysis: AnalysisResponse;
   delay?: number;
+  prefetchedSteps?: ApiRoutineStep[];
+  prefetchedStepsLoaded?: boolean;
 }
 
 const getRoutineTitle = (step: string) => {
@@ -174,7 +176,7 @@ const StackedSlots = ({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) => {
+const RoutineSummaryCard = ({ analysis, delay = 0, prefetchedSteps, prefetchedStepsLoaded }: RoutineSummaryCardProps) => {
   const navigate = useNavigate();
   const { isPremium } = useIsPremium();
   const [apiSteps, setApiSteps] = useState<ApiRoutineStep[]>([]);
@@ -183,15 +185,20 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
   const [catalogImages, setCatalogImages] = useState<Record<string, string>>({});
   const [showModal, setShowModal] = useState(false);
 
-  // Premium: busca steps estruturados com imagens reais
+  // Usa steps pré-buscados pelo Dashboard quando disponíveis — evita double-fetch
+  const effectiveSteps = prefetchedSteps !== undefined ? prefetchedSteps : apiSteps;
+  const effectiveStepsLoaded = prefetchedSteps !== undefined ? (prefetchedStepsLoaded ?? false) : stepsLoaded;
+
+  // Premium: busca steps estruturados com imagens reais (só se o Dashboard não passou)
   useEffect(() => {
+    if (prefetchedSteps !== undefined) return; // Dashboard já buscou
     if (!analysis?.id || !isPremium) { setStepsLoaded(true); return; }
     let cancelled = false;
     fetchRoutineSteps(analysis.id)
       .then((steps) => { if (!cancelled) { setApiSteps(steps); setStepsLoaded(true); } })
       .catch(() => { if (!cancelled) setStepsLoaded(true); });
     return () => { cancelled = true; };
-  }, [analysis?.id, isPremium]);
+  }, [analysis?.id, isPremium, prefetchedSteps]);
 
   // Free: busca uma imagem representativa do catálogo para cada tipo de passo
   useEffect(() => {
@@ -224,7 +231,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
     const maxDisplay = 3;
 
     // Premium: steps estruturados com imagens reais
-    if (isPremium && stepsLoaded && apiSteps.length > 0) {
+    if (isPremium && effectiveStepsLoaded && effectiveSteps.length > 0) {
       let displayNames: Record<string, string> = {};
       try {
         const raw = localStorage.getItem(`faceglow-routine-display-${analysis.id}`);
@@ -232,7 +239,7 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
       } catch { displayNames = {}; }
 
       const buildSlotsFromApi = (period: "morning" | "night") => {
-        const periodSteps = apiSteps.filter((s) => s.period === period).sort((a, b) => a.stepOrder - b.stepOrder);
+        const periodSteps = effectiveSteps.filter((s) => s.period === period).sort((a, b) => a.stepOrder - b.stepOrder);
         const slots: ProductSlot[] = periodSteps.slice(0, maxDisplay).map((s) => {
           const itemKey = `${period}::${s.productName.toLowerCase()}`;
           return {
@@ -265,13 +272,13 @@ const RoutineSummaryCard = ({ analysis, delay = 0 }: RoutineSummaryCardProps) =>
     const m = buildSlots(analysis.routine?.morning ?? []);
     const n = buildSlots(analysis.routine?.night ?? []);
     return { morningSlots: m.slots, nightSlots: n.slots, morningExtra: m.extraCount, nightExtra: n.extraCount };
-  }, [analysis, isPremium, apiSteps, stepsLoaded, catalogImages]);
+  }, [analysis, isPremium, effectiveSteps, effectiveStepsLoaded, catalogImages]);
 
-  const morningCount = stepsLoaded && apiSteps.length > 0
-    ? apiSteps.filter((s) => s.period === "morning").length
+  const morningCount = effectiveStepsLoaded && effectiveSteps.length > 0
+    ? effectiveSteps.filter((s) => s.period === "morning").length
     : (analysis.routine?.morning?.length ?? 0);
-  const nightCount = stepsLoaded && apiSteps.length > 0
-    ? apiSteps.filter((s) => s.period === "night").length
+  const nightCount = effectiveStepsLoaded && effectiveSteps.length > 0
+    ? effectiveSteps.filter((s) => s.period === "night").length
     : (analysis.routine?.night?.length ?? 0);
 
   if (morningCount === 0 && nightCount === 0) return null;

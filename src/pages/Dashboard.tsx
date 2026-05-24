@@ -10,7 +10,7 @@ import DailyRoutineSection from "@/components/DailyRoutineSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 import { type AnalysisResponse } from "@/lib/analysis";
-import { fetchDashboardSummary, fetchRoutineSteps } from "@/lib/analysisClient";
+import { fetchDashboardSummary, fetchRoutineSteps, readDashboardCache, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
 import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
 import { useIsPremium } from "@/hooks/useIsPremium";
@@ -232,9 +232,9 @@ const metricsMap: Record<string, { label: string; icon: React.ReactNode }> = {
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [latestAnalysis, setLatestAnalysis] = useState<AnalysisResponse | null>(null);
-  const [previousOverallScore, setPreviousOverallScore] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [latestAnalysis, setLatestAnalysis] = useState<AnalysisResponse | null>(() => readDashboardCache()?.latest ?? null);
+  const [previousOverallScore, setPreviousOverallScore] = useState<number | null>(() => readDashboardCache()?.previousOverallScore ?? null);
+  const [isLoading, setIsLoading] = useState(() => readDashboardCache() === null);
   const [firstName, setFirstName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [isImageLoaded, setIsImageLoaded] = useState(false);
@@ -245,7 +245,7 @@ const Dashboard = () => {
   const { isPremium, isConfirmedNonPremium, isLoading: isPremiumLoading } = useIsPremium();
   const isPremiumBlocked = isConfirmedNonPremium;
   const [completedStepIds, setCompletedStepIds] = useState<string[]>([]);
-  const [routineSteps, setRoutineSteps] = useState<Array<{ id: string; period: string; productName: string }>>([]);
+  const [routineSteps, setRoutineSteps] = useState<ApiRoutineStep[]>([]);
   const [stepsLoaded, setStepsLoaded] = useState(false);
 
   // Efeito 1: Carregar dados do usuário
@@ -289,8 +289,8 @@ const Dashboard = () => {
 
     const loadAnalyses = async () => {
       try {
-        // Usa stale-while-revalidate: retorna cache imediatamente se disponível,
-        // revalida em background quando stale (5min). Não força re-fetch toda navegação.
+        // staleWhileRevalidate: retorna cache imediatamente (in-memory ou localStorage),
+        // revalida em background se stale. Não força re-fetch a cada navegação.
         const summary = await staleWhileRevalidate(
           'dashboard-summary',
           () => fetchDashboardSummary(false),
@@ -303,22 +303,15 @@ const Dashboard = () => {
       } catch (error) {
         if (!mounted) return;
         console.error('Erro ao carregar analises:', error);
-        setLatestAnalysis(null);
-        setPreviousOverallScore(null);
       } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        if (mounted) setIsLoading(false);
       }
     };
 
-    setIsLoading(true);
     loadAnalyses();
 
-    return () => {
-      mounted = false;
-    };
-  }, [location.pathname]);
+    return () => { mounted = false; };
+  }, []); // sem location.pathname — staleWhileRevalidate gerencia revalidação em background
 
   // Premium status é lido diretamente do UserContext (já hidratado pelo RequireAuth)
 
@@ -333,7 +326,7 @@ const Dashboard = () => {
     fetchRoutineSteps(latestAnalysis.id)
       .then(steps => {
         if (!cancelled) {
-          setRoutineSteps(steps.map(s => ({ id: s.id, period: s.period, productName: s.productName })));
+          setRoutineSteps(steps);
           setStepsLoaded(true);
         }
       })
@@ -741,7 +734,12 @@ const Dashboard = () => {
 
       {/* Routine Summary Card — visível para todos (free vê CTA premium, premium vê produtos) */}
       {latestAnalysis && (
-        <RoutineSummaryCard analysis={latestAnalysis} delay={0.38} />
+        <RoutineSummaryCard
+          analysis={latestAnalysis}
+          delay={0.38}
+          prefetchedSteps={routineSteps}
+          prefetchedStepsLoaded={stepsLoaded}
+        />
       )}
 
       {/* Daily Routine Section — visível para todos; free vê passos, premium vê produtos */}
@@ -752,7 +750,7 @@ const Dashboard = () => {
         periodLabel={periodLabel}
         routineSummary={routineSummary}
         motivationText={motivationText}
-        isLoading={isLoading || isPremiumLoading}
+        isLoading={isLoading}
         delay={0.45}
       />
 
