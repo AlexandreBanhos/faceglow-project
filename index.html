@@ -45,11 +45,11 @@
     <!-- CSP: limita origens permitidas para scripts, conexões e imagens -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' blob:;
-      worker-src blob:;
+      script-src 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com;
+      worker-src 'self' blob:;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       img-src 'self' data: blob: https:;
-      connect-src 'self' https://api.faceglow-soora.me https://*.supabase.co wss://*.supabase.co https://*.ingest.de.sentry.io https://*.sentry.io;
+      connect-src 'self' https://api.faceglow-soora.me https://*.supabase.co wss://*.supabase.co https://*.ingest.de.sentry.io https://*.sentry.io https://cloudflareinsights.com;
       font-src 'self' data: https://fonts.gstatic.com;
       frame-src 'none';
       object-src 'none';
