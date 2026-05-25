@@ -1,5 +1,5 @@
 import { apiRoutes, apiBaseUrl } from "./api";
-import { getAccessTokenWithWait } from "./auth";
+import { getTokenOrWait } from "./auth";
 
 const adminProductsUrl = `${apiBaseUrl}${apiRoutes.adminProducts}`;
 
@@ -62,7 +62,7 @@ export interface CreateAdminProductPayload {
 }
 
 async function getHeaders() {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait(3000);
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

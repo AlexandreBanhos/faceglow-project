@@ -1,4 +1,4 @@
-import { getAccessToken } from "@/lib/auth";
+import { getTokenOrWait } from "@/lib/auth";
 
 export interface RequestConfig {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -6,16 +6,6 @@ export interface RequestConfig {
   body?: any;
   timeout?: number;
   retries?: number;
-}
-
-async function waitForToken(maxWaitMs = 5000): Promise<string | null> {
-  const startTime = Date.now();
-  while (Date.now() - startTime < maxWaitMs) {
-    const token = await getAccessToken();
-    if (token) return token;
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-  return null;
 }
 
 interface ApiResponse<T> {
@@ -41,7 +31,7 @@ export class ApiClient {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const token = await waitForToken(5000);
+        const token = await getTokenOrWait(3000);
         if (!token) throw new Error("Sessão expirada. Faça login novamente.");
 
         const headers: Record<string, string> = {

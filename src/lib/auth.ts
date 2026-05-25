@@ -23,6 +23,26 @@ export const getAccessTokenWithWait = async (timeoutMs: number = 5000): Promise<
   return null;
 };
 
+export const getTokenOrWait = async (maxWaitMs = 1000): Promise<string | null> => {
+  const token = await getAccessToken();
+  if (token) return token;
+
+  return new Promise<string | null>((resolve) => {
+    const timeout = setTimeout(() => {
+      sub.data.subscription.unsubscribe();
+      resolve(null);
+    }, maxWaitMs);
+
+    const sub = assertSupabaseConfigured().auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        clearTimeout(timeout);
+        sub.data.subscription.unsubscribe();
+        resolve(session.access_token);
+      }
+    });
+  });
+};
+
 export const getCurrentUser = async () => {
   const client = assertSupabaseConfigured();
   const { data } = await client.auth.getUser();

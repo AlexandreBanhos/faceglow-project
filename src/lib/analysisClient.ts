@@ -1,6 +1,6 @@
 import { apiRoutes, apiBaseUrl } from "@/lib/api";
 import { normalizeAnalysis, type AnalysisResponse } from "@/lib/analysis";
-import { getAccessTokenWithWait } from "@/lib/auth";
+import { getTokenOrWait } from "@/lib/auth";
 
 export type AnalysisJobStatus = {
   id: string;
@@ -125,7 +125,7 @@ export const fetchUserAnalyses = async (
   offset = 0,
   options?: FetchUserAnalysesOptions,
 ): Promise<AnalysisResponse[]> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     return [];
   }
@@ -182,7 +182,7 @@ export const fetchAnalysisById = async (id: string, options?: FetchAnalysisByIdO
     return null;
   }
 
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     return null;
   }
@@ -210,7 +210,7 @@ export const fetchAnalysisById = async (id: string, options?: FetchAnalysisByIdO
 };
 
 export const fetchAnalysisStatus = async (id: string): Promise<AnalysisJobStatus> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) throw new Error("Not authenticated");
 
   const response = await fetchWithTimeout(
@@ -239,7 +239,7 @@ export const fetchAnalysisStatus = async (id: string): Promise<AnalysisJobStatus
 };
 
 export const fetchAnalysisStats = async (): Promise<AnalysisStatsResponse | null> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     return null;
   }
@@ -277,7 +277,7 @@ export const fetchDashboardSummary = async (forceRefresh = false): Promise<Dashb
     }
   }
 
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     return {
       latest: null,
@@ -339,7 +339,7 @@ export type ProfileSummaryResponse = {
 };
 
 export const fetchProfileSummary = async (): Promise<ProfileSummaryResponse | null> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     console.error("[fetchProfileSummary] Sem token de autenticacao");
     return null;
@@ -392,7 +392,7 @@ export const fetchProfileSummary = async (): Promise<ProfileSummaryResponse | nu
 
 /** Fetch análise completa com recomendações para navegação na Rotina */
 export const fetchAnalysisWithRecommendations = async (analysisId: string): Promise<AnalysisResponse | null> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     console.error("[fetchAnalysisWithRecommendations] Sem token");
     return null;
@@ -431,7 +431,7 @@ export const saveRoutineCustomizations = async (
   analysisId: string,
   customizationsJson: string,
 ): Promise<{ success: boolean; routineId?: string; error?: string }> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     return { success: false, error: "Não autenticado" };
   }
@@ -470,7 +470,7 @@ export const deleteRoutineStep = async (
   analysisId: string,
   stepId: string,
 ): Promise<{ success: boolean; error?: string }> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     return { success: false, error: "Não autenticado" };
   }
@@ -507,7 +507,7 @@ export const deleteRoutineStep = async (
 export const loadRoutineCustomizations = async (
   analysisId: string,
 ): Promise<{ customizations: unknown; updatedAtUtc?: string } | null> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) {
     return null;
   }
@@ -580,7 +580,7 @@ export type RoutineStep = {
 };
 
 export const fetchRoutineSteps = async (analysisId: string): Promise<RoutineStep[]> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return [];
 
   try {
@@ -601,7 +601,7 @@ export const addCatalogSlot = async (
   stepId: string,
   payload: { productId?: string; productName?: string; imageUrl?: string },
 ): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
   try {
     const response = await fetchWithTimeout(
@@ -621,7 +621,7 @@ export const addRoutineStep = async (
   analysisId: string,
   data: { period: string; productName: string; category?: string; imageUrl?: string; recurrence?: string; productId?: string },
 ): Promise<{ id: string } | null> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return null;
 
   try {
@@ -646,7 +646,7 @@ export const reorderRoutineSteps = async (
   period: "morning" | "night",
   stepIds: string[],
 ): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
   try {
     const response = await fetchWithTimeout(
@@ -665,7 +665,7 @@ export const reorderRoutineSteps = async (
 };
 
 export const migrateRoutineFromCustomizations = async (analysisId: string): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
   try {
     const response = await fetchWithTimeout(
@@ -694,7 +694,7 @@ export const updateRoutineStep = async (
     period?: "morning" | "night" | null;
   },
 ): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
 
   try {
@@ -720,7 +720,7 @@ export const selectRoutineSlot = async (
   tier: SlotTier,
   slotId?: string,
 ): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
   try {
     const response = await fetchWithTimeout(
@@ -739,7 +739,7 @@ export const selectRoutineSlot = async (
 };
 
 export const removeRoutineStep = async (analysisId: string, stepId: string): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
 
   try {
@@ -779,7 +779,7 @@ export const fetchCatalogProducts = async (
   stepType: string,
   search?: string,
 ): Promise<CatalogProduct[]> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return [];
   try {
     const params = new URLSearchParams({ stepType });
@@ -812,7 +812,7 @@ export type RoutineSuggestion = {
 };
 
 export const fetchRoutineSuggestions = async (): Promise<RoutineSuggestion[]> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return [];
   try {
     const response = await fetchWithTimeout(
@@ -826,7 +826,7 @@ export const fetchRoutineSuggestions = async (): Promise<RoutineSuggestion[]> =>
 };
 
 export const acceptRoutineSuggestion = async (id: string): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
   try {
     const response = await fetchWithTimeout(
@@ -839,7 +839,7 @@ export const acceptRoutineSuggestion = async (id: string): Promise<boolean> => {
 };
 
 export const rejectRoutineSuggestion = async (id: string): Promise<boolean> => {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait();
   if (!token) return false;
   try {
     const response = await fetchWithTimeout(

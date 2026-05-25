@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardSkeleton } from "@/components/skeletons/DashboardSkeleton";
 import { type AnalysisResponse } from "@/lib/analysis";
 import { fetchDashboardSummary, fetchRoutineSteps, readDashboardCache, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
-import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
+import { getCurrentUser, getTokenOrWait } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
 import { useIsPremium } from "@/hooks/useIsPremium";
 import { staleWhileRevalidate } from "@/shared/services/cache/CacheService";
@@ -340,7 +340,7 @@ const Dashboard = () => {
     let cancelled = false;
     const loadTodayProgress = async () => {
       try {
-        const token = await getAccessTokenWithWait(3000);
+        const token = await getTokenOrWait(3000);
         if (!token || cancelled) return;
         const today = new Date();
         const localDate = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;

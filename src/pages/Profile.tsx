@@ -6,7 +6,7 @@ import {
   Mail, Instagram, Globe, ChevronRight, Bell,
   MessageCircle, FileText, Share2, Trash2,
   ScanFace, Settings2, BookOpen, ClipboardList,
-  Coins, Sparkles, CreditCard, Settings, Copy, Check, XCircle,
+  Coins, Sparkles, CreditCard, Settings, Copy, Check, XCircle, IdCard,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
@@ -18,6 +18,7 @@ import { AuroraBackdrop } from "@/components/shared";
 import type { AnalysisResponse } from "@/lib/analysis";
 import type { LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
 import { NotificationSettings } from "@/components/profile/NotificationSettings";
+import { CarteirinhaEditModal } from "@/components/profile/CarteirinhaEditModal";
 import { StatsRow } from "@/components/profile/StatsRow";
 import { UserProfileModal } from "@/components/profile/UserProfileModal";
 import { PreferenciasModal, OutrasRespostasModal } from "@/components/profile/PreferenciasModal";
@@ -121,7 +122,8 @@ const Profile = () => {
   const [showProfileModal, setShowProfileModal]       = useState(false);
   const [showPreferencias, setShowPreferencias]       = useState(false);
   const [showOutrasRespostas, setShowOutrasRespostas] = useState(false);
-  const [showNotifications, setShowNotifications]     = useState(false);
+  const [showNotifications, setShowNotifications]       = useState(false);
+  const [showCarteirinhaEdit, setShowCarteirinhaEdit]   = useState(false);
   const [shareToast, setShareToast]                   = useState(false);
   const [cancelLoading, setCancelLoading]             = useState(false);
 
@@ -384,6 +386,25 @@ const Profile = () => {
               label: "Outras respostas",
               sub: "Tipo de pele, makeup, condições",
               onClick: () => setShowOutrasRespostas(true),
+            },
+          ]} />
+        </div>
+
+        {/* ── Seção: Carteirinha ── */}
+        <div>
+          <SectionHeader title="Carteirinha Digital" />
+          <ProfileCard items={[
+            {
+              icon: <IdCard size={15} className="text-foreground" />,
+              label: "Minha carteirinha",
+              sub: "Visualizar código e QR de membro",
+              onClick: () => navigate("/carteirinha"),
+            },
+            {
+              icon: <Pencil size={15} className="text-foreground" />,
+              label: "Editar dados da carteirinha",
+              sub: "Instituição, curso, CPF, foto e mais",
+              onClick: () => setShowCarteirinhaEdit(true),
             },
           ]} />
         </div>
@@ -680,6 +701,11 @@ const Profile = () => {
         quizAnswers={quizAnswers}
         onAnswersChanged={(a) => setQuizAnswers(a)}
         analyzedSkinType={latestAnalysis?.skinType}
+      />
+
+      <CarteirinhaEditModal
+        isOpen={showCarteirinhaEdit}
+        onClose={() => setShowCarteirinhaEdit(false)}
       />
 
       <BottomNav />

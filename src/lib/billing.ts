@@ -1,5 +1,5 @@
 import { apiClient } from "@/shared/services/api/ApiClient";
-import { getAccessTokenWithWait } from "@/lib/auth";
+import { getTokenOrWait } from "@/lib/auth";
 
 export type BillingPlanKey = "test" | "credits" | "monthly" | "annual";
 export type BillingGatewayKey = "mercadopago-pix" | "mercadopago-card" | "stripe-card";
@@ -41,7 +41,7 @@ export type BillingStatusResponse = {
 };
 
 export const createBillingCheckout = async (request: BillingCheckoutRequest): Promise<BillingCheckoutResponse> => {
-  await getAccessTokenWithWait(5000);
+  await getTokenOrWait();
   const response = await apiClient.post<BillingCheckoutResponse>("/billing/checkout", request);
   if (!response.ok || !response.data) {
     throw new Error(response.error || "Não foi possível iniciar o pagamento");
@@ -52,7 +52,7 @@ export const createBillingCheckout = async (request: BillingCheckoutRequest): Pr
 export const fetchAnalysisCredits = async (): Promise<number | null> => {
   try {
     // Aguarda token estar disponivel
-    await getAccessTokenWithWait(5000);
+    await getTokenOrWait();
 
     const response = await apiClient.get<{ creditsRemaining?: number }>("/analysis/credits");
 
@@ -72,7 +72,7 @@ export const fetchBillingStatus = async (params?: {
   forceRefresh?: boolean;
 }): Promise<BillingStatusResponse> => {
   // Aguarda token estar disponivel
-  await getAccessTokenWithWait(5000);
+  await getTokenOrWait();
 
   const queryParams = new URLSearchParams();
   if (params?.externalReference) {

@@ -24,7 +24,7 @@ import { useRoutineSteps, useRoutineComplete } from "@/features/routine";
 import { searchAdminProducts, patchAdminProductImage } from "@/lib/admin-products";
 import type { AdminProduct } from "@/lib/admin-products";
 import { uploadProductImage } from "@/lib/storage";
-import { getCurrentUser, getAccessTokenWithWait } from "@/lib/auth";
+import { getCurrentUser, getTokenOrWait } from "@/lib/auth";
 import { toast } from "@/components/ui/sonner";
 import { getUserCatalog } from "@/lib/userCatalog";
 import { createMyProduct } from "@/lib/userProducts";
@@ -540,7 +540,7 @@ const Routine = () => {
     if (stepsLoading || apiSteps.length === 0) return;
     const loadTodayProgress = async () => {
       try {
-        const token = await getAccessTokenWithWait(3000);
+        const token = await getTokenOrWait(3000);
         if (!token) return;
         const res = await fetch(`${apiBaseUrl}/routine/progress/today?localDate=${todayStr}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -572,8 +572,8 @@ const Routine = () => {
     let cancelled = false;
     const loadHistory = async () => {
       try {
-        const { getAccessTokenWithWait } = await import("@/lib/auth");
-        const token = await getAccessTokenWithWait(3000);
+        const { getTokenOrWait } = await import("@/lib/auth");
+        const token = await getTokenOrWait(3000);
         if (!token || cancelled) return;
         const now = new Date();
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -1383,8 +1383,8 @@ const Routine = () => {
     const step = apiSteps.find((s) => s.id === itemKey);
     if (!step) return;
     try {
-      const { getAccessTokenWithWait } = await import("@/lib/auth");
-      const token = await getAccessTokenWithWait(3000);
+      const { getTokenOrWait } = await import("@/lib/auth");
+      const token = await getTokenOrWait(3000);
       if (!token) return;
       fetch(`${apiBaseUrl}/routine/steps/${step.id}/complete`, {
         method: "POST",
@@ -1398,8 +1398,8 @@ const Routine = () => {
     const step = apiSteps.find((s) => s.id === itemKey);
     if (!step) return;
     try {
-      const { getAccessTokenWithWait } = await import("@/lib/auth");
-      const token = await getAccessTokenWithWait(3000);
+      const { getTokenOrWait } = await import("@/lib/auth");
+      const token = await getTokenOrWait(3000);
       if (!token) return;
       fetch(`${apiBaseUrl}/routine/steps/${step.id}/complete?localDate=${todayStr}`, {
         method: "DELETE",

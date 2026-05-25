@@ -1,5 +1,5 @@
 import { apiBaseUrl } from "@/lib/api";
-import { getAccessTokenWithWait } from "@/lib/auth";
+import { getTokenOrWait } from "@/lib/auth";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
 
@@ -66,7 +66,7 @@ export async function getCurrentSubscription(): Promise<PushSubscription | null>
 // ── Backend calls ─────────────────────────────────────────────────────────────
 
 async function saveSubscriptionToBackend(sub: PushSubscription): Promise<void> {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait(3000);
   if (!token) return;
 
   const json = sub.toJSON();
@@ -83,7 +83,7 @@ async function saveSubscriptionToBackend(sub: PushSubscription): Promise<void> {
 }
 
 async function deleteSubscriptionFromBackend(): Promise<void> {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait(3000);
   if (!token) return;
 
   await fetch(`${apiBaseUrl}/notifications/subscribe`, {
@@ -116,7 +116,7 @@ export function setNotifPref(pref: NotifPref, enabled: boolean): void {
 }
 
 async function syncPrefsToBackend(prefs: Record<NotifPref, boolean>): Promise<void> {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait(3000);
   if (!token) return;
 
   await fetch(`${apiBaseUrl}/notifications/preferences`, {

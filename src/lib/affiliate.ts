@@ -1,5 +1,5 @@
 import { apiBaseUrl } from "@/lib/api";
-import { getAccessTokenWithWait } from "@/lib/auth";
+import { getTokenOrWait } from "@/lib/auth";
 
 const REF_KEY   = "fg_ref_code";
 const REF_EXP   = "fg_ref_exp";
@@ -39,7 +39,7 @@ export async function attachReferralAfterSignup(): Promise<void> {
   const code = getStoredReferral();
   if (!code) return;
 
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait(3000);
   if (!token) return;
 
   try {
@@ -93,7 +93,7 @@ export interface AffiliateConversionRow {
 }
 
 async function authHeaders(): Promise<HeadersInit> {
-  const token = await getAccessTokenWithWait(5000);
+  const token = await getTokenOrWait(3000);
   return { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` };
 }
 

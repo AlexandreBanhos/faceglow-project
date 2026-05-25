@@ -46,6 +46,8 @@ const Support        = lazy(() => import("./pages/Support"));
 const SkincareLearn  = lazy(() => import("./pages/SkincareLearn"));
 const AuthCallback   = lazy(() => import("./pages/AuthCallback"));
 const AdminAfiliados = lazy(() => import("./pages/AdminAfiliados"));
+const ValidarCarteirinha = lazy(() => import("./pages/ValidarCarteirinha"));
+const Carteirinha        = lazy(() => import("./pages/Carteirinha"));
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
@@ -84,6 +86,7 @@ const App = () => (
                   <Route path="/privacidade"      element={<PrivacyPolicy />} />
                   <Route path="/termos"           element={<TermsOfUse />} />
                   <Route path="/support"          element={<Support />} />
+                  <Route path="/validar/:codigo" element={<ValidarCarteirinha />} />
                   <Route path="/premium/success"  element={<BillingSuccess />} />
                   <Route path="/premium/cancel"   element={<BillingCancel />} />
                   <Route path="/premium/pending"  element={<BillingPending />} />
@@ -103,6 +106,7 @@ const App = () => (
                     <Route path="/profile/delete"    element={<DeleteAccount />} />
                     <Route path="/premium"           element={<Premium />} />
                     <Route path="/aprenda"           element={<SkincareLearn />} />
+                    <Route path="/carteirinha"       element={<Carteirinha />} />
                     <Route element={<RequireAdmin />}>
                       <Route path="/admin/products"   element={<AdminProducts />} />
                       <Route path="/admin/afiliados"  element={<AdminAfiliados />} />

@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from "react";
 import { useUserContext } from "./useUserContext";
-import { getAccessToken } from "@/lib/auth";
+import { getTokenOrWait } from "@/lib/auth";
 import { apiClient } from "@/shared/services/api/ApiClient";
 import { UserStatus } from "@/contexts/UserContextTypes";
 import { writeUserStatusCache, readUserStatusCache, setStatusRefreshFn } from "@/contexts/UserContext";
@@ -23,9 +23,9 @@ export const useUserStatus = (enabled = true) => {
     try {
       setUserStatus((prev) => ({ ...prev, isLoading: true }));
 
-      const token = await getAccessToken();
+      const token = await getTokenOrWait(3000);
       if (!token) {
-        setUserStatus((prev) => ({ ...prev, isLoading: false }));
+        setUserStatus((prev) => ({ ...prev, isLoading: false, statusUnknown: true }));
         return;
       }
 
@@ -73,7 +73,7 @@ export const useUserStatus = (enabled = true) => {
       const newStatus: UserStatus = {
         userId,
         isPremium,
-        isFullAccess: isPremium && subscriptionType === "monthly",
+        isFullAccess: isPremium && subscriptionType !== "credits",
         subscriptionType,
         creditsRemaining,
         subscriptionStatus,
@@ -98,16 +98,13 @@ export const useUserStatus = (enabled = true) => {
   useEffect(() => {
     if (!enabled) return;
 
-    // Cache válido → não precisa buscar, garante isLoading: false
     const cached = readUserStatusCache();
     if (cached) {
+      // Aplica cache imediatamente para render rápido
       setUserStatus((prev) => (prev.isLoading ? { ...prev, isLoading: false } : prev));
-      return;
     }
-
-    // Cache expirado ou primeira sessão → busca do backend
+    // Sempre re-busca em background para garantir dados frescos
     fetchUserStatus();
-    // Sem setInterval — o TTL do cache controla quando o próximo fetch acontece
   }, [enabled, fetchUserStatus, setUserStatus]);
 
   return { ...userStatus, refetch: fetchUserStatus };
