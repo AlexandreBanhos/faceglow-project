@@ -45,11 +45,12 @@
     <!-- CSP: limita origens permitidas para scripts, conexões e imagens -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline';
-      style-src 'self' 'unsafe-inline';
+      script-src 'self' 'unsafe-inline' blob:;
+      worker-src blob:;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       img-src 'self' data: blob: https:;
       connect-src 'self' https://api.faceglow-soora.me https://*.supabase.co wss://*.supabase.co https://*.ingest.de.sentry.io https://*.sentry.io;
-      font-src 'self' data:;
+      font-src 'self' data: https://fonts.gstatic.com;
       frame-src 'none';
       object-src 'none';
       base-uri 'self';
@@ -57,6 +58,8 @@
     " />
 
     <!-- Preconnect: estabelece conexão antecipada com origens críticas -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://supabase.co" />
     <link rel="preconnect" href="https://api.faceglow-soora.me" crossorigin />
