@@ -1,15 +1,18 @@
-const getFallbackApiBaseUrl = () => {
-  if (typeof window !== "undefined") {
-    const hostname = window.location.hostname.toLowerCase();
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return "http://localhost:5172";
-    }
-  }
-
-  return "https://api.faceglow-soora.me";
+const isLocalHost = () => {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname.toLowerCase();
+  return h === "localhost" || h === "127.0.0.1";
 };
 
-export const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || getFallbackApiBaseUrl();
+const PRODUCTION_API = "https://api.faceglow-soora.me";
+const LOCAL_API      = "http://localhost:5172";
+
+export const apiBaseUrl = (() => {
+  const env = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+  // Usa a env var apenas se ela aponta para produção — ignora valor de localhost em prod
+  if (env && !env.includes("localhost") && !env.includes("127.0.0.1")) return env;
+  return isLocalHost() ? LOCAL_API : PRODUCTION_API;
+})();
 
 export const apiRoutes = {
   analysis: `/analysis`,

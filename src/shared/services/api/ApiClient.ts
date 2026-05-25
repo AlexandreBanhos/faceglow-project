@@ -1,4 +1,5 @@
 import { getTokenOrWait } from "@/lib/auth";
+import { apiBaseUrl } from "@/lib/api";
 
 export interface RequestConfig {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -101,6 +102,4 @@ export class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5172"
-);
+export const apiClient = new ApiClient(apiBaseUrl);
