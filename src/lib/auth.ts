@@ -81,6 +81,16 @@ export const signUpWithEmail = async (
 
 export const signOut = async () => {
   setAdminCache(null);
+
+  // Remove all user-specific data from localStorage on logout
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("faceglow-")) keysToRemove.push(key);
+  }
+  keysToRemove.push("fg_ustatus_v2");
+  keysToRemove.forEach((k) => localStorage.removeItem(k));
+
   const client = assertSupabaseConfigured();
   return client.auth.signOut();
 };

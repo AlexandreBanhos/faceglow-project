@@ -7,10 +7,12 @@ const TTL_MS    = 30 * 24 * 60 * 60 * 1000; // 30 dias
 
 // ── Captura e persiste o código da URL (?ref=CODIGO) ─────────────────────────
 
+const VALID_REF = /^[a-z0-9_-]{3,32}$/;
+
 export function captureReferralFromUrl(): void {
   const params = new URLSearchParams(window.location.search);
   const code = params.get("ref")?.toLowerCase().trim();
-  if (!code) return;
+  if (!code || !VALID_REF.test(code)) return;
 
   // Só grava se não há código já ativo
   const existing = getStoredReferral();

@@ -8,8 +8,7 @@ import {
 } from "react-router-dom";
 
 Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN as string ||
-    "https://04d5da75baf0144d8b17bb9d45fa70d4@o4511447218192384.ingest.de.sentry.io/4511447225663568",
+  dsn: (import.meta.env.VITE_SENTRY_DSN as string) || undefined,
   environment: (import.meta.env.VITE_ENVIRONMENT as string) || import.meta.env.MODE,
 
   integrations: [

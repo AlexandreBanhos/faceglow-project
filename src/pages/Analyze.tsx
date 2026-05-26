@@ -296,8 +296,9 @@ const Analyze = () => {
 
     setIsAuthenticated(true);
 
-    if (isAuthenticated && !canAnalyze) {
+    if (!canAnalyze) {
       setAnalysisError("Você não tem créditos de análise disponíveis. Adquira mais créditos para continuar.");
+      setIsStarting(false);
       return;
     }
 
