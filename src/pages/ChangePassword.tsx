@@ -107,7 +107,7 @@ const ChangePassword = () => {
   const [userEmail, setUserEmail]             = useState("");
 
   useEffect(() => {
-    getCurrentUser().then((user) => { if (user?.email) setUserEmail(user.email); });
+    getCurrentUser().then((user) => { if (user?.email) setUserEmail(user.email); }).catch(() => {});
   }, []);
 
   const checks   = getChecks(password);
@@ -182,9 +182,11 @@ const ChangePassword = () => {
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
                   placeholder="Senha atual"
+                  aria-label="Senha atual"
                   className="w-full h-12 rounded-xl border border-border/70 bg-background pl-10 pr-11 text-sm text-foreground"
                 />
-                <button type="button" onClick={() => setShowCurrent(v => !v)}
+                <button type="button" aria-label={showCurrent ? "Esconder senha atual" : "Mostrar senha atual"}
+                  onClick={() => setShowCurrent(v => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
                   {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -200,9 +202,11 @@ const ChangePassword = () => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Nova senha"
+                  aria-label="Nova senha"
                   className="w-full h-12 rounded-xl border border-border/70 bg-background pl-10 pr-11 text-sm text-foreground"
                 />
-                <button type="button" onClick={() => setShowPassword(v => !v)}
+                <button type="button" aria-label={showPassword ? "Esconder nova senha" : "Mostrar nova senha"}
+                  onClick={() => setShowPassword(v => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -219,13 +223,15 @@ const ChangePassword = () => {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="Confirmar nova senha"
+                  aria-label="Confirmar nova senha"
                   className={`w-full h-12 rounded-xl border bg-background pl-10 pr-11 text-sm text-foreground ${
                     confirmPassword && confirmPassword !== password
                       ? "border-red-300 focus:border-red-400"
                       : "border-border/70"
                   }`}
                 />
-                <button type="button" onClick={() => setShowConfirm(v => !v)}
+                <button type="button" aria-label={showConfirm ? "Esconder confirmação de senha" : "Mostrar confirmação de senha"}
+                  onClick={() => setShowConfirm(v => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
                   {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>

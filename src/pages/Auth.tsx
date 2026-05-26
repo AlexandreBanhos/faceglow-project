@@ -431,9 +431,10 @@ const Auth = () => {
                 <input
                   type="text"
                   placeholder="Nome completo"
+                  aria-label="Nome completo"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full py-3 pl-12 pr-4 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                  className="w-full py-3 pl-12 pr-4 lg-surface rounded-2xl text-[var(--fg-ink)]
                            placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
                 />
               </div>
@@ -445,9 +446,10 @@ const Auth = () => {
                 <input
                   type="email"
                   placeholder="E-mail"
+                  aria-label="E-mail"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full py-3 pl-12 pr-4 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                  className="w-full py-3 pl-12 pr-4 lg-surface rounded-2xl text-[var(--fg-ink)]
                            placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
                 />
               </div>
@@ -458,13 +460,15 @@ const Auth = () => {
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Senha"
+                aria-label="Senha"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full py-3 pl-12 pr-12 lg-surface rounded-2xl text-[var(--fg-ink)] 
+                className="w-full py-3 pl-12 pr-12 lg-surface rounded-2xl text-[var(--fg-ink)]
                          placeholder:text-[var(--fg-ink-4)] focus:outline-none transition"
               />
               <button
                 type="button"
+                aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)] hover:text-[var(--fg-ink)]"
               >
@@ -480,6 +484,7 @@ const Auth = () => {
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirmar senha"
+                  aria-label="Confirmar senha"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full py-3 pl-12 pr-12 lg-surface rounded-2xl text-[var(--fg-ink)]
@@ -487,6 +492,7 @@ const Auth = () => {
                 />
                 <button
                   type="button"
+                  aria-label={showConfirmPassword ? "Esconder confirmação de senha" : "Mostrar confirmação de senha"}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-ink-3)] hover:text-[var(--fg-ink)]"
                 >

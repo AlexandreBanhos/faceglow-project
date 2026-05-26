@@ -13,7 +13,7 @@ const ChangeEmail = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getCurrentUser().then((u) => { if (u?.email) setCurrentEmail(u.email); });
+    getCurrentUser().then((u) => { if (u?.email) setCurrentEmail(u.email); }).catch(() => {});
   }, []);
 
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail) && newEmail !== currentEmail;
@@ -97,6 +97,7 @@ const ChangeEmail = () => {
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="seuemail@exemplo.com"
+                  aria-label="Novo e-mail"
                   autoCapitalize="none"
                   className="w-full h-11 rounded-xl border border-border/70 bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
                 />
