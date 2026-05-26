@@ -17,6 +17,7 @@ import { usePWAInstall } from "./hooks/usePWAInstall";
 import RequireAdmin from "./components/RequireAdmin";
 import RequirePremium from "./components/RequirePremium";
 import { UserProvider } from "./contexts/UserContext";
+import { LgpdBanner } from "./components/LgpdBanner";
 
 // ── Lazy-loaded pages — carregam apenas quando a rota for acessada ────────────
 const Landing       = lazy(() => import("./pages/Landing"));
@@ -90,6 +91,7 @@ const App = () => (
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <ScrollToTop />
             <PWAInstallBridge />
+            <LgpdBanner />
             <ErrorBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <SentryRoutes>
