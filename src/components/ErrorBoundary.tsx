@@ -21,11 +21,17 @@ export class ErrorBoundary extends Component<Props, State> {
       error.message.includes("Unable to preload CSS");
 
     if (isChunkError) {
-      // Guard: recarrega só uma vez a cada 15s — evita loop infinito
+      // Guard: recarrega só uma vez a cada 30s — evita loop infinito
       const last = parseInt(sessionStorage.getItem("_fg_chunk_reload") ?? "0", 10);
-      if (Date.now() - last > 15_000) {
+      if (Date.now() - last > 30_000) {
         sessionStorage.setItem("_fg_chunk_reload", String(Date.now()));
-        window.location.reload();
+        // Limpa caches do SW para forçar download dos novos chunks
+        if ("caches" in window) {
+          caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+            .finally(() => window.location.reload());
+        } else {
+          window.location.reload();
+        }
         return { hasError: false, error: null };
       }
     }

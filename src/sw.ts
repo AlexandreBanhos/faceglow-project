@@ -66,7 +66,12 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
   );
 });
 
-// ── Background sync (fallback offline) ───────────────────────────────────────
+// ── Lifecycle ────────────────────────────────────────────────────────────────
+
+// Ativa imediatamente sem esperar as abas fecharem — evita chunks stale no PWA
+self.addEventListener("install", (event: ExtendableEvent) => {
+  event.waitUntil(self.skipWaiting());
+});
 
 self.addEventListener("activate", (event: ExtendableEvent) => {
   event.waitUntil(self.clients.claim());
