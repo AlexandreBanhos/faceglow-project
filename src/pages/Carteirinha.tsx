@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import QRCode from "qrcode";
 import { assertSupabaseConfigured } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
@@ -25,7 +24,7 @@ function fmtDate(iso: string) {
 }
 
 function validityLabel() {
-  return `Mar/ ${new Date().getFullYear() + 1}`;
+  return `30/03/${new Date().getFullYear() + 1}`;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -154,26 +153,6 @@ export default function Carteirinha() {
         {/* Conteúdo */}
         <div className="px-5 pt-5 pb-12 max-w-sm mx-auto w-full">
 
-          {/* Botão editar sempre visível */}
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between px-4 py-3 rounded-2xl mb-4"
-            style={{
-              background: "#ffffff",
-              border: "1.5px solid rgba(192,80,122,0.15)",
-              boxShadow: "0 2px 12px rgba(192,80,122,0.08)",
-            }}
-          >
-            <p className="text-sm font-semibold text-gray-700">Minha Carteirinha Digital</p>
-            <button
-              onClick={() => setEditOpen(true)}
-              className="text-xs font-bold px-3 py-1.5 rounded-xl text-white active:opacity-80 transition-opacity"
-              style={{ background: "linear-gradient(135deg, #c0507a, #e8a080)" }}
-            >
-              Editar
-            </button>
-          </motion.div>
 
           {/* Linha de identidade — mesma altura */}
           <div className="flex gap-4 mb-4" style={{ height: 172 }}>

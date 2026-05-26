@@ -14,7 +14,7 @@ interface ValidationResult {
 }
 
 function validityLabel() {
-  return `Mai/ ${new Date().getFullYear() + 1}`;
+  return `30/03/${new Date().getFullYear() + 1}`;
 }
 
 function DetailRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
