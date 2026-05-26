@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMobileScreen, faXmark, faShareFromSquare, faPlus } from "@fortawesome/free-solid-svg-icons";
+import { faMobileScreen, faXmark, faShareFromSquare } from "@fortawesome/free-solid-svg-icons";
 import logoFaceglow from "@/assets/logos/logo-faceglow.svg";
+import iosTutorialImg from "@/assets/pwa-tutorial.png";
 
 interface PWAInstallModalProps {
   isVisible: boolean;
@@ -10,10 +11,6 @@ interface PWAInstallModalProps {
   onInstall: () => void;
   onDismiss: () => void;
 }
-
-// Coloque o arquivo em /public/tutorial-ios-pwa.mp4 (ou .gif)
-const IOS_VIDEO_SRC = "/tutorial-ios-pwa.mp4";
-const IOS_GIF_SRC   = "/tutorial-ios-pwa.gif";
 
 export function PWAInstallModal({
   isVisible, isIOS, canPrompt, onInstall, onDismiss,
@@ -149,82 +146,13 @@ export function PWAInstallModal({
 
 function IOSTutorial() {
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.7)" }}>
-      {/* Tenta carregar vídeo; se não existir, mostra o gif; se não existir, mostra steps */}
-      <VideoOrFallback />
-    </div>
-  );
-}
-
-function VideoOrFallback() {
-  // Se você tiver o arquivo, coloque em /public/tutorial-ios-pwa.mp4
-  // Se preferir gif, coloque em /public/tutorial-ios-pwa.gif
-  // Enquanto não tiver o arquivo, os steps textuais são exibidos automaticamente.
-  return (
-    <>
-      <video
-        src={IOS_VIDEO_SRC}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="w-full rounded-2xl"
-        style={{ display: "block", maxHeight: 220, objectFit: "cover" }}
-        onError={(e) => {
-          // fallback: tenta gif
-          const parent = e.currentTarget.parentElement;
-          if (!parent) return;
-          e.currentTarget.style.display = "none";
-          const img = parent.querySelector<HTMLImageElement>(".ios-gif-fallback");
-          if (img) img.style.display = "block";
-          else {
-            const steps = parent.querySelector<HTMLDivElement>(".ios-steps-fallback");
-            if (steps) steps.style.display = "flex";
-          }
-        }}
-      />
-      {/* Fallback: GIF */}
+    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.5)" }}>
       <img
-        src={IOS_GIF_SRC}
-        alt="Tutorial iOS"
-        className="ios-gif-fallback w-full rounded-2xl"
-        style={{ display: "none", maxHeight: 220, objectFit: "cover" }}
-        onError={(e) => {
-          e.currentTarget.style.display = "none";
-          const steps = e.currentTarget.parentElement?.querySelector<HTMLDivElement>(".ios-steps-fallback");
-          if (steps) steps.style.display = "flex";
-        }}
+        src={iosTutorialImg}
+        alt="Tutorial: como instalar FaceGlow no iOS"
+        className="w-full block"
+        style={{ borderRadius: "1rem" }}
       />
-      {/* Fallback: Steps textuais */}
-      <IOSSteps />
-    </>
-  );
-}
-
-function IOSSteps() {
-  const steps = [
-    { icon: faShareFromSquare, label: 'Toque no ícone de compartilhar', sub: "ícone ⬆ na barra inferior do Safari" },
-    { icon: faPlus,            label: '"Adicionar à Tela de Início"',   sub: "role para baixo no menu de opções" },
-  ];
-  return (
-    <div
-      className="ios-steps-fallback flex flex-col gap-2 p-4"
-      style={{ display: "flex" }}
-    >
-      {steps.map((s, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "var(--grad-coral)", boxShadow: "0 2px 10px rgba(220,100,140,0.35)" }}
-          >
-            <FontAwesomeIcon icon={s.icon} style={{ color: "white", fontSize: 14 }} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-foreground leading-snug">{s.label}</p>
-            <p className="text-[11px] text-muted-foreground">{s.sub}</p>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
