@@ -539,6 +539,12 @@ const Profile = () => {
             <ProfileCard items={[
               {
                 icon: <Settings size={15} className="text-orange-500" />,
+                label: "Usuários",
+                badge: "Admin",
+                onClick: () => navigate("/admin/users"),
+              },
+              {
+                icon: <Settings size={15} className="text-orange-500" />,
                 label: "Produtos",
                 badge: "Admin",
                 onClick: () => navigate("/admin/products"),

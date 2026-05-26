@@ -78,7 +78,7 @@ export default function AdminUsers() {
   const [revokeSaving, setRevokeSaving] = useState(false);
 
   useEffect(() => {
-    checkAdminAccess().then((ok) => { if (!ok) navigate("/dashboard"); });
+    checkAdminAccess().then((result) => { if (!result.isAdmin) navigate("/dashboard"); });
   }, [navigate]);
 
   const load = useCallback(async () => {
