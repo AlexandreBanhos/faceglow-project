@@ -1450,14 +1450,22 @@ const Routine = () => {
     const current = productSchedule.daysByItem[itemKey] ?? [...allDays];
     const exists = current.includes(day);
     const nextDays = exists ? current.filter((value) => value !== day) : [...current, day];
+    const finalDays = nextDays.length ? nextDays : [day];
 
-    persistSchedule({
+    const next: ProductSchedule = {
       ...productSchedule,
-      daysByItem: {
-        ...productSchedule.daysByItem,
-        [itemKey]: nextDays.length ? nextDays : [day],
-      },
-    });
+      daysByItem: { ...productSchedule.daysByItem, [itemKey]: finalDays },
+    };
+    setProductSchedule(next);
+    localStorage.setItem(getScheduleStorageKey(analysis?.id), JSON.stringify(next));
+
+    // PATCH apenas o step que mudou
+    if (analysis?.id) {
+      const step = apiSteps.find((s) => s.id === itemKey);
+      if (step) {
+        updateRoutineStep(analysis.id, step.id, { scheduleDays: JSON.stringify(finalDays) });
+      }
+    }
   };
 
   const isScheduledForDay = (itemKey: string, day: WeekDayKey) =>
@@ -2527,7 +2535,7 @@ const Routine = () => {
                 const itemPeriod: "morning" | "night" = item.period;
                 const options = getAvailableOptions(item, itemPeriod);
                 const isChecked = productSchedule.checkedByDayItem[getProductCheckKey(item.key, selectedDay)];
-                const canEditDays = item.recurrence !== "daily";
+                const canEditDays = true;
                 const periodItems = orderedItems[itemPeriod];
                 const itemIdx = periodItems.findIndex((i) => i.key === item.key);
                 const isFirst = itemIdx === 0;
