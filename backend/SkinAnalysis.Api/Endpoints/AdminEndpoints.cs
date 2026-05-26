@@ -1,71 +1,69 @@
 using System.Security.Claims;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using SkinAnalysis.Api.Data;
+using SkinAnalysis.Api.Models;
 using SkinAnalysis.Api.Services;
 
 namespace SkinAnalysis.Api.Endpoints;
 
-/// <summary>
-/// Admin Management Endpoints
-/// 
-/// Provides endpoints for:
-/// 1. /admin/me - Check current user's admin status (via JWT claims)
-/// 2. /admin/setup-first-admin/{userId} - Bootstrap first admin (no auth required)
-/// 3. /admin/promote/{userId} - Promote additional admins (requires admin auth)
-/// 4. Admin product management CRUD operations
-/// 
-/// All endpoints include proper validation, error handling, and logging.
-/// </summary>
 public static class AdminEndpoints
 {
-    /// <summary>
-    /// Maps all admin-related endpoints.
-    /// </summary>
     public static void MapAdminEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/admin")
             .WithTags("Admin")
             .WithOpenApi();
 
-        // Public endpoint to check admin status (auth required but no DB query)
         group.MapGet("/me", CheckAdminStatusHandler)
             .WithName("CheckAdminStatus")
             .WithDescription("Check if current user is an admin")
             .RequireAuthorization();
 
-        // Bootstrap endpoint (no auth required - only for initial setup)
         group.MapPost("/setup-first-admin/{targetUserId:guid}", SetupFirstAdminHandler)
             .WithName("SetupFirstAdmin")
             .WithDescription("Promote first user to admin (only works if no admin exists)");
 
-        // Admin promotion endpoint (requires admin auth)
         group.MapPost("/promote/{targetUserId:guid}", PromoteUserToAdminHandler)
             .WithName("PromoteUserToAdmin")
             .WithDescription("Promote a user to admin status (requires admin authorization)")
             .RequireAuthorization();
+
+        group.MapGet("/users", GetAdminUsersHandler)
+            .WithName("GetAdminUsers")
+            .WithDescription("List all users with billing and credits info")
+            .RequireAuthorization();
+
+        group.MapPost("/users/{targetUserId:guid}/credits", AddUserCreditsHandler)
+            .WithName("AddUserCredits")
+            .WithDescription("Add credits to a user")
+            .RequireAuthorization();
+
+        group.MapPost("/users/{targetUserId:guid}/premium", ActivateUserPremiumHandler)
+            .WithName("ActivateUserPremium")
+            .WithDescription("Manually activate a premium plan for a user")
+            .RequireAuthorization();
+
+        group.MapDelete("/users/{targetUserId:guid}/premium", RevokeUserPremiumHandler)
+            .WithName("RevokeUserPremium")
+            .WithDescription("Revoke all active subscriptions for a user")
+            .RequireAuthorization();
     }
 
-    /// <summary>
-    /// GET /admin/me
-    /// Check current user's admin status from database.
-    /// 
-    /// Returns: { "isAdmin": true|false }
-    /// </summary>
-    private static async Task<IResult> CheckAdminStatusHandler(ClaimsPrincipal user, AdminService adminService, ILogger<AdminService> logger, CancellationToken cancellationToken)
+    private static async Task<IResult> CheckAdminStatusHandler(
+        ClaimsPrincipal user,
+        AdminService adminService,
+        ILogger<AdminService> logger,
+        CancellationToken cancellationToken)
     {
         try
         {
             var userId = AdminService.ExtractUserIdFromClaims(user);
-            if (userId == null)
-            {
-                logger.LogWarning("[AdminEndpoints] Invalid user ID in JWT claims");
-                return Results.Unauthorized();
-            }
+            if (userId == null) return Results.Unauthorized();
 
-            // Check database for admin status
             var isAdmin = await adminService.IsUserAdminAsync(userId.Value, cancellationToken);
-
-            logger.LogInformation("[AdminEndpoints] User {UserId} checked admin status: {IsAdmin}", userId, isAdmin);
-
             return Results.Ok(new { isAdmin });
         }
         catch (Exception ex)
@@ -75,13 +73,6 @@ public static class AdminEndpoints
         }
     }
 
-    /// <summary>
-    /// POST /admin/setup-first-admin/{targetUserId}
-    /// Bootstrap endpoint to promote the first user to admin.
-    /// No authentication required - only works if no admin exists yet.
-    /// 
-    /// Returns: { "message": "...", "isAdmin": true } or error
-    /// </summary>
     private static async Task<IResult> SetupFirstAdminHandler(
         Guid targetUserId,
         HttpContext httpContext,
@@ -106,25 +97,15 @@ public static class AdminEndpoints
                 return Results.Unauthorized();
             }
 
-            // Validate input
-            if (targetUserId == Guid.Empty)
-            {
-                logger.LogWarning("[AdminEndpoints] Invalid user ID provided to setup-first-admin");
-                return Results.BadRequest(new { error = "Invalid user ID" });
-            }
+            if (targetUserId == Guid.Empty) return Results.BadRequest(new { error = "Invalid user ID" });
 
             var (success, message) = await adminService.SetupFirstAdminAsync(targetUserId, cancellationToken);
-
-            if (!success)
-            {
-                return Results.BadRequest(new { error = message });
-            }
+            if (!success) return Results.BadRequest(new { error = message });
 
             return Results.Ok(new { message, isAdmin = true });
         }
         catch (OperationCanceledException)
         {
-            logger.LogWarning("[AdminEndpoints] Setup first admin request was cancelled");
             return Results.StatusCode(408);
         }
         catch (Exception ex)
@@ -134,13 +115,6 @@ public static class AdminEndpoints
         }
     }
 
-    /// <summary>
-    /// POST /admin/promote/{targetUserId}
-    /// Promote an additional user to admin status.
-    /// Requires the requesting user to already be an admin.
-    /// 
-    /// Returns: { "message": "...", "isAdmin": true } or error
-    /// </summary>
     private static async Task<IResult> PromoteUserToAdminHandler(
         Guid targetUserId,
         ClaimsPrincipal user,
@@ -150,37 +124,18 @@ public static class AdminEndpoints
     {
         try
         {
-            // Validate input
-            if (targetUserId == Guid.Empty)
-            {
-                logger.LogWarning("[AdminEndpoints] Invalid target user ID in promote request");
-                return Results.BadRequest(new { error = "Invalid user ID" });
-            }
+            if (targetUserId == Guid.Empty) return Results.BadRequest(new { error = "Invalid user ID" });
 
-            // Extract requester ID
             var requesterId = AdminService.ExtractUserIdFromClaims(user);
-            if (requesterId == null)
-            {
-                logger.LogWarning("[AdminEndpoints] Invalid user ID in JWT claims for promotion request");
-                return Results.Unauthorized();
-            }
+            if (requesterId == null) return Results.Unauthorized();
 
-            // Promote user
-            var (success, message) = await adminService.PromoteUserToAdminAsync(
-                requesterId.Value,
-                targetUserId,
-                cancellationToken);
-
-            if (!success)
-            {
-                return Results.Forbid();
-            }
+            var (success, message) = await adminService.PromoteUserToAdminAsync(requesterId.Value, targetUserId, cancellationToken);
+            if (!success) return Results.Forbid();
 
             return Results.Ok(new { message, isAdmin = true });
         }
         catch (OperationCanceledException)
         {
-            logger.LogWarning("[AdminEndpoints] Promote user request was cancelled");
             return Results.StatusCode(408);
         }
         catch (Exception ex)
@@ -189,4 +144,220 @@ public static class AdminEndpoints
             return Results.StatusCode(500);
         }
     }
+
+    private static async Task<IResult> GetAdminUsersHandler(
+        ClaimsPrincipal user,
+        AppDbContext dbContext,
+        AdminService adminService,
+        ILogger<AdminService> logger,
+        int page = 1,
+        int pageSize = 20,
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, cancellationToken)) return Results.Forbid();
+
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+            var offset = (page - 1) * pageSize;
+            var searchParam = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+
+            const string countSql = """
+                SELECT COUNT(*)::int FROM users u
+                WHERE (@Search IS NULL OR u.email ILIKE '%' || @Search || '%')
+                """;
+
+            const string querySql = """
+                SELECT
+                    u.id         AS Id,
+                    u.email      AS Email,
+                    u.created_at AS CreatedAt,
+                    u.is_admin   AS IsAdmin,
+                    s.plan_key   AS PlanKey,
+                    s.status     AS SubscriptionStatus,
+                    s.expires_at_utc AS ExpiresAtUtc,
+                    COALESCE(uc.credits_remaining, 0) AS CreditsRemaining
+                FROM users u
+                LEFT JOIN LATERAL (
+                    SELECT plan_key, status, expires_at_utc
+                    FROM subscriptions
+                    WHERE user_id = u.id
+                    ORDER BY created_at_utc DESC
+                    LIMIT 1
+                ) s ON true
+                LEFT JOIN user_credits uc ON uc.user_id = u.id
+                WHERE (@Search IS NULL OR u.email ILIKE '%' || @Search || '%')
+                ORDER BY u.created_at DESC
+                LIMIT @PageSize OFFSET @Offset
+                """;
+
+            var connection = dbContext.Database.GetDbConnection();
+            await dbContext.Database.OpenConnectionAsync(cancellationToken);
+
+            var total = await connection.ExecuteScalarAsync<int>(
+                new CommandDefinition(countSql, new { Search = searchParam }, cancellationToken: cancellationToken));
+
+            var items = await connection.QueryAsync<AdminUserRow>(
+                new CommandDefinition(querySql, new { Search = searchParam, PageSize = pageSize, Offset = offset }, cancellationToken: cancellationToken));
+
+            return Results.Ok(new { items, total, page, pageSize });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error listing users");
+            return Results.StatusCode(500);
+        }
+    }
+
+    private static async Task<IResult> AddUserCreditsHandler(
+        Guid targetUserId,
+        AddCreditsRequest body,
+        ClaimsPrincipal user,
+        AppDbContext dbContext,
+        AdminService adminService,
+        IMemoryCache cache,
+        ILogger<AdminService> logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, cancellationToken)) return Results.Forbid();
+
+            if (body.Amount is <= 0 or > 500)
+                return Results.BadRequest(new { error = "Amount must be between 1 and 500" });
+
+            var credit = await dbContext.UserCredits.FirstOrDefaultAsync(x => x.UserId == targetUserId, cancellationToken);
+            if (credit is null)
+            {
+                dbContext.UserCredits.Add(new UserCredit
+                {
+                    UserId = targetUserId,
+                    CreditsRemaining = body.Amount,
+                    UpdatedAt = DateTime.UtcNow,
+                });
+            }
+            else
+            {
+                credit.CreditsRemaining += body.Amount;
+                credit.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            cache.Remove($"user_credits_{targetUserId}");
+
+            logger.LogInformation("[AdminEndpoints] Admin {Admin} added {Amount} credits to user {User}", requesterId, body.Amount, targetUserId);
+            return Results.Ok(new { creditsAdded = body.Amount });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error adding credits");
+            return Results.StatusCode(500);
+        }
+    }
+
+    private static async Task<IResult> ActivateUserPremiumHandler(
+        Guid targetUserId,
+        ActivatePremiumRequest body,
+        ClaimsPrincipal user,
+        AppDbContext dbContext,
+        AdminService adminService,
+        ILogger<AdminService> logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, cancellationToken)) return Results.Forbid();
+
+            if (string.IsNullOrWhiteSpace(body.PlanKey))
+                return Results.BadRequest(new { error = "PlanKey is required" });
+            if (body.Days is <= 0 or > 3650)
+                return Results.BadRequest(new { error = "Days must be between 1 and 3650" });
+
+            var now = DateTime.UtcNow;
+            var subscription = new Subscription
+            {
+                UserId = targetUserId,
+                Provider = "admin",
+                Gateway = "admin",
+                PlanKey = body.PlanKey.Trim().ToLowerInvariant(),
+                PlanName = $"Admin — {body.PlanKey.Trim()}",
+                Status = "active",
+                ExternalReference = $"admin_{targetUserId}_{now.Ticks}",
+                AmountCents = 0,
+                Currency = "BRL",
+                ActivatedAtUtc = now,
+                ExpiresAtUtc = now.AddDays(body.Days),
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+            };
+
+            dbContext.Subscriptions.Add(subscription);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation("[AdminEndpoints] Admin {Admin} activated plan {Plan} for {Days}d for user {User}", requesterId, body.PlanKey, body.Days, targetUserId);
+            return Results.Ok(new { planKey = subscription.PlanKey, expiresAtUtc = subscription.ExpiresAtUtc });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error activating premium");
+            return Results.StatusCode(500);
+        }
+    }
+
+    private static async Task<IResult> RevokeUserPremiumHandler(
+        Guid targetUserId,
+        ClaimsPrincipal user,
+        AppDbContext dbContext,
+        AdminService adminService,
+        ILogger<AdminService> logger,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, cancellationToken)) return Results.Forbid();
+
+            var active = await dbContext.Subscriptions
+                .Where(s => s.UserId == targetUserId && s.Status == "active")
+                .ToListAsync(cancellationToken);
+
+            foreach (var sub in active)
+            {
+                sub.Status = "revoked";
+                sub.UpdatedAtUtc = DateTime.UtcNow;
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            logger.LogInformation("[AdminEndpoints] Admin {Admin} revoked premium for user {User} ({Count} subs)", requesterId, targetUserId, active.Count);
+            return Results.Ok(new { revoked = active.Count });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error revoking premium");
+            return Results.StatusCode(500);
+        }
+    }
 }
+
+record AdminUserRow(
+    Guid Id,
+    string Email,
+    DateTime CreatedAt,
+    bool IsAdmin,
+    string? PlanKey,
+    string? SubscriptionStatus,
+    DateTime? ExpiresAtUtc,
+    int CreditsRemaining);
+
+record AddCreditsRequest(int Amount);
+record ActivatePremiumRequest(string PlanKey, int Days);

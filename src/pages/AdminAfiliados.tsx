@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Plus, ExternalLink, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
+import { AdminNav } from "@/components/AdminNav";
 import {
   adminFetchAffiliates, adminCreateAffiliate, adminUpdateAffiliate,
   adminFetchConversions, adminPayout,
@@ -97,6 +98,7 @@ export default function AdminAfiliados() {
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 max-w-2xl mx-auto">
+      <AdminNav />
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { AdminNav } from "@/components/AdminNav";
 import { LoadingSpinnerFullScreen } from "@/components/LoadingSpinner";
 import {
   getAdminProducts,
@@ -639,7 +640,7 @@ export function AdminProducts() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pb-28">
       <div className="container mx-auto px-4 md:px-6 py-6">
-
+        <AdminNav />
         {/* Header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6 md:mb-8">
           <div>

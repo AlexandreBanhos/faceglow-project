@@ -37,6 +37,7 @@ const BillingSuccess = lazy(() => import("./pages/BillingSuccess"));
 const BillingCancel = lazy(() => import("./pages/BillingCancel"));
 const BillingPending = lazy(() => import("./pages/BillingPending"));
 const AdminProducts = lazy(() => import("./pages/AdminProducts").then(m => ({ default: m.AdminProducts })));
+const AdminUsers    = lazy(() => import("./pages/AdminUsers"));
 const MeusProdutos  = lazy(() => import("./pages/MeusProdutos"));
 const NotFound      = lazy(() => import("./pages/NotFound"));
 const VerifyEmail   = lazy(() => import("./pages/VerifyEmail"));
@@ -126,6 +127,7 @@ const App = () => (
                     <Route path="/aprenda"           element={<SkincareLearn />} />
                     <Route path="/carteirinha"       element={<Carteirinha />} />
                     <Route element={<RequireAdmin />}>
+                      <Route path="/admin/users"      element={<AdminUsers />} />
                       <Route path="/admin/products"   element={<AdminProducts />} />
                       <Route path="/admin/afiliados"  element={<AdminAfiliados />} />
                     </Route>
