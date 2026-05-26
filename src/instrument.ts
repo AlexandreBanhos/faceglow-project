@@ -9,7 +9,7 @@ import {
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN as string ||
-    "https://ca6c570ffe5bd05594d76b206aee6c2e@o4511447218192384.ingest.de.sentry.io/4511447219896400",
+    "https://04d5da75baf0144d8b17bb9d45fa70d4@o4511447218192384.ingest.de.sentry.io/4511447225663568",
   environment: (import.meta.env.VITE_ENVIRONMENT as string) || import.meta.env.MODE,
 
   integrations: [
