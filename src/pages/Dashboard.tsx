@@ -552,7 +552,7 @@ const Dashboard = () => {
             </h1>
           </div>
           <button
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/carteirinha")}
             className="w-12 h-12 rounded-xl lg-surface-strong flex items-center justify-center overflow-hidden relative shadow-glow"
           >
             {/* Letra como background */}
