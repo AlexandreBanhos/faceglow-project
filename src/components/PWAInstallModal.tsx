@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMobileScreen, faXmark, faShareFromSquare } from "@fortawesome/free-solid-svg-icons";
+import { faMobileScreen, faXmark, faShareFromSquare, faChevronRight, faSquarePlus, faEllipsis } from "@fortawesome/free-solid-svg-icons";
 import logoFaceglow from "@/assets/logos/logo-faceglow.svg";
 import iosTutorialImg from "@/assets/pwa-tutorial.png";
 
@@ -145,14 +145,46 @@ export function PWAInstallModal({
 // ── Tutorial iOS ────────────────────────────────────────────────────────────────
 
 function IOSTutorial() {
+  const steps = [
+    { icon: faShareFromSquare, label: "Compartilhar" },
+    { icon: faEllipsis,        label: "Ver mais"     },
+    { icon: faSquarePlus,      label: "Tela Inicial" },
+  ];
+
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.5)" }}>
-      <img
-        src={iosTutorialImg}
-        alt="Tutorial: como instalar FaceGlow no iOS"
-        className="w-full block"
-        style={{ borderRadius: "1rem" }}
-      />
+    <div className="space-y-3">
+      {/* Imagem */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.5)" }}>
+        <img
+          src={iosTutorialImg}
+          alt="Tutorial: como instalar FaceGlow no iOS"
+          className="w-full block"
+          style={{ borderRadius: "1rem" }}
+        />
+      </div>
+
+      {/* Steps rápidos */}
+      <div
+        className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-2xl"
+        style={{ background: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.75)" }}
+      >
+        {steps.map((s, i) => (
+          <div key={s.label} className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
+              <div
+                className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--grad-coral)", boxShadow: "0 1px 6px rgba(220,100,140,0.35)" }}
+              >
+                <FontAwesomeIcon icon={s.icon} style={{ color: "white", fontSize: 10 }} />
+              </div>
+              <span className="text-[11px] font-bold text-foreground whitespace-nowrap">{s.label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <FontAwesomeIcon icon={faChevronRight} style={{ color: "#c0507a", fontSize: 9, flexShrink: 0 }} />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
