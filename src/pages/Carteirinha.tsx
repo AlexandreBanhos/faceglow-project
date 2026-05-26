@@ -127,6 +127,7 @@ export default function Carteirinha() {
   const avatarLetter = data?.name.charAt(0).toUpperCase() ?? "M";
 
   return (
+    <>
     <div className="relative min-h-screen overflow-x-hidden" style={{ background: "#e2e8f4" }}>
 
       {/* Imagem de fundo */}
@@ -256,5 +257,6 @@ export default function Carteirinha() {
           setRefreshKey((k) => k + 1);
         }}
       />
+    </>
   );
 }
