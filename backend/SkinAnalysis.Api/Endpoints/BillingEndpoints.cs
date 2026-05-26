@@ -193,8 +193,11 @@ public static class BillingEndpoints
 
         if (subscription is null) return Results.NotFound();
 
-        var isActive = subscription.Status.Equals("active", StringComparison.OrdinalIgnoreCase)
-            || (subscription.ExpiresAtUtc.HasValue && subscription.ExpiresAtUtc > DateTime.UtcNow);
+        var isSubscriptionPlan = subscription.PlanKey is "monthly" or "annual" or "quarterly";
+        var isPaymentValid = subscription.Status.Equals("active", StringComparison.OrdinalIgnoreCase)
+            && (!subscription.ExpiresAtUtc.HasValue || subscription.ExpiresAtUtc > DateTime.UtcNow);
+        var isActive = isPaymentValid;
+        var isPremium = isPaymentValid && isSubscriptionPlan;
 
         return Results.Ok(new
         {
@@ -204,6 +207,7 @@ public static class BillingEndpoints
             planName = subscription.PlanName,
             status = subscription.Status,
             isActive,
+            isPremium,
             amountCents = subscription.AmountCents,
             currency = subscription.Currency ?? "BRL",
             activatedAtUtc = subscription.ActivatedAtUtc,
@@ -294,7 +298,9 @@ public static class BillingEndpoints
         if (subscription.Status.Equals("active", StringComparison.OrdinalIgnoreCase))
         {
             subscription.ActivatedAtUtc ??= DateTime.UtcNow;
-            subscription.ExpiresAtUtc ??= DateTime.UtcNow.AddDays(EndpointHelpers.GetPlanAccessDays(subscription.PlanKey));
+            var accessDays = EndpointHelpers.GetPlanAccessDays(subscription.PlanKey);
+            if (accessDays > 0)
+                subscription.ExpiresAtUtc ??= DateTime.UtcNow.AddDays(accessDays);
         }
 
         if (justActivated)
@@ -306,6 +312,7 @@ public static class BillingEndpoints
 
         await dbContext.SaveChangesAsync(cancellationToken);
         cache.Remove($"billing_status_{subscription.UserId}");
+        cache.Remove($"user_credits_{subscription.UserId}");
 
         return Results.Ok(new { received = true });
     }
@@ -372,7 +379,9 @@ public static class BillingEndpoints
             if (subscription.Status.Equals("active", StringComparison.OrdinalIgnoreCase))
             {
                 subscription.ActivatedAtUtc ??= DateTime.UtcNow;
-                subscription.ExpiresAtUtc ??= DateTime.UtcNow.AddDays(EndpointHelpers.GetPlanAccessDays(subscription.PlanKey));
+                var accessDays = EndpointHelpers.GetPlanAccessDays(subscription.PlanKey);
+                if (accessDays > 0)
+                    subscription.ExpiresAtUtc ??= DateTime.UtcNow.AddDays(accessDays);
             }
 
             if (justActivated)
@@ -384,6 +393,7 @@ public static class BillingEndpoints
 
             await dbContext.SaveChangesAsync(cancellationToken);
             cache.Remove($"billing_status_{subscription.UserId}");
+            cache.Remove($"user_credits_{subscription.UserId}");
         }
 
         return Results.Ok(new { received = true });

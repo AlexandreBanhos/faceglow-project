@@ -7,6 +7,7 @@ import { writeUserStatusCache, readUserStatusCache, setStatusRefreshFn } from "@
 
 interface BillingStatusResponse {
   isActive?: boolean;
+  isPremium?: boolean;
   planKey?: string;
   status?: string;
   expiresAtUtc?: string;
@@ -49,7 +50,7 @@ export const useUserStatus = (enabled = true) => {
         const response = billingRes.value;
         if (response?.status !== 404 && response?.data) {
           const billing = response.data;
-          isPremium = billing.isActive === true;
+          isPremium = billing.isPremium === true;
           if (billing.planKey && ["credits", "monthly", "annual", "test"].includes(billing.planKey)) {
             subscriptionType = billing.planKey as UserStatus["subscriptionType"];
           }

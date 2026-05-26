@@ -32,6 +32,7 @@ export type BillingStatusResponse = {
   planName: string;
   status: string;
   isActive: boolean;
+  isPremium: boolean;
   amountCents: number;
   currency: string;
   activatedAtUtc?: string;
