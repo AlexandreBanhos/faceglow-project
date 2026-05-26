@@ -14,12 +14,49 @@ async function getHeaders() {
 export interface AdminUserRow {
   id: string;
   email: string;
+  displayName: string;
   createdAt: string;
   isAdmin: boolean;
   planKey?: string;
   subscriptionStatus?: string;
   expiresAtUtc?: string;
   creditsRemaining: number;
+}
+
+export interface AdminRoutineStep {
+  stepId: string;
+  stepTypeKey: string;
+  stepOrder: number;
+  isActive: boolean;
+  isSkipped: boolean;
+  recurrence: string;
+  productName?: string;
+  productBrand?: string;
+  productImage?: string;
+  slotTier?: string;
+}
+
+export interface AdminRoutinePeriod {
+  routineId: string;
+  steps: AdminRoutineStep[];
+}
+
+export interface AdminRoutineResponse {
+  latestAnalysisId?: string;
+  routine: {
+    morning?: AdminRoutinePeriod;
+    night?: AdminRoutinePeriod;
+  };
+}
+
+export interface AdminUserProduct {
+  id: string;
+  name?: string;
+  brand?: string;
+  imageUrl?: string;
+  stepTypeKey?: string;
+  isCatalog: boolean;
+  createdAt: string;
 }
 
 export interface AdminUsersResponse {
@@ -82,4 +119,40 @@ export async function revokeUserPremium(userId: string): Promise<void> {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Erro ao revogar premium: ${res.status}`);
   }
+}
+
+export async function fetchAdminUserRoutine(userId: string): Promise<AdminRoutineResponse> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/routine`, { headers });
+  if (!res.ok) throw new Error(`Erro ao carregar rotina: ${res.status}`);
+  return res.json();
+}
+
+export async function toggleRoutineStep(userId: string, stepId: string): Promise<{ isActive: boolean }> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/steps/${stepId}/toggle`, {
+    method: "PATCH",
+    headers,
+  });
+  if (!res.ok) throw new Error(`Erro ao alterar step: ${res.status}`);
+  return res.json();
+}
+
+export async function regenerateUserRoutine(userId: string): Promise<void> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/routine/regenerate`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Erro ao regenerar rotina: ${res.status}`);
+  }
+}
+
+export async function fetchAdminUserProducts(userId: string): Promise<AdminUserProduct[]> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/products`, { headers });
+  if (!res.ok) throw new Error(`Erro ao carregar produtos: ${res.status}`);
+  return res.json();
 }

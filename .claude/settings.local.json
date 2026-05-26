@@ -108,7 +108,9 @@
       "Bash(Select-Object Name, FullName)",
       "Bash(Format-Table -AutoSize)",
       "Bash(Get-Content backend/SkinAnalysis.Api/Program.cs)",
-      "Bash(Select-Object -First 120)"
+      "Bash(Select-Object -First 120)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table Name, FullName)"
     ]
   }
 }

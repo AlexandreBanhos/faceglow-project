@@ -48,7 +48,26 @@ public static class AdminEndpoints
 
         group.MapDelete("/users/{targetUserId:guid}/premium", RevokeUserPremiumHandler)
             .WithName("RevokeUserPremium")
-            .WithDescription("Revoke all active subscriptions for a user")
+            .RequireAuthorization();
+
+        group.MapGet("/users/{targetUserId:guid}/routine", GetUserRoutineHandler)
+            .WithName("GetAdminUserRoutine")
+            .WithDescription("Get a user's active routine with steps and products")
+            .RequireAuthorization();
+
+        group.MapPatch("/users/{targetUserId:guid}/steps/{stepId:guid}/toggle", ToggleRoutineStepHandler)
+            .WithName("ToggleAdminRoutineStep")
+            .WithDescription("Toggle a routine step active/inactive")
+            .RequireAuthorization();
+
+        group.MapPost("/users/{targetUserId:guid}/routine/regenerate", RegenerateUserRoutineHandler)
+            .WithName("RegenerateAdminUserRoutine")
+            .WithDescription("Regenerate the routine for a user based on their latest analysis")
+            .RequireAuthorization();
+
+        group.MapGet("/users/{targetUserId:guid}/products", GetUserProductsHandler)
+            .WithName("GetAdminUserProducts")
+            .WithDescription("Get a user's custom products")
             .RequireAuthorization();
     }
 
@@ -177,11 +196,13 @@ public static class AdminEndpoints
                     u.email      AS Email,
                     u.created_at AS CreatedAt,
                     u.is_admin   AS IsAdmin,
+                    COALESCE(au.raw_user_meta_data->>'full_name', au.raw_user_meta_data->>'name', '') AS DisplayName,
                     s.plan_key   AS PlanKey,
                     s.status     AS SubscriptionStatus,
                     s.expires_at_utc AS ExpiresAtUtc,
                     COALESCE(uc.credits_remaining, 0) AS CreditsRemaining
                 FROM users u
+                LEFT JOIN auth.users au ON au.id = u.id
                 LEFT JOIN LATERAL (
                     SELECT plan_key, status, expires_at_utc
                     FROM subscriptions
@@ -190,7 +211,8 @@ public static class AdminEndpoints
                     LIMIT 1
                 ) s ON true
                 LEFT JOIN user_credits uc ON uc.user_id = u.id
-                WHERE (@Search IS NULL OR u.email ILIKE '%' || @Search || '%')
+                WHERE (@Search IS NULL OR u.email ILIKE '%' || @Search || '%'
+                    OR au.raw_user_meta_data->>'full_name' ILIKE '%' || @Search || '%')
                 ORDER BY u.created_at DESC
                 LIMIT @PageSize OFFSET @Offset
                 """;
@@ -347,6 +369,215 @@ public static class AdminEndpoints
             return Results.StatusCode(500);
         }
     }
+
+    private static async Task<IResult> GetUserRoutineHandler(
+        Guid targetUserId,
+        ClaimsPrincipal user,
+        AppDbContext db,
+        AdminService adminService,
+        ILogger<AdminService> logger,
+        CancellationToken ct)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+            var routines = await db.Routines
+                .AsNoTracking()
+                .Where(r => r.UserId == targetUserId && r.IsActive)
+                .Include(r => r.Steps.OrderBy(s => s.StepOrder))
+                    .ThenInclude(s => s.Slots)
+                        .ThenInclude(sl => sl.Product)
+                            .ThenInclude(p => p!.Images)
+                .Include(r => r.Steps)
+                    .ThenInclude(s => s.Slots)
+                        .ThenInclude(sl => sl.UserProduct)
+                .ToListAsync(ct);
+
+            // latest analysis id for regeneration
+            var latestAnalysisId = await db.SkinAnalyses
+                .AsNoTracking()
+                .Where(a => a.UserId == targetUserId && a.Status == "completed")
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => (Guid?)a.Id)
+                .FirstOrDefaultAsync(ct);
+
+            var result = new Dictionary<string, object?>();
+            foreach (var r in routines)
+            {
+                var steps = r.Steps.Select(s =>
+                {
+                    var selected = s.Slots.FirstOrDefault(sl => sl.IsSelected) ?? s.Slots.FirstOrDefault();
+                    string? productName = null, productBrand = null, productImage = null, slotTier = null;
+                    if (selected is not null)
+                    {
+                        slotTier = selected.Tier;
+                        if (selected.Product is not null)
+                        {
+                            productName = selected.Product.Name;
+                            productBrand = selected.Product.Brand;
+                            productImage = selected.Product.Images.OrderBy(i => i.Position).FirstOrDefault()?.PublicUrl;
+                        }
+                        else if (selected.UserProduct is not null)
+                        {
+                            productName = selected.UserProduct.CustomName;
+                            productBrand = selected.UserProduct.CustomBrand;
+                            productImage = selected.UserProduct.CustomImageUrl;
+                        }
+                    }
+                    return new
+                    {
+                        stepId = s.Id,
+                        stepTypeKey = s.StepTypeKey,
+                        stepOrder = s.StepOrder,
+                        isActive = s.IsActive,
+                        isSkipped = s.IsSkipped,
+                        recurrence = s.Recurrence,
+                        productName,
+                        productBrand,
+                        productImage,
+                        slotTier,
+                    };
+                });
+
+                result[r.Period] = new { routineId = r.Id, steps };
+            }
+
+            return Results.Ok(new { latestAnalysisId, routine = result });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error fetching routine for user {User}", targetUserId);
+            return Results.StatusCode(500);
+        }
+    }
+
+    private static async Task<IResult> ToggleRoutineStepHandler(
+        Guid targetUserId,
+        Guid stepId,
+        ClaimsPrincipal user,
+        AppDbContext db,
+        AdminService adminService,
+        ILogger<AdminService> logger,
+        CancellationToken ct)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+            var step = await db.RoutineSteps
+                .Include(s => s.Routine)
+                .FirstOrDefaultAsync(s => s.Id == stepId && s.Routine.UserId == targetUserId, ct);
+
+            if (step is null) return Results.NotFound();
+
+            step.IsActive = !step.IsActive;
+            step.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+
+            logger.LogInformation("[AdminEndpoints] Admin {Admin} toggled step {Step} → isActive={Active}", requesterId, stepId, step.IsActive);
+            return Results.Ok(new { stepId, isActive = step.IsActive });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error toggling step {Step}", stepId);
+            return Results.StatusCode(500);
+        }
+    }
+
+    private static async Task<IResult> RegenerateUserRoutineHandler(
+        Guid targetUserId,
+        ClaimsPrincipal user,
+        AppDbContext db,
+        AdminService adminService,
+        IServiceScopeFactory scopeFactory,
+        ILogger<AdminService> logger,
+        CancellationToken ct)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+            var latestAnalysis = await db.SkinAnalyses
+                .AsNoTracking()
+                .Where(a => a.UserId == targetUserId && a.Status == "completed")
+                .OrderByDescending(a => a.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+
+            if (latestAnalysis is null)
+                return Results.BadRequest(new { error = "Usuário não possui análise concluída" });
+
+            _ = Task.Run(async () =>
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var svc = scope.ServiceProvider.GetRequiredService<IAnalysisService>();
+                try
+                {
+                    await svc.BuildRoutineAsync(latestAnalysis.Id, CancellationToken.None);
+                    logger.LogInformation("[AdminEndpoints] Routine regenerated for user {User}", targetUserId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[AdminEndpoints] Failed to regenerate routine for user {User}", targetUserId);
+                }
+            });
+
+            return Results.Accepted(value: new { analysisId = latestAnalysis.Id, message = "Rotina sendo regenerada" });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error regenerating routine for user {User}", targetUserId);
+            return Results.StatusCode(500);
+        }
+    }
+
+    private static async Task<IResult> GetUserProductsHandler(
+        Guid targetUserId,
+        ClaimsPrincipal user,
+        AppDbContext db,
+        AdminService adminService,
+        ILogger<AdminService> logger,
+        CancellationToken ct)
+    {
+        try
+        {
+            var requesterId = AdminService.ExtractUserIdFromClaims(user);
+            if (requesterId is null) return Results.Unauthorized();
+            if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+            var products = await db.UserProducts
+                .AsNoTracking()
+                .Where(p => p.UserId == targetUserId)
+                .Include(p => p.CatalogProduct)
+                .OrderByDescending(p => p.CreatedAt)
+                .Select(p => new
+                {
+                    p.Id,
+                    name = p.CatalogProduct != null ? p.CatalogProduct.Name : p.CustomName,
+                    brand = p.CatalogProduct != null ? p.CatalogProduct.Brand : p.CustomBrand,
+                    imageUrl = p.CatalogProduct != null
+                        ? p.CatalogProduct.Images.OrderBy(i => i.Position).Select(i => i.PublicUrl).FirstOrDefault()
+                        : p.CustomImageUrl,
+                    stepTypeKey = p.CatalogProduct != null ? p.CatalogProduct.StepTypeKey : p.StepTypeKey,
+                    isCatalog = p.CatalogProductId != null,
+                    p.CreatedAt,
+                })
+                .ToListAsync(ct);
+
+            return Results.Ok(products);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AdminEndpoints] Error fetching products for user {User}", targetUserId);
+            return Results.StatusCode(500);
+        }
+    }
 }
 
 record AdminUserRow(
@@ -354,6 +585,7 @@ record AdminUserRow(
     string Email,
     DateTime CreatedAt,
     bool IsAdmin,
+    string DisplayName,
     string? PlanKey,
     string? SubscriptionStatus,
     DateTime? ExpiresAtUtc,
