@@ -11,7 +11,7 @@ public static class AffiliateEndpoints
     public static void MapAffiliateEndpoints(this WebApplication app)
     {
         // Público: valida código antes do cadastro
-        app.MapGet("/affiliates/validate/{code}", ValidateCode);
+        app.MapGet("/affiliates/validate/{code}", ValidateCode).RequireRateLimiting("public");
 
         // Autenticado: grava referral no usuário após cadastro
         app.MapPost("/affiliates/attach", AttachReferral).RequireAuthorization();

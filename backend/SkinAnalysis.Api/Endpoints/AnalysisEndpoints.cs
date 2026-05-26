@@ -358,6 +358,7 @@ public static class AnalysisEndpoints
 
             if (persisted is null) return Results.NotFound(new { error = "Análise não encontrada." });
 
+
             var completedDto = new AnalysisResponseDto
             {
                 Id = persisted.Id, UserId = persisted.UserId,
@@ -373,6 +374,9 @@ public static class AnalysisEndpoints
 
             return Results.Ok(new { id, status = "completed", result = completedDto });
         }
+
+        if (job.OwnerId != Guid.Empty && job.OwnerId != parsedUserId.Value)
+            return Results.NotFound(new { error = "Análise não encontrada." });
 
         return job.Status switch
         {
@@ -424,7 +428,7 @@ public static class AnalysisEndpoints
         if (existing?.Status == "processing") return Results.Accepted($"/analysis/{id}/status", new { id, routineStatus = "processing" });
         if (existing?.Status == "completed") return Results.Ok(new { id, routineStatus = "completed", result = existing.Result });
 
-        AnalysisJobStore.Set(id, new AnalysisJob("processing"));
+        AnalysisJobStore.Set(id, new AnalysisJob("processing", userId.Value));
 
         _ = Task.Run(async () =>
         {
@@ -562,7 +566,7 @@ public static class AnalysisEndpoints
         request.UserId = authenticatedUserId.Value.ToString();
 
         var jobId = Guid.NewGuid();
-        AnalysisJobStore.Set(jobId, new AnalysisJob("processing"));
+        AnalysisJobStore.Set(jobId, new AnalysisJob("processing", authenticatedUserId.Value));
 
         _ = Task.Run(async () =>
         {

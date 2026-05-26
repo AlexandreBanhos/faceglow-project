@@ -67,6 +67,9 @@ public class BillingService : IBillingService
         };
     }
 
+    public string? ResolveMercadoPagoWebhookSecret()
+        => configuration["MercadoPago:WebhookSecret"]?.Trim();
+
     public string ResolveMercadoPagoAccessToken()
     {
         var isDevelopment = string.Equals(

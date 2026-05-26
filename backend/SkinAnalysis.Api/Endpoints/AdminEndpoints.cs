@@ -84,12 +84,28 @@ public static class AdminEndpoints
     /// </summary>
     private static async Task<IResult> SetupFirstAdminHandler(
         Guid targetUserId,
+        HttpContext httpContext,
         AdminService adminService,
+        IConfiguration configuration,
         ILogger<AdminService> logger,
         CancellationToken cancellationToken)
     {
         try
         {
+            var bootstrapToken = configuration["Admin:BootstrapToken"]?.Trim();
+            if (string.IsNullOrEmpty(bootstrapToken))
+            {
+                logger.LogWarning("[AdminEndpoints] setup-first-admin called but Admin:BootstrapToken is not configured");
+                return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            }
+
+            var providedToken = httpContext.Request.Headers["X-Bootstrap-Token"].ToString();
+            if (providedToken != bootstrapToken)
+            {
+                logger.LogWarning("[AdminEndpoints] setup-first-admin called with invalid bootstrap token");
+                return Results.Unauthorized();
+            }
+
             // Validate input
             if (targetUserId == Guid.Empty)
             {

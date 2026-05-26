@@ -34,7 +34,7 @@ public static class BillingEndpoints
             .RequireRateLimiting("billing");
 
         app.MapGet("/billing/status", GetStatusHandler)
-            .WithName("GetBillingStatus").WithOpenApi().AllowAnonymous();
+            .WithName("GetBillingStatus").WithOpenApi().RequireAuthorization();
 
         app.MapPost("/billing/cancel", CancelHandler)
             .WithName("CancelBilling").WithOpenApi().RequireAuthorization();
@@ -157,6 +157,9 @@ public static class BillingEndpoints
         ClaimsPrincipal user, AppDbContext dbContext, IMemoryCache cache,
         CancellationToken cancellationToken)
     {
+        var callerUserId = EndpointHelpers.GetAuthenticatedUserId(user);
+        if (!callerUserId.HasValue) return Results.Unauthorized();
+
         SkinAnalysis.Api.Models.Subscription? subscription = null;
         var shouldBypassCache = forceRefresh?.Equals("true", StringComparison.OrdinalIgnoreCase) ?? false;
 
@@ -164,16 +167,14 @@ public static class BillingEndpoints
         {
             subscription = await dbContext.Subscriptions
                 .FirstOrDefaultAsync(x =>
-                    (!string.IsNullOrWhiteSpace(externalReference) && x.ExternalReference == externalReference)
-                    || (!string.IsNullOrWhiteSpace(externalId) && x.ExternalId == externalId),
+                    x.UserId == callerUserId.Value &&
+                    ((!string.IsNullOrWhiteSpace(externalReference) && x.ExternalReference == externalReference)
+                    || (!string.IsNullOrWhiteSpace(externalId) && x.ExternalId == externalId)),
                     cancellationToken);
         }
         else
         {
-            var userId = EndpointHelpers.GetAuthenticatedUserId(user);
-            if (!userId.HasValue) return Results.Unauthorized();
-
-            var cacheKey = $"billing_status_{userId.Value}";
+            var cacheKey = $"billing_status_{callerUserId.Value}";
             if (!shouldBypassCache && cache.TryGetValue(cacheKey, out SkinAnalysis.Api.Models.Subscription? cachedSubscription))
             {
                 subscription = cachedSubscription;
@@ -181,7 +182,7 @@ public static class BillingEndpoints
             else
             {
                 subscription = await dbContext.Subscriptions
-                    .Where(x => x.UserId == userId.Value)
+                    .Where(x => x.UserId == callerUserId.Value)
                     .OrderByDescending(x => x.ActivatedAtUtc ?? x.CreatedAtUtc)
                     .FirstOrDefaultAsync(cancellationToken);
 
@@ -241,6 +242,14 @@ public static class BillingEndpoints
 
         if (string.IsNullOrWhiteSpace(paymentId))
             return Results.Ok(new { received = true, ignored = true });
+
+        var mpWebhookSecret = billingService.ResolveMercadoPagoWebhookSecret();
+        if (!string.IsNullOrEmpty(mpWebhookSecret)
+            && !EndpointHelpers.ValidateMercadoPagoSignature(request, mpWebhookSecret, paymentId))
+        {
+            logger.LogWarning("Mercado Pago webhook signature inválida para paymentId {PaymentId}", paymentId);
+            return Results.Unauthorized();
+        }
 
         string accessToken;
         try { accessToken = billingService.ResolveMercadoPagoAccessToken(); }

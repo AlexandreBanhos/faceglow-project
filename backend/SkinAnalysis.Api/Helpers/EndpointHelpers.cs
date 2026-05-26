@@ -86,6 +86,33 @@ public static class EndpointHelpers
         return current.ValueKind == JsonValueKind.String ? current.GetString() : current.ToString();
     }
 
+    public static bool ValidateMercadoPagoSignature(HttpRequest request, string secret, string dataId, long toleranceInSeconds = 300)
+    {
+        var xSignature = request.Headers["x-signature"].ToString();
+        var xRequestId = request.Headers["x-request-id"].ToString();
+        if (string.IsNullOrEmpty(xSignature)) return false;
+
+        string? ts = null, v1 = null;
+        foreach (var part in xSignature.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length == 2)
+            {
+                if (kv[0] == "ts") ts = kv[1];
+                else if (kv[0] == "v1") v1 = kv[1];
+            }
+        }
+
+        if (ts is null || v1 is null) return false;
+        if (!long.TryParse(ts, out var timestamp)) return false;
+        if (Math.Abs(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - timestamp) > toleranceInSeconds) return false;
+
+        var manifest = $"id:{dataId};request-id:{xRequestId};ts:{ts};";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(manifest));
+        return string.Equals(Convert.ToHexString(hash).ToLowerInvariant(), v1, StringComparison.OrdinalIgnoreCase);
+    }
+
     public static bool ValidateStripeSignature(string payload, string stripeSignature, string secret, long toleranceInSeconds = 300)
     {
         if (string.IsNullOrWhiteSpace(stripeSignature)) return false;

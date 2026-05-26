@@ -82,7 +82,8 @@ builder.Services
         {
             ValidateIssuer = builder.Environment.IsProduction(),
             ValidIssuer = jwtIssuer,
-            ValidateAudience = false,
+            ValidateAudience = !string.IsNullOrWhiteSpace(jwtAudience),
+            ValidAudience = string.IsNullOrWhiteSpace(jwtAudience) ? null : jwtAudience,
             ValidateLifetime = true
         };
     });
@@ -129,6 +130,17 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+
+    options.AddPolicy("public", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
                 Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0,
@@ -211,7 +223,7 @@ app.Use(async (context, next) =>
     {
         stopwatch.Stop();
         var elapsedMs = stopwatch.ElapsedMilliseconds;
-        if (!context.Response.HasStarted)
+        if (!context.Response.HasStarted && !app.Environment.IsProduction())
         {
             context.Response.Headers["X-Response-Time-Ms"] = elapsedMs.ToString();
         }
@@ -284,40 +296,6 @@ app.Use(async (context, next) =>
 });
 
 app.UseCors("Frontend");
-
-// Middleware to ensure CORS headers are applied even on errors
-app.Use(async (context, next) =>
-{
-    // Apply CORS headers for all responses
-    var origin = context.Request.Headers["Origin"].ToString();
-    if (!string.IsNullOrEmpty(origin))
-    {
-        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-        bool isAllowed = false;
-        
-        if (allowedOrigins is { Length: > 0 })
-        {
-            isAllowed = allowedOrigins.Contains(origin);
-        }
-        else
-        {
-            isAllowed = Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
-                (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || uri.Host == "127.0.0.1");
-        }
-
-        if (isAllowed)
-        {
-            context.Response.OnStarting(() =>
-            {
-                context.Response.Headers["Access-Control-Allow-Origin"] = origin;
-                context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
-                return Task.CompletedTask;
-            });
-        }
-    }
-
-    await next();
-});
 
 app.UseAuthentication();
 app.UseAuthorization();

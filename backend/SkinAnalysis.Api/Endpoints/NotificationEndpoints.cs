@@ -52,18 +52,17 @@ public static class NotificationEndpoints
 
     private static async Task<IResult> TriggerHandler(
         string type, ClaimsPrincipal user,
+        HttpContext httpContext,
         PushNotificationService push,
         IConfiguration config, CancellationToken ct)
     {
-        // Protege com chave interna para cron
-        var cronKey = config["Notifications:CronKey"];
-        var authHeader = user.FindFirstValue("cron-key");
-        // Permite admin ou chave de cron
-        if (!string.IsNullOrEmpty(cronKey) && authHeader != cronKey)
-        {
-            var isAdmin = user.FindFirstValue("is_admin") == "true";
-            if (!isAdmin) return Results.Forbid();
-        }
+        var cronKey = config["Notifications:CronKey"]?.Trim();
+        if (string.IsNullOrEmpty(cronKey))
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        var providedKey = httpContext.Request.Headers["X-Cron-Key"].ToString();
+        if (providedKey != cronKey)
+            return Results.Forbid();
 
         switch (type)
         {

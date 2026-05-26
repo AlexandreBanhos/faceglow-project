@@ -8,10 +8,12 @@ internal sealed class AnalysisJob
     public string Status { get; private set; }
     public AnalysisResponseDto? Result { get; private set; }
     public string? Error { get; private set; }
+    public Guid OwnerId { get; init; }
 
-    public AnalysisJob(string status, AnalysisResponseDto? result = null, string? error = null)
+    public AnalysisJob(string status, Guid ownerId = default, AnalysisResponseDto? result = null, string? error = null)
     {
         Status = status;
+        OwnerId = ownerId;
         Result = result;
         Error = error;
     }
@@ -27,13 +29,15 @@ internal static class AnalysisJobStore
 
     public static void Complete(Guid id, AnalysisResponseDto result)
     {
-        Jobs[id] = new AnalysisJob("completed", result);
+        var ownerId = Jobs.TryGetValue(id, out var existing) ? existing.OwnerId : default;
+        Jobs[id] = new AnalysisJob("completed", ownerId, result);
         ScheduleEviction(id, TimeSpan.FromMinutes(10));
     }
 
     public static void Fail(Guid id, string error)
     {
-        Jobs[id] = new AnalysisJob("failed", error: error);
+        var ownerId = Jobs.TryGetValue(id, out var existing) ? existing.OwnerId : default;
+        Jobs[id] = new AnalysisJob("failed", ownerId, error: error);
         ScheduleEviction(id, TimeSpan.FromMinutes(2));
     }
 

@@ -7,4 +7,6 @@ public interface IBillingService
     Task<BillingCheckoutResponseDto> CreateCheckoutAsync(Guid userId, BillingCheckoutRequestDto request, CancellationToken cancellationToken);
 
     string ResolveMercadoPagoAccessToken();
+
+    string? ResolveMercadoPagoWebhookSecret();
 }
