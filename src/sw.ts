@@ -74,5 +74,16 @@ self.addEventListener("install", (event: ExtendableEvent) => {
 });
 
 self.addEventListener("activate", (event: ExtendableEvent) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    self.clients.claim().then(() =>
+      self.clients.matchAll({ type: "window" }).then((clients) =>
+        clients.forEach((c) => c.postMessage({ type: "SW_UPDATED" }))
+      )
+    )
+  );
+});
+
+// Protocolo VitePWA: permite que o app force o skip waiting via postMessage
+self.addEventListener("message", (event: ExtendableMessageEvent) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
