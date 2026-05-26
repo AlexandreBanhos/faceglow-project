@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronDown, Mail, MessageCircle, FileText, Sparkles, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ChevronDown, Mail, MessageCircle, FileText, Sparkles, Trash2, AlertTriangle, Smartphone } from "lucide-react";
+import { PWAInstallModal } from "@/components/PWAInstallModal";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 
 interface FAQ {
   q: string;
@@ -43,6 +45,53 @@ const FAQS: FAQ[] = [
   },
 ];
 
+function FAQInstallItem({ onOpenModal }: { onOpenModal: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl overflow-hidden border border-primary/25 bg-white/60">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-4 text-left active:bg-muted/30 transition-colors gap-3"
+      >
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--grad-coral)" }}>
+            <Smartphone size={13} className="text-white" />
+          </div>
+          <span className="text-sm font-semibold text-foreground leading-tight">Como instalar o FaceGlow na tela inicial?</span>
+        </div>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex-shrink-0">
+          <ChevronDown size={16} className="text-muted-foreground" />
+        </motion.div>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-0">
+              <div className="h-px bg-border/40 mb-3" />
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                Instale o FaceGlow como um app na tela inicial do seu celular — sem ocupar espaço e sem precisar abrir o navegador.
+              </p>
+              <button
+                onClick={onOpenModal}
+                className="coral-button w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2"
+              >
+                <Smartphone size={15} />
+                Ver como instalar
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function FAQItem({ faq }: { faq: FAQ }) {
   const [open, setOpen] = useState(false);
   return (
@@ -78,6 +127,8 @@ function FAQItem({ faq }: { faq: FAQ }) {
 
 const Support = () => {
   const navigate = useNavigate();
+  const [pwaOpen, setPwaOpen] = useState(false);
+  const { isIOS, canPrompt, triggerPrompt } = usePWAInstall();
 
   return (
     <div className="min-h-screen flex flex-col pb-10" style={{ background: "var(--grad-aurora)" }}>
@@ -156,6 +207,7 @@ const Support = () => {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14 }}>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">Perguntas frequentes</p>
           <div className="space-y-2">
+            <FAQInstallItem onOpenModal={() => setPwaOpen(true)} />
             {FAQS.map((faq) => (
               <FAQItem key={faq.q} faq={faq} />
             ))}
@@ -193,6 +245,14 @@ const Support = () => {
           FaceGlow © {new Date().getFullYear()} · Todos os direitos reservados
         </p>
       </div>
+
+      <PWAInstallModal
+        isVisible={pwaOpen}
+        isIOS={isIOS}
+        canPrompt={canPrompt}
+        onInstall={async () => { await triggerPrompt(); setPwaOpen(false); }}
+        onDismiss={() => setPwaOpen(false)}
+      />
     </div>
   );
 };
