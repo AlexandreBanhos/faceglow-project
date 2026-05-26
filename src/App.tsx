@@ -12,6 +12,8 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LoadingScreen } from "./components/LoadingScreen";
 import RequireAuth from "./components/RequireAuth";
+import { PWAInstallModal } from "./components/PWAInstallModal";
+import { usePWAInstall } from "./hooks/usePWAInstall";
 import RequireAdmin from "./components/RequireAdmin";
 import RequirePremium from "./components/RequirePremium";
 import { UserProvider } from "./contexts/UserContext";
@@ -64,6 +66,19 @@ const queryClient = new QueryClient({
   },
 });
 
+function PWAInstallBridge() {
+  const { shouldShow, isIOS, canPrompt, triggerPrompt, dismiss } = usePWAInstall();
+  return (
+    <PWAInstallModal
+      isVisible={shouldShow}
+      isIOS={isIOS}
+      canPrompt={canPrompt}
+      onInstall={triggerPrompt}
+      onDismiss={() => dismiss()}
+    />
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -74,6 +89,7 @@ const App = () => (
           <GlobalLoadingOverlay />
           <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <ScrollToTop />
+            <PWAInstallBridge />
             <ErrorBoundary>
               <Suspense fallback={<LoadingScreen />}>
                 <SentryRoutes>

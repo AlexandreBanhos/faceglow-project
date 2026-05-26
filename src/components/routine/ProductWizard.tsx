@@ -56,6 +56,7 @@ interface ProductWizardProps {
   initialStepLabel?: string;
   initialPeriod?: "morning" | "night";
   initialRecurrence?: string;
+  initialScheduleDays?: string[];
   currentProductName?: string;
   currentProductImage?: string | null;
   /** Se o produto atual foi cadastrado pelo usuário (exibe opção de editar) */
@@ -157,7 +158,7 @@ const BTN_SECONDARY = "w-full py-3 rounded-2xl border border-slate-200 bg-white 
 
 export function ProductWizard({
   open, onClose, mode,
-  initialCategory, initialStepLabel, initialPeriod, initialRecurrence,
+  initialCategory, initialStepLabel, initialPeriod, initialRecurrence, initialScheduleDays,
   currentProductName, currentProductImage,
   isCurrentUserProduct = false,
   recommendations = [],
@@ -222,8 +223,14 @@ export function ProductWizard({
       setPeriod(initialPeriod === "morning" ? "morning" : initialPeriod === "night" ? "night" : "both");
       setCatalogQuery(""); setCatalogResults([]); setCatalogSearched(false);
       setRegName(""); setRegBrand(""); setRegImageUrl(undefined); setRegImageFile(null);
-      const freqState = recurrenceToState(initialRecurrence);
-      setRegIsDaily(freqState.isDaily); setRegDays(freqState.days);
+      if (initialScheduleDays !== undefined) {
+        const isAll = initialScheduleDays.length >= 7;
+        setRegIsDaily(isAll);
+        setRegDays(isAll ? WEEK_DAYS.map(d => d.key) : initialScheduleDays);
+      } else {
+        const freqState = recurrenceToState(initialRecurrence);
+        setRegIsDaily(freqState.isDaily); setRegDays(freqState.days);
+      }
       setIsEditMode(false); setEditingProductId(null);
       setCustomBrandInput("");
     }

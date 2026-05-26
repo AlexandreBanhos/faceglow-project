@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
 import QRCode from "qrcode";
 import { assertSupabaseConfigured } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
@@ -236,6 +237,21 @@ export default function Carteirinha() {
           setRefreshKey((k) => k + 1);
         }}
       />
+
+      {/* Botão voltar */}
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold z-20"
+        style={{
+          background: "rgba(255,255,255,0.12)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          color: "rgba(255,255,255,0.75)",
+        }}
+      >
+        <ChevronLeft size={16} />
+        Voltar
+      </button>
     </>
   );
 }

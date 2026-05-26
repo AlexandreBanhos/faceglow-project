@@ -42,6 +42,8 @@ export function CarteirinhaEditModal({ isOpen, onClose, onSaved }: Props) {
   const [saving, setSaving]     = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string>("");
   const [photoFile, setPhotoFile]       = useState<File | null>(null);
+  const [userName, setUserName] = useState("");
+  const [userCode, setUserCode] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Carrega dados existentes ao abrir
@@ -54,12 +56,19 @@ export function CarteirinhaEditModal({ isOpen, onClose, onSaved }: Props) {
         const authUser = await getCurrentUser();
         if (!authUser || !mounted) return;
         const sb = assertSupabaseConfigured();
-        const { data } = await sb
-          .from("user_profiles")
-          .select("institution, course, education_level, cpf, birth_date, card_photo_url")
-          .eq("user_id", authUser.id)
-          .maybeSingle();
+        const [{ data }, { data: uRow }] = await Promise.all([
+          sb.from("user_profiles")
+            .select("institution, course, education_level, cpf, birth_date, card_photo_url")
+            .eq("user_id", authUser.id)
+            .maybeSingle(),
+          sb.from("users").select("user_code").eq("id", authUser.id).maybeSingle(),
+        ]);
         if (!mounted) return;
+        const name =
+          (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? "").trim() ||
+          authUser.email?.split("@")[0] || "Membro";
+        setUserName(name);
+        setUserCode(uRow?.user_code ?? "");
         setForm({
           institution:     data?.institution     ?? "",
           course:          data?.course          ?? "",
@@ -179,29 +188,50 @@ export function CarteirinhaEditModal({ isOpen, onClose, onSaved }: Props) {
                   {/* Foto da carteirinha */}
                   <div>
                     <p className="text-xs font-semibold text-gray-500 mb-2">Foto da carteirinha</p>
-                    <div className="flex items-center gap-4">
-                      <div
-                        className="w-16 h-20 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 text-2xl font-extrabold text-white"
-                        style={{ background: "linear-gradient(135deg, #c0507a, #e8a080)" }}
-                      >
-                        {photoPreview ? (
-                          <img src={photoPreview} alt="" className="w-full h-full object-cover object-top" />
-                        ) : "📷"}
+                    <div className="flex gap-4">
+                      {/* Foto + botão abaixo */}
+                      <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                        <div
+                          className="w-[90px] h-[110px] rounded-xl overflow-hidden flex items-center justify-center"
+                          style={{ background: "linear-gradient(135deg, #c0507a, #e8a080)" }}
+                        >
+                          {photoPreview ? (
+                            <img src={photoPreview} alt="" className="w-full h-full object-cover object-top" />
+                          ) : (
+                            <Camera size={28} className="text-white/70" />
+                          )}
+                        </div>
+                        <button
+                          onClick={() => fileRef.current?.click()}
+                          className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 active:bg-gray-50 transition-colors"
+                        >
+                          <Camera size={12} />
+                          {photoPreview ? "Trocar" : "Escolher"}
+                        </button>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={handlePhotoChange}
+                        />
                       </div>
-                      <button
-                        onClick={() => fileRef.current?.click()}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 active:bg-gray-50 transition-colors"
-                      >
-                        <Camera size={15} />
-                        {photoPreview ? "Trocar foto" : "Escolher foto"}
-                      </button>
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={handlePhotoChange}
-                      />
+
+                      {/* Dados ao lado */}
+                      <div className="flex-1 flex flex-col justify-center gap-3">
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Nome</p>
+                          <p className="text-sm font-bold text-gray-800 leading-snug">{userName || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Validade</p>
+                          <p className="text-sm font-semibold text-gray-700">{`30/03/${new Date().getFullYear() + 1}`}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Código</p>
+                          <p className="text-sm font-semibold text-gray-700 font-mono tracking-wider">{userCode || "—"}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 

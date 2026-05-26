@@ -1204,13 +1204,29 @@ const Routine = () => {
         const seen = new Set<string>();
         return all.filter((i) => { if (seen.has(i.key)) return false; seen.add(i.key); return true; });
       })();
+      let result: RoutineItem[];
       if (!order || order.length === 0) {
-        return deduped.map((item, idx) => ({ ...item, stepNumber: idx + 1 }));
+        result = deduped;
+      } else {
+        const keyMap = new Map(deduped.map((i) => [i.key, i]));
+        const ordered = order.filter((k) => keyMap.has(k)).map((k) => keyMap.get(k)!);
+        const added = deduped.filter((i) => !order.includes(i.key));
+        result = [...ordered, ...added];
       }
-      const keyMap = new Map(deduped.map((i) => [i.key, i]));
-      const ordered = order.filter((k) => keyMap.has(k)).map((k) => keyMap.get(k)!);
-      const added = deduped.filter((i) => !order.includes(i.key));
-      return [...ordered, ...added].map((item, idx) => ({ ...item, stepNumber: idx + 1 }));
+
+      // Removedor de maquiagem sempre primeiro na noite, só perde pra limpeza
+      if (period === "night") {
+        const isMR = (i: RoutineItem) =>
+          i.stepTypeKey === "makeup_remover" || i.stepTypeKey === "demaquilante" ||
+          i.type === "makeup_remover" || i.type === "demaquilante";
+        const mrIdx = result.findIndex(isMR);
+        if (mrIdx > 0) {
+          const [mr] = result.splice(mrIdx, 1);
+          result.splice(0, 0, mr);
+        }
+      }
+
+      return result.map((item, idx) => ({ ...item, stepNumber: idx + 1 }));
     };
     return { morning: toOrdered("morning"), night: toOrdered("night") };
   }, [routineItems, customSteps, routineOrder, stepsLoaded]);
@@ -2347,6 +2363,31 @@ const Routine = () => {
                   </span>
                 </button>
               )}
+              {/* "Usei maquiagem" — rotina noite com produto de remoção */}
+              {selectedPeriod === "night" && hasMakeupRemoverStep && !isEditing && (
+                <motion.button
+                  whileTap={!isFutureDay ? { scale: 0.92 } : undefined}
+                  onClick={() => { if (!isFutureDay) toggleMakeup(); }}
+                  className="h-8 px-3 rounded-full flex items-center gap-1.5 transition-all"
+                  style={{
+                    background: makeupToday
+                      ? "linear-gradient(135deg,rgba(244,63,94,.18),rgba(225,29,72,.12))"
+                      : "rgba(255,255,255,0.55)",
+                    border: makeupToday
+                      ? "1px solid rgba(244,63,94,.35)"
+                      : "1px solid rgba(0,0,0,0.07)",
+                    opacity: isFutureDay ? 0.45 : 1,
+                    cursor: isFutureDay ? "default" : "pointer",
+                  }}
+                  title="Marcar que usou maquiagem hoje"
+                >
+                  <Droplets size={13} style={{ color: makeupToday ? "#e11d48" : "#9CA3AF" }} />
+                  <span className="text-[10px] font-bold" style={{ color: makeupToday ? "#e11d48" : "#9CA3AF" }}>
+                    Maquiagem
+                  </span>
+                </motion.button>
+              )}
+
               {/* "Fiz tudo" — mesmo h-8 do toggle, opaco por padrão */}
               <motion.button
                 whileTap={!isFutureDay && !isEditing ? { scale: 0.92 } : undefined}
@@ -2448,28 +2489,6 @@ const Routine = () => {
             <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: "#FEF9EE", border: "1px solid #F59E0B33" }}>
               <span className="text-lg">🔒</span>
               <p className="text-xs font-semibold" style={{ color: "#92400E" }}>Rotinas futuras não podem ser marcadas.</p>
-            </div>
-          )}
-
-          {/* ── Toggle maquiagem (rotina noturna) ── */}
-          {selectedPeriod === "night" && hasMakeupRemoverStep && !isEditing && (
-            <div className="mb-3">
-              <button
-                onClick={toggleMakeup}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 ${
-                  makeupToday
-                    ? "bg-rose-100 text-rose-700 border border-rose-200 shadow-sm"
-                    : "liquiglass-button text-muted-foreground"
-                }`}
-              >
-                <Droplets size={14} className={makeupToday ? "text-rose-500" : ""} />
-                {makeupToday ? "Usei maquiagem hoje ✓" : "Estou maquiada hoje?"}
-              </button>
-              {makeupToday && (
-                <p className="text-[11px] text-muted-foreground mt-1.5 ml-1">
-                  Passo de remoção de maquiagem ativado na rotina.
-                </p>
-              )}
             </div>
           )}
 
@@ -2786,6 +2805,7 @@ const Routine = () => {
                                   onClick={() => {
                                     setWizardItem(item);
                                     setWizardMode("swap");
+                                    setEditingDaysItem(null);
                                     setWizardOpen(true);
                                   }}
                                   className="w-6 h-6 rounded-full hover:bg-muted/40 flex items-center justify-center transition-colors"
@@ -2976,7 +2996,16 @@ const Routine = () => {
                       {/* Edit Days Section */}
                       {editingDaysItem === item.key && canEditDays && (
                         <div className="mx-3 mb-3 rounded-xl border border-border/70 bg-background p-3">
-                          <p className="text-xs font-semibold text-muted-foreground mb-2">Dias da semana</p>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold text-muted-foreground">Dias da semana</p>
+                            <button
+                              onClick={() => setEditingDaysItem(null)}
+                              className="w-5 h-5 rounded-full hover:bg-muted/40 flex items-center justify-center"
+                              aria-label="Fechar"
+                            >
+                              <X size={11} className="text-muted-foreground" />
+                            </button>
+                          </div>
                           <div className="grid grid-cols-7 gap-1.5">
                             {weekDays.map((day) => {
                               const active = isScheduledForDay(item.key, day.key);
@@ -3363,7 +3392,7 @@ const Routine = () => {
               {isEditing && !isFreeMode && (
                 <div className="space-y-3">
                   <button
-                    onClick={() => { setWizardItem(null); setWizardMode("add"); setWizardOpen(true); }}
+                    onClick={() => { setWizardItem(null); setWizardMode("add"); setEditingDaysItem(null); setWizardOpen(true); }}
                     className="w-full h-11 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 text-sm font-bold text-primary flex items-center justify-center gap-2 transition-colors hover:bg-primary/10"
                   >
                     <Plus size={16} />
@@ -3543,6 +3572,7 @@ const Routine = () => {
           initialStepLabel={wizardItem?.stepLabel}
           initialPeriod={wizardItem?.period}
           initialRecurrence={wizardItem?.recurrence}
+          initialScheduleDays={wizardItem ? productSchedule.daysByItem[wizardItem.key] : undefined}
           currentProductName={wizardItem ? getDisplayProductName(wizardItem) : undefined}
           currentProductImage={wizardItem ? getDisplayImage(wizardItem) : undefined}
           isCurrentUserProduct={wizardItem?.isCustom ?? false}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { CheckCircle2, XCircle, ChevronLeft } from "lucide-react";
 import { assertSupabaseConfigured } from "@/lib/supabase";
 import headerImg from "@/assets/wallet/header-carteiriha.png";
 import fundoImg  from "@/assets/wallet/fundo-carteiriha.png";
@@ -27,6 +27,7 @@ function DetailRow({ label, value, accent }: { label: string; value: string; acc
 }
 
 const ValidarCarteirinha = () => {
+  const navigate = useNavigate();
   const { codigo } = useParams<{ codigo: string }>();
   const [result, setResult]   = useState<ValidationResult | null>(null);
 
@@ -153,6 +154,21 @@ const ValidarCarteirinha = () => {
           )}
         </div>
       </div>
+
+      {/* Botão voltar */}
+      <button
+        onClick={() => navigate(-1)}
+        className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold z-20"
+        style={{
+          background: "rgba(255,255,255,0.12)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          color: "rgba(255,255,255,0.75)",
+        }}
+      >
+        <ChevronLeft size={16} />
+        Voltar
+      </button>
     </div>
   );
 };
