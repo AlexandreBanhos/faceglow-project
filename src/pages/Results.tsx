@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Ellipsis, BookOpen, AlertTriangle, Lock, Sparkles, CheckCircle2, Info } from "lucide-react";
@@ -67,6 +67,9 @@ const CONDITION_INFO: Record<string, { cause: string; tip: string; ingredient: s
 const Results = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const [analysis, setAnalysis] = useState(() => {
     const stateAnalysis = normalizeAnalysis((location.state as { analysis?: unknown } | null)?.analysis);
     return stateAnalysis ?? parseStoredAnalysis();
@@ -219,7 +222,7 @@ const Results = () => {
         navigate("/routine", { state: { analysis: analysisToPass } });
       }
     } finally {
-      setRoutineState("idle");
+      if (mountedRef.current) setRoutineState("idle");
     }
   };
 

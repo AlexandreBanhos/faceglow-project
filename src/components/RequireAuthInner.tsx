@@ -32,7 +32,9 @@ const RequireAuthInner = () => {
     };
 
     // Único getSession() — cobre sessão em memória e localStorage
-    client.auth.getSession().then(({ data }) => applySession(data.session));
+    client.auth.getSession()
+      .then(({ data }) => applySession(data.session))
+      .catch(() => applySession(null));
 
     // onAuthStateChange cobre token refresh, SIGNED_IN e SIGNED_OUT em tempo real
     const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
