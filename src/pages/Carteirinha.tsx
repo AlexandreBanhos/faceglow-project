@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import QRCode from "qrcode";
 import { assertSupabaseConfigured } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
+import { CarteirinhaEditModal } from "@/components/profile/CarteirinhaEditModal";
 import headerImg from "@/assets/wallet/header-carteiriha.png";
 import fundoImg  from "@/assets/wallet/fundo-carteiriha.png";
 
@@ -51,8 +52,10 @@ interface ProfileData {
 
 export default function Carteirinha() {
   const navigate  = useNavigate();
-  const [data, setData]     = useState<ProfileData | null>(null);
+  const [data, setData]       = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -77,23 +80,29 @@ export default function Carteirinha() {
           (authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? "").trim() ||
           authUser.email?.split("@")[0] || "Membro";
 
-        setData({
+        const profile: ProfileData = {
           name,
-          userCode:      uRow?.user_code     ?? "",
-          cardPhotoUrl:  pRow?.card_photo_url ?? authUser.user_metadata?.avatar_url ?? "",
-          cpf:           pRow?.cpf            ?? "",
-          birth_date:    pRow?.birth_date     ?? "",
-          institution:   pRow?.institution    ?? "",
-          course:        pRow?.course         ?? "",
-          education_level: pRow?.education_level ?? "",
-        });
+          userCode:        uRow?.user_code       ?? "",
+          cardPhotoUrl:    pRow?.card_photo_url   ?? authUser.user_metadata?.avatar_url ?? "",
+          cpf:             pRow?.cpf              ?? "",
+          birth_date:      pRow?.birth_date       ?? "",
+          institution:     pRow?.institution      ?? "",
+          course:          pRow?.course           ?? "",
+          education_level: pRow?.education_level  ?? "",
+        };
+
+        setData(profile);
+
+        const noData = !pRow?.institution && !pRow?.course && !pRow?.cpf &&
+                       !pRow?.birth_date && !pRow?.education_level;
+        if (noData) setEditOpen(true);
       } finally {
         if (mounted) setLoading(false);
       }
     };
     load();
     return () => { mounted = false; };
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
     if (!data?.userCode || !canvasRef.current) return;
@@ -116,7 +125,6 @@ export default function Carteirinha() {
   }
 
   const avatarLetter = data?.name.charAt(0).toUpperCase() ?? "M";
-  const isFirstTime = !data?.institution && !data?.course && !data?.cpf && !data?.birth_date && !data?.education_level;
 
   return (
     <div className="relative min-h-screen overflow-x-hidden" style={{ background: "#e2e8f4" }}>
@@ -145,32 +153,26 @@ export default function Carteirinha() {
         {/* Conteúdo */}
         <div className="px-5 pt-5 pb-12 max-w-sm mx-auto w-full">
 
-          {/* Banner de primeiro acesso */}
-          {isFirstTime && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-2xl mb-4"
-              style={{
-                background: "#ffffff",
-                border: "1.5px solid rgba(192,80,122,0.2)",
-                boxShadow: "0 2px 12px rgba(192,80,122,0.10)",
-              }}
+          {/* Botão editar sempre visível */}
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between px-4 py-3 rounded-2xl mb-4"
+            style={{
+              background: "#ffffff",
+              border: "1.5px solid rgba(192,80,122,0.15)",
+              boxShadow: "0 2px 12px rgba(192,80,122,0.08)",
+            }}
+          >
+            <p className="text-sm font-semibold text-gray-700">Minha Carteirinha Digital</p>
+            <button
+              onClick={() => setEditOpen(true)}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl text-white active:opacity-80 transition-opacity"
+              style={{ background: "linear-gradient(135deg, #c0507a, #e8a080)" }}
             >
-              <span className="text-lg flex-shrink-0">✨</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-900 leading-tight">Complete sua carteirinha</p>
-                <p className="text-xs text-gray-500 mt-0.5">Adicione seus dados no perfil</p>
-              </div>
-              <button
-                onClick={() => navigate(-1)}
-                className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-xl text-white active:opacity-80"
-                style={{ background: "linear-gradient(135deg, #c0507a, #e8a080)" }}
-              >
-                Editar
-              </button>
-            </motion.div>
-          )}
+              Editar
+            </button>
+          </motion.div>
 
           {/* Linha de identidade — mesma altura */}
           <div className="flex gap-4 mb-4" style={{ height: 172 }}>
@@ -195,9 +197,10 @@ export default function Carteirinha() {
               )}
             </div>
 
-            {/* QR Code */}
-            <div
-              className="flex-1 h-full rounded-2xl flex flex-col items-center justify-center"
+            {/* QR Code — clicável → validar */}
+            <button
+              onClick={() => data?.userCode && navigate(`/validar/${data.userCode}`)}
+              className="flex-1 h-full rounded-2xl flex flex-col items-center justify-center active:opacity-70 transition-opacity"
               style={{
                 padding: 20,
                 background: "rgba(255,255,255,0.88)",
@@ -207,7 +210,7 @@ export default function Carteirinha() {
               }}
             >
               {data?.userCode ? (
-                <canvas ref={canvasRef} width={90} height={90} className="rounded-lg" />
+                <canvas ref={canvasRef} width={90} height={90} className="rounded-lg pointer-events-none" />
               ) : (
                 <div className="w-[90px] h-[90px] rounded-lg bg-gray-100" />
               )}
@@ -217,7 +220,7 @@ export default function Carteirinha() {
               <p className="text-[13px] font-bold text-gray-800 font-mono tracking-wider mt-0.5">
                 {data?.userCode || "—"}
               </p>
-            </div>
+            </button>
           </div>
 
           {/* Card de informações — com blur */}
@@ -244,5 +247,14 @@ export default function Carteirinha() {
         </div>
       </div>
     </div>
+
+      <CarteirinhaEditModal
+        isOpen={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => {
+          setEditOpen(false);
+          setRefreshKey((k) => k + 1);
+        }}
+      />
   );
 }

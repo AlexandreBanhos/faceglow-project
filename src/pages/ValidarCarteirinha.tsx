@@ -9,6 +9,8 @@ interface ValidationResult {
   is_valid: boolean;
   user_name: string | null;
   membership_status: string | null;
+  course: string | null;
+  institution: string | null;
 }
 
 function validityLabel() {
@@ -34,20 +36,41 @@ const ValidarCarteirinha = () => {
   );
 
   useEffect(() => {
+    const run = async () => {
     if (!codigo) { setLoading(false); return; }
     const sb = assertSupabaseConfigured();
-    sb.rpc("validate_member_card", { p_code: codigo })
-      .then(({ data, error }) => {
-        if (error || !data?.[0]) {
-          setResult({ is_valid: false, user_name: null, membership_status: null });
-          return;
-        }
-        setResult(data[0] as ValidationResult);
-      })
-      .catch(() =>
-        setResult({ is_valid: false, user_name: null, membership_status: null })
-      )
-      .finally(() => setLoading(false));
+    const { data: rpcData, error } = await sb.rpc("validate_member_card", { p_code: codigo });
+
+    if (error || !rpcData?.[0]) {
+      setResult({ is_valid: false, user_name: null, membership_status: null, course: null, institution: null });
+      setLoading(false);
+      return;
+    }
+
+    const base = rpcData[0] as ValidationResult;
+
+    if (base.is_valid) {
+      const { data: uRow } = await sb
+        .from("users")
+        .select("id")
+        .eq("user_code", codigo)
+        .maybeSingle();
+
+      if (uRow?.id) {
+        const { data: pRow } = await sb
+          .from("user_profiles")
+          .select("course, institution")
+          .eq("user_id", uRow.id)
+          .maybeSingle();
+        base.course      = pRow?.course      ?? null;
+        base.institution = pRow?.institution ?? null;
+      }
+    }
+
+    setResult(base);
+    setLoading(false);
+    };
+    run();
   }, [codigo]);
 
   const isActive = result?.is_valid && result?.membership_status === "active";
@@ -66,7 +89,9 @@ const ValidarCarteirinha = () => {
       <div className="relative z-10 flex flex-col min-h-screen">
 
         {/* Header — mesma imagem da carteirinha */}
-        <img src={headerImg} alt="" className="w-full" draggable={false} />
+        <div className="flex justify-center mt-[30px]">
+          <img src={headerImg} alt="" className="w-full max-w-sm" draggable={false} />
+        </div>
 
         {/* Conteúdo */}
         <div className="px-5 pt-5 pb-12 max-w-sm mx-auto w-full space-y-4">
@@ -105,21 +130,25 @@ const ValidarCarteirinha = () => {
               {/* Detalhes */}
               {result?.is_valid && (
                 <div
-                  className="rounded-3xl overflow-hidden divide-y divide-gray-50"
+                  className="rounded-3xl overflow-hidden divide-y divide-gray-100"
                   style={{
                     background: "#ffffff",
                     boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
                     border: "1px solid rgba(255,255,255,0.8)",
                   }}
                 >
-                  <DetailRow label="Nome"     value={result.user_name ?? "Membro"} />
-                  <DetailRow label="Status"   value={isActive ? "Ativo" : "Inativo"} accent={isActive} />
-                  <DetailRow label="Validade" value={validityLabel()} />
+                  <DetailRow label="Nome"        value={result.user_name ?? "Membro"} />
+                  {result.institution && (
+                    <DetailRow label="Instituição" value={result.institution} />
+                  )}
+                  {result.course && (
+                    <DetailRow label="Curso"       value={result.course} />
+                  )}
+                  <DetailRow label="Status"      value={isActive ? "Ativo" : "Inativo"} accent={isActive} />
+                  <DetailRow label="Código"      value={codigo ?? "—"} />
+                  <DetailRow label="Validade"    value={validityLabel()} />
                 </div>
               )}
-
-              {/* Código */}
-              <p className="text-center text-xs text-gray-400/60 font-mono pt-1">{codigo}</p>
             </>
           )}
         </div>
