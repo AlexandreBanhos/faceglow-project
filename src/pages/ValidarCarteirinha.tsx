@@ -37,41 +37,49 @@ const ValidarCarteirinha = () => {
   );
 
   useEffect(() => {
+    let mounted = true;
     const run = async () => {
-    if (!codigo) { setLoading(false); return; }
-    const sb = assertSupabaseConfigured();
-    const { data: rpcData, error } = await sb.rpc("validate_member_card", { p_code: codigo });
+      try {
+        if (!codigo) return;
+        const sb = assertSupabaseConfigured();
+        const { data: rpcData, error } = await sb.rpc("validate_member_card", { p_code: codigo });
 
-    if (error || !rpcData?.[0]) {
-      setResult({ is_valid: false, user_name: null, membership_status: null, course: null, institution: null });
-      setLoading(false);
-      return;
-    }
+        if (!mounted) return;
 
-    const base = rpcData[0] as ValidationResult;
+        if (error || !rpcData?.[0]) {
+          setResult({ is_valid: false, user_name: null, membership_status: null, course: null, institution: null });
+          return;
+        }
 
-    if (base.is_valid) {
-      const { data: uRow } = await sb
-        .from("users")
-        .select("id")
-        .eq("user_code", codigo)
-        .maybeSingle();
+        const base = rpcData[0] as ValidationResult;
 
-      if (uRow?.id) {
-        const { data: pRow } = await sb
-          .from("user_profiles")
-          .select("course, institution")
-          .eq("user_id", uRow.id)
-          .maybeSingle();
-        base.course      = pRow?.course      ?? null;
-        base.institution = pRow?.institution ?? null;
+        if (base.is_valid) {
+          const { data: uRow } = await sb
+            .from("users")
+            .select("id")
+            .eq("user_code", codigo)
+            .maybeSingle();
+
+          if (mounted && uRow?.id) {
+            const { data: pRow } = await sb
+              .from("user_profiles")
+              .select("course, institution")
+              .eq("user_id", uRow.id)
+              .maybeSingle();
+            base.course      = pRow?.course      ?? null;
+            base.institution = pRow?.institution ?? null;
+          }
+        }
+
+        if (mounted) setResult(base);
+      } catch {
+        if (mounted) setResult({ is_valid: false, user_name: null, membership_status: null, course: null, institution: null });
+      } finally {
+        if (mounted) setLoading(false);
       }
-    }
-
-    setResult(base);
-    setLoading(false);
     };
     run();
+    return () => { mounted = false; };
   }, [codigo]);
 
   const isActive = result?.is_valid && result?.membership_status === "active";
