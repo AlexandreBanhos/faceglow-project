@@ -21,6 +21,28 @@ export interface AdminUserRow {
   subscriptionStatus?: string;
   expiresAtUtc?: string;
   creditsRemaining: number;
+  skinType?: string;
+  lastAnalysisAt?: string;
+}
+
+export interface AdminSkinProfile {
+  skinType: string;
+  acneScore: number;
+  oilinessScore: number;
+  darkSpotsScore: number;
+  hydrationScore: number;
+  sensitivityScore: number;
+  agingScore: number;
+  rednessScore: number;
+  primaryConcerns: string[];
+  hasActiveAcne: boolean;
+  hasDarkCircles: boolean;
+  hasEnlargedPores: boolean;
+  hasFineLines: boolean;
+  usesMakeup: boolean;
+  budgetRange?: string;
+  updatedAt: string;
+  lastAnalysisAt?: string;
 }
 
 export interface AdminRoutineStep {
@@ -119,6 +141,13 @@ export async function revokeUserPremium(userId: string): Promise<void> {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Erro ao revogar premium: ${res.status}`);
   }
+}
+
+export async function fetchAdminUserSkinProfile(userId: string): Promise<AdminSkinProfile> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/skin-profile`, { headers });
+  if (!res.ok) throw new Error(`Erro ao carregar perfil de pele: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchAdminUserRoutine(userId: string): Promise<AdminRoutineResponse> {

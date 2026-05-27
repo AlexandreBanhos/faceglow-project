@@ -65,6 +65,9 @@ public static class AdminEndpoints
             .WithDescription("Regenerate the routine for a user based on their latest analysis")
             .RequireAuthorization();
 
+        group.MapGet("/users/{targetUserId:guid}/skin-profile", GetUserSkinProfileHandler)
+            .WithName("GetAdminUserSkinProfile").RequireAuthorization();
+
         group.MapGet("/users/{targetUserId:guid}/products", GetUserProductsHandler)
             .WithName("GetAdminUserProducts")
             .WithDescription("Get a user's custom products")
@@ -218,7 +221,9 @@ public static class AdminEndpoints
                     s.plan_key   AS PlanKey,
                     s.status     AS SubscriptionStatus,
                     s.expires_at_utc AS ExpiresAtUtc,
-                    COALESCE(uc.credits_remaining, 0) AS CreditsRemaining
+                    COALESCE(uc.credits_remaining, 0) AS CreditsRemaining,
+                    sp.skin_type AS SkinType,
+                    sa.last_analysis_at AS LastAnalysisAt
                 FROM users u
                 LEFT JOIN auth.users au ON au.id = u.id
                 LEFT JOIN LATERAL (
@@ -229,6 +234,19 @@ public static class AdminEndpoints
                     LIMIT 1
                 ) s ON true
                 LEFT JOIN user_credits uc ON uc.user_id = u.id
+                LEFT JOIN LATERAL (
+                    SELECT skin_type
+                    FROM skin_profiles
+                    WHERE user_id = u.id AND is_current = true
+                    LIMIT 1
+                ) sp ON true
+                LEFT JOIN LATERAL (
+                    SELECT created_at AS last_analysis_at
+                    FROM skin_analyses
+                    WHERE user_id = u.id AND status = 'completed'
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ) sa ON true
                 WHERE (@Search IS NULL OR u.email ILIKE '%' || @Search || '%'
                     OR au.raw_user_meta_data->>'full_name' ILIKE '%' || @Search || '%')
                 ORDER BY u.created_at DESC
@@ -777,6 +795,53 @@ public static class AdminEndpoints
         });
     }
 
+    private static async Task<IResult> GetUserSkinProfileHandler(
+        Guid targetUserId,
+        ClaimsPrincipal user, AppDbContext db,
+        AdminService adminService,
+        ILogger<AdminService> logger, CancellationToken ct)
+    {
+        var requesterId = AdminService.ExtractUserIdFromClaims(user);
+        if (requesterId is null) return Results.Unauthorized();
+        if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+        var profile = await db.SkinProfiles
+            .AsNoTracking()
+            .Where(p => p.UserId == targetUserId && p.IsCurrent)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (profile is null) return Results.NotFound();
+
+        var lastAnalysisAt = await db.SkinAnalyses
+            .AsNoTracking()
+            .Where(a => a.UserId == targetUserId && a.Status == "completed")
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => (DateTime?)a.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        return Results.Ok(new
+        {
+            skinType = profile.SkinType,
+            acneScore = profile.AcneScore,
+            oilinessScore = profile.OilinessScore,
+            darkSpotsScore = profile.DarkSpotsScore,
+            hydrationScore = profile.HydrationScore,
+            sensitivityScore = profile.SensitivityScore,
+            agingScore = profile.AgingScore,
+            rednessScore = profile.RednessScore,
+            primaryConcerns = profile.PrimaryConcerns,
+            hasActiveAcne = profile.HasActiveAcne,
+            hasDarkCircles = profile.HasDarkCircles,
+            hasEnlargedPores = profile.HasEnlargedPores,
+            hasFineLines = profile.HasFineLines,
+            usesMakeup = profile.UsesMakeup,
+            budgetRange = profile.BudgetRange,
+            updatedAt = profile.UpdatedAt,
+            lastAnalysisAt,
+        });
+    }
+
     private static async Task<IResult> DeleteRoutineStepHandler(
         Guid targetUserId, Guid stepId,
         ClaimsPrincipal user, AppDbContext db,
@@ -851,7 +916,9 @@ record AdminUserRow(
     string? PlanKey,
     string? SubscriptionStatus,
     DateTime? ExpiresAtUtc,
-    int CreditsRemaining);
+    int CreditsRemaining,
+    string? SkinType,
+    DateTime? LastAnalysisAt);
 
 record AddCreditsRequest(int Amount);
 record ActivatePremiumRequest(string PlanKey, int Days);

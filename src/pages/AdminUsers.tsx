@@ -16,6 +16,7 @@ import {
   activateUserPremium,
   revokeUserPremium,
   fetchAdminUserRoutine,
+  fetchAdminUserSkinProfile,
   toggleRoutineStep,
   regenerateUserRoutine,
   fetchAdminUserProducts,
@@ -31,6 +32,7 @@ import {
   type AdminRoutineResponse,
   type AdminRoutinePeriod,
   type AdminUserProduct,
+  type AdminSkinProfile,
   type CatalogProduct,
 } from "@/lib/admin-users";
 
@@ -41,6 +43,29 @@ const planLabel: Record<string, string> = {
   annual: "Anual",
   credits: "Avulso",
   test: "Teste",
+};
+
+const skinTypeLabel: Record<string, string> = {
+  oily: "Oleosa",
+  dry: "Seca",
+  combination: "Mista",
+  normal: "Normal",
+  sensitive: "Sensível",
+  "dry-sensitive": "Seca/Sensível",
+  "oily-sensitive": "Oleosa/Sensível",
+};
+
+const concernLabel: Record<string, string> = {
+  acne: "Acne",
+  oiliness: "Oleosidade",
+  dark_spots: "Manchas",
+  sensitivity: "Sensibilidade",
+  aging: "Envelhecimento",
+  redness: "Vermelhidão",
+  dehydration: "Desidratação",
+  dark_circles: "Olheiras",
+  enlarged_pores: "Poros dilatados",
+  fine_lines: "Linhas finas",
 };
 
 const stepTypeLabel: Record<string, string> = {
@@ -60,7 +85,7 @@ const stepTypeLabel: Record<string, string> = {
 
 const STEP_TYPE_KEYS = Object.keys(stepTypeLabel);
 
-function fmtDate(iso?: string) {
+function fmtDate(iso?: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("pt-BR");
 }
@@ -83,17 +108,40 @@ function statusBadge(row: AdminUserRow) {
   );
 }
 
-// ── Product picker dialog ─────────────────────────────────────────────────────
+function skinTypeBadge(skinType?: string) {
+  if (!skinType) return null;
+  return (
+    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+      {skinTypeLabel[skinType] ?? skinType}
+    </span>
+  );
+}
+
+// ── Score bar ────────────────────────────────────────────────────────────────
+function ScoreBar({ label, score, reversed = false }: { label: string; score: number; reversed?: boolean }) {
+  const pct = score * 10;
+  const bad = reversed ? pct < 35 : pct > 65;
+  const mid = reversed ? pct < 65 : pct > 35;
+  const color = bad ? "bg-red-400" : mid ? "bg-amber-400" : "bg-emerald-400";
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-0.5">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="tabular-nums font-medium">{score}/10</span>
+      </div>
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Product picker dialog ────────────────────────────────────────────────────
 function ProductPickerDialog({
-  open,
-  stepTypeKey,
-  onClose,
-  onSelect,
+  open, stepTypeKey, onClose, onSelect,
 }: {
-  open: boolean;
-  stepTypeKey: string;
-  onClose: () => void;
-  onSelect: (product: CatalogProduct | null) => void;
+  open: boolean; stepTypeKey: string;
+  onClose: () => void; onSelect: (p: CatalogProduct | null) => void;
 }) {
   const [query, setQuery] = useState("");
   const [filterByType, setFilterByType] = useState(true);
@@ -103,60 +151,34 @@ function ProductPickerDialog({
 
   useEffect(() => {
     if (!open) { setQuery(""); setProducts([]); return; }
-    const timer = setTimeout(async () => {
+    const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const results = await searchCatalogProducts(query || undefined, filterByType ? stepTypeKey : undefined);
-        setProducts(results);
-      } catch {
-        toast({ title: "Erro ao buscar produtos", variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
+        setProducts(await searchCatalogProducts(query || undefined, filterByType ? stepTypeKey : undefined));
+      } catch { toast({ title: "Erro ao buscar produtos", variant: "destructive" }); }
+      finally { setLoading(false); }
     }, query ? 300 : 0);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [query, open, stepTypeKey, filterByType, toast]);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>Escolher produto</DialogTitle></DialogHeader>
-        <Input
-          placeholder="Buscar por nome ou marca..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-        />
+        <Input placeholder="Buscar por nome ou marca..." value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={filterByType}
-            onChange={(e) => setFilterByType(e.target.checked)}
-            className="rounded"
-          />
+          <input type="checkbox" checked={filterByType} onChange={(e) => setFilterByType(e.target.checked)} />
           Filtrar por tipo ({stepTypeLabel[stepTypeKey] ?? stepTypeKey})
         </label>
         <div className="max-h-56 overflow-y-auto space-y-1">
           {loading && <p className="text-xs text-muted-foreground text-center py-4">Buscando...</p>}
-          {!loading && products.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4">Nenhum produto</p>
-          )}
+          {!loading && products.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhum produto</p>}
           {products.map((p) => (
-            <button
-              key={p.id}
-              className="w-full flex items-center gap-2 p-2 hover:bg-muted rounded-lg text-left"
-              onClick={() => onSelect(p)}
-            >
-              {p.imageUrl ? (
-                <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
-              ) : (
-                <div className="w-8 h-8 rounded bg-muted flex-shrink-0" />
-              )}
+            <button key={p.id} className="w-full flex items-center gap-2 p-2 hover:bg-muted rounded-lg text-left" onClick={() => onSelect(p)}>
+              {p.imageUrl ? <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded bg-muted flex-shrink-0" />}
               <div className="min-w-0">
                 <p className="text-xs font-medium truncate">{p.name}</p>
-                <p className="text-[10px] text-muted-foreground truncate">
-                  {p.brand}{!filterByType ? ` · ${stepTypeLabel[p.stepTypeKey] ?? p.stepTypeKey}` : ""}
-                </p>
+                <p className="text-[10px] text-muted-foreground truncate">{p.brand}{!filterByType ? ` · ${stepTypeLabel[p.stepTypeKey] ?? p.stepTypeKey}` : ""}</p>
               </div>
             </button>
           ))}
@@ -170,17 +192,9 @@ function ProductPickerDialog({
   );
 }
 
-// ── Add step form ─────────────────────────────────────────────────────────────
-function AddStepForm({
-  period,
-  userId,
-  onDone,
-  onCancel,
-}: {
-  period: "morning" | "night";
-  userId: string;
-  onDone: () => void;
-  onCancel: () => void;
+// ── Add step form ────────────────────────────────────────────────────────────
+function AddStepForm({ period, userId, onDone, onCancel }: {
+  period: "morning" | "night"; userId: string; onDone: () => void; onCancel: () => void;
 }) {
   const [typeKey, setTypeKey] = useState("cleanser");
   const [product, setProduct] = useState<CatalogProduct | null>(null);
@@ -195,130 +209,68 @@ function AddStepForm({
       onDone();
     } catch (e: unknown) {
       toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg border border-dashed mt-2">
-        <select
-          className="text-xs bg-muted rounded px-2 py-1 outline-none cursor-pointer"
-          value={typeKey}
-          onChange={(e) => setTypeKey(e.target.value)}
-        >
+        <select className="text-xs bg-muted rounded px-2 py-1 outline-none cursor-pointer" value={typeKey} onChange={(e) => setTypeKey(e.target.value)}>
           {STEP_TYPE_KEYS.map((k) => <option key={k} value={k}>{stepTypeLabel[k] ?? k}</option>)}
         </select>
-        <button
-          className="text-xs text-blue-600 hover:underline"
-          onClick={() => setPickerOpen(true)}
-        >
+        <button className="text-xs text-blue-600 hover:underline" onClick={() => setPickerOpen(true)}>
           {product ? `${product.name} (trocar)` : "Escolher produto"}
         </button>
         <div className="flex-1" />
-        <Button size="sm" className="h-7 text-xs" disabled={saving} onClick={handleAdd}>
-          {saving ? "..." : "Adicionar"}
-        </Button>
+        <Button size="sm" className="h-7 text-xs" disabled={saving} onClick={handleAdd}>{saving ? "..." : "Adicionar"}</Button>
         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onCancel}>Cancelar</Button>
       </div>
-      <ProductPickerDialog
-        open={pickerOpen}
-        stepTypeKey={typeKey}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(p) => { setProduct(p); setPickerOpen(false); }}
-      />
+      <ProductPickerDialog open={pickerOpen} stepTypeKey={typeKey} onClose={() => setPickerOpen(false)} onSelect={(p) => { setProduct(p); setPickerOpen(false); }} />
     </>
   );
 }
 
-// ── Routine step row ──────────────────────────────────────────────────────────
-function RoutineStepRow({
-  step, userId, period, isFirst, isLast,
-  onToggle, onReorder, onMovePeriod, onDelete, onOpenProductPicker, onTypeChange,
-}: {
-  step: AdminRoutineStep;
-  userId: string;
-  period: "morning" | "night";
-  isFirst: boolean;
-  isLast: boolean;
+// ── Routine step row ─────────────────────────────────────────────────────────
+function RoutineStepRow({ step, userId, period, isFirst, isLast, onToggle, onReorder, onMovePeriod, onDelete, onOpenProductPicker, onTypeChange }: {
+  step: AdminRoutineStep; userId: string; period: "morning" | "night";
+  isFirst: boolean; isLast: boolean;
   onToggle: (stepId: string, newActive: boolean) => void;
   onReorder: (direction: "up" | "down") => void;
-  onMovePeriod: () => void;
-  onDelete: () => void;
-  onOpenProductPicker: () => void;
-  onTypeChange: (type: string) => void;
+  onMovePeriod: () => void; onDelete: () => void;
+  onOpenProductPicker: () => void; onTypeChange: (type: string) => void;
 }) {
   const [toggling, setToggling] = useState(false);
   const { toast } = useToast();
 
   async function handleToggle() {
     setToggling(true);
-    try {
-      const res = await toggleRoutineStep(userId, step.stepId);
-      onToggle(step.stepId, res.isActive);
-    } catch {
-      toast({ title: "Erro ao alterar step", variant: "destructive" });
-    } finally {
-      setToggling(false);
-    }
+    try { const res = await toggleRoutineStep(userId, step.stepId); onToggle(step.stepId, res.isActive); }
+    catch { toast({ title: "Erro ao alterar step", variant: "destructive" }); }
+    finally { setToggling(false); }
   }
-
-  const otherPeriodLabel = period === "morning" ? "Noite" : "Manhã";
 
   return (
     <div className={`flex flex-col gap-1.5 p-2 rounded-lg border ${step.isActive ? "" : "opacity-50"}`}>
-      {/* Line 1: image + name + action buttons */}
       <div className="flex items-center gap-2">
-        {step.productImage ? (
-          <img src={step.productImage} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0" />
-        ) : (
-          <div className="w-9 h-9 rounded bg-muted flex-shrink-0" />
-        )}
+        {step.productImage ? <img src={step.productImage} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0" /> : <div className="w-9 h-9 rounded bg-muted flex-shrink-0" />}
         <p className="flex-1 text-xs font-medium truncate min-w-0">{step.productName ?? "—"}</p>
         <div className="flex items-center gap-0.5 flex-shrink-0">
-          <Button
-            size="icon" variant="ghost" className="h-6 w-6 text-base"
-            disabled={isFirst} title="Subir" onClick={() => onReorder("up")}
-          >↑</Button>
-          <Button
-            size="icon" variant="ghost" className="h-6 w-6 text-base"
-            disabled={isLast} title="Descer" onClick={() => onReorder("down")}
-          >↓</Button>
-          <Button
-            size="icon" variant="ghost" className="h-6 w-6 text-xs text-muted-foreground"
-            title={`Mover para ${otherPeriodLabel}`} onClick={onMovePeriod}
-          >⇄</Button>
-          <Button
-            size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive text-xs"
-            title="Remover" onClick={onDelete}
-          >✕</Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6 text-base" disabled={isFirst} title="Subir" onClick={() => onReorder("up")}>↑</Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6 text-base" disabled={isLast} title="Descer" onClick={() => onReorder("down")}>↓</Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6 text-xs text-muted-foreground" title={`Mover para ${period === "morning" ? "Noite" : "Manhã"}`} onClick={onMovePeriod}>⇄</Button>
+          <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive text-xs" title="Remover" onClick={onDelete}>✕</Button>
         </div>
       </div>
-
-      {/* Line 2: type selector + product + toggle */}
       <div className="flex items-center gap-2 flex-wrap">
-        <select
-          className="text-[10px] bg-muted rounded px-1.5 py-0.5 outline-none cursor-pointer border-0"
-          value={step.stepTypeKey}
-          onChange={(e) => onTypeChange(e.target.value)}
-        >
+        <select className="text-[10px] bg-muted rounded px-1.5 py-0.5 outline-none cursor-pointer border-0" value={step.stepTypeKey} onChange={(e) => onTypeChange(e.target.value)}>
           {STEP_TYPE_KEYS.map((k) => <option key={k} value={k}>{stepTypeLabel[k] ?? k}</option>)}
         </select>
-        {step.productBrand && (
-          <span className="text-[10px] text-muted-foreground truncate">{step.productBrand}</span>
-        )}
-        <button
-          className="text-[10px] text-blue-600 hover:underline flex-shrink-0"
-          onClick={onOpenProductPicker}
-        >
+        {step.productBrand && <span className="text-[10px] text-muted-foreground truncate">{step.productBrand}</span>}
+        <button className="text-[10px] text-blue-600 hover:underline flex-shrink-0" onClick={onOpenProductPicker}>
           {step.productName ? "Trocar produto" : "+ Produto"}
         </button>
         <div className="flex-1" />
-        <Button
-          size="sm" variant={step.isActive ? "outline" : "ghost"}
-          className="text-xs h-6 flex-shrink-0" disabled={toggling} onClick={handleToggle}
-        >
+        <Button size="sm" variant={step.isActive ? "outline" : "ghost"} className="text-xs h-6 flex-shrink-0" disabled={toggling} onClick={handleToggle}>
           {step.isActive ? "Desativar" : "Ativar"}
         </Button>
       </div>
@@ -335,37 +287,22 @@ function UserProductRow({ product }: { product: AdminUserProduct }) {
   async function handleEnrich() {
     if (!product.name) return;
     setLoading(true);
-    try {
-      const result = await enrichProductPreview(product.name, product.brand ?? "");
-      setEnrichResult(result as Record<string, unknown>);
-    } catch {
-      toast({ title: "Erro ao enriquecer produto", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    try { setEnrichResult(await enrichProductPreview(product.name, product.brand ?? "") as Record<string, unknown>); }
+    catch { toast({ title: "Erro ao enriquecer produto", variant: "destructive" }); }
+    finally { setLoading(false); }
   }
 
   return (
     <div className="border rounded-lg p-3 space-y-2">
       <div className="flex items-center gap-3">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />
-        ) : (
-          <div className="w-10 h-10 rounded bg-muted flex-shrink-0" />
-        )}
+        {product.imageUrl ? <img src={product.imageUrl} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" /> : <div className="w-10 h-10 rounded bg-muted flex-shrink-0" />}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{product.name ?? "Sem nome"}</p>
           <p className="text-xs text-muted-foreground truncate">
-            {product.brand ?? "—"}
-            {product.stepTypeKey ? ` · ${stepTypeLabel[product.stepTypeKey] ?? product.stepTypeKey}` : ""}
-            {product.isCatalog ? " · catálogo" : " · personalizado"}
+            {product.brand ?? "—"}{product.stepTypeKey ? ` · ${stepTypeLabel[product.stepTypeKey] ?? product.stepTypeKey}` : ""}{product.isCatalog ? " · catálogo" : " · personalizado"}
           </p>
         </div>
-        {!product.isCatalog && (
-          <Button size="sm" variant="outline" className="text-xs h-7 flex-shrink-0" disabled={loading} onClick={handleEnrich}>
-            {loading ? "..." : "Enriquecer"}
-          </Button>
-        )}
+        {!product.isCatalog && <Button size="sm" variant="outline" className="text-xs h-7 flex-shrink-0" disabled={loading} onClick={handleEnrich}>{loading ? "..." : "Enriquecer"}</Button>}
       </div>
       {enrichResult && (
         <div className="bg-muted rounded p-2 text-xs space-y-1 font-mono">
@@ -395,35 +332,31 @@ export default function AdminUsers() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
 
-  // Credits modal
   const [creditsTarget, setCreditsTarget] = useState<AdminUserRow | null>(null);
   const [creditsAmount, setCreditsAmount] = useState("5");
   const [creditsSaving, setCreditsSaving] = useState(false);
 
-  // Premium modal
   const [premiumTarget, setPremiumTarget] = useState<AdminUserRow | null>(null);
   const [premiumPlanKey, setPremiumPlanKey] = useState("monthly");
   const [premiumDays, setPremiumDays] = useState("30");
   const [premiumSaving, setPremiumSaving] = useState(false);
 
-  // Revoke confirm
   const [revokeTarget, setRevokeTarget] = useState<AdminUserRow | null>(null);
   const [revokeSaving, setRevokeSaving] = useState(false);
 
-  // Detail sheet
   const [detailUser, setDetailUser] = useState<AdminUserRow | null>(null);
   const [routine, setRoutine] = useState<AdminRoutineResponse | null>(null);
   const [userProducts, setUserProducts] = useState<AdminUserProduct[]>([]);
+  const [skinProfile, setSkinProfile] = useState<AdminSkinProfile | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
-  // Routine editing state
   const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [productPickerStep, setProductPickerStep] = useState<{ stepId: string; stepTypeKey: string } | null>(null);
   const [addingStepPeriod, setAddingStepPeriod] = useState<"morning" | "night" | null>(null);
 
   useEffect(() => {
-    checkAdminAccess().then((result) => { if (!result.isAdmin) navigate("/dashboard"); });
+    checkAdminAccess().then((r) => { if (!r.isAdmin) navigate("/dashboard"); });
   }, [navigate]);
 
   const load = useCallback(async () => {
@@ -432,35 +365,32 @@ export default function AdminUsers() {
       const data = await fetchAdminUsers(page, PAGE_SIZE, search || undefined);
       setUsers(data.items);
       setTotal(data.total);
-    } catch {
-      toast({ title: "Erro ao carregar usuários", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast({ title: "Erro ao carregar usuários", variant: "destructive" }); }
+    finally { setLoading(false); }
   }, [page, search, toast]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!detailUser) { setRoutine(null); setUserProducts([]); return; }
+    if (!detailUser) { setRoutine(null); setUserProducts([]); setSkinProfile(null); return; }
     setDetailLoading(true);
     Promise.all([
       fetchAdminUserRoutine(detailUser.id).catch(() => null),
       fetchAdminUserProducts(detailUser.id).catch(() => []),
-    ]).then(([r, p]) => {
+      fetchAdminUserSkinProfile(detailUser.id).catch(() => null),
+    ]).then(([r, p, s]) => {
       setRoutine(r);
       setUserProducts(p as AdminUserProduct[]);
+      setSkinProfile(s);
     }).finally(() => setDetailLoading(false));
   }, [detailUser]);
 
   function handleSearch() { setSearch(searchInput); setPage(1); }
 
-  // ── Routine state helpers ──────────────────────────────────────────────────
   function updateStepInState(stepId: string, updates: Partial<AdminRoutineStep>) {
     setRoutine((prev) => {
       if (!prev) return prev;
-      const upd = (p?: AdminRoutinePeriod) =>
-        p ? { ...p, steps: p.steps.map((s) => s.stepId === stepId ? { ...s, ...updates } : s) } : p;
+      const upd = (p?: AdminRoutinePeriod) => p ? { ...p, steps: p.steps.map((s) => s.stepId === stepId ? { ...s, ...updates } : s) } : p;
       return { ...prev, routine: { morning: upd(prev.routine.morning), night: upd(prev.routine.night) } };
     });
   }
@@ -468,86 +398,52 @@ export default function AdminUsers() {
   function removeStepFromState(stepId: string) {
     setRoutine((prev) => {
       if (!prev) return prev;
-      const rm = (p?: AdminRoutinePeriod) =>
-        p ? { ...p, steps: p.steps.filter((s) => s.stepId !== stepId) } : p;
+      const rm = (p?: AdminRoutinePeriod) => p ? { ...p, steps: p.steps.filter((s) => s.stepId !== stepId) } : p;
       return { ...prev, routine: { morning: rm(prev.routine.morning), night: rm(prev.routine.night) } };
     });
   }
 
   async function reloadRoutine() {
     if (!detailUser) return;
-    try {
-      const r = await fetchAdminUserRoutine(detailUser.id);
-      setRoutine(r);
-    } catch {
-      toast({ title: "Erro ao recarregar rotina", variant: "destructive" });
-    }
+    try { setRoutine(await fetchAdminUserRoutine(detailUser.id)); }
+    catch { toast({ title: "Erro ao recarregar rotina", variant: "destructive" }); }
   }
 
-  // ── Routine handlers ───────────────────────────────────────────────────────
-  function handleStepToggle(stepId: string, newActive: boolean) {
-    updateStepInState(stepId, { isActive: newActive });
-  }
+  function handleStepToggle(stepId: string, newActive: boolean) { updateStepInState(stepId, { isActive: newActive }); }
 
   async function handleRegenerate() {
     if (!detailUser) return;
     setRegenerating(true);
-    try {
-      await regenerateUserRoutine(detailUser.id);
-      toast({ title: "Rotina sendo regenerada. Aguarde ~30s e recarregue." });
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    } finally {
-      setRegenerating(false);
-    }
+    try { await regenerateUserRoutine(detailUser.id); toast({ title: "Rotina sendo regenerada. Aguarde ~30s e recarregue." }); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
+    finally { setRegenerating(false); }
   }
 
   async function handleTypeChange(stepId: string, newTypeKey: string) {
     if (!detailUser) return;
-    try {
-      await updateRoutineStepType(detailUser.id, stepId, newTypeKey);
-      updateStepInState(stepId, { stepTypeKey: newTypeKey });
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    }
+    try { await updateRoutineStepType(detailUser.id, stepId, newTypeKey); updateStepInState(stepId, { stepTypeKey: newTypeKey }); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
   }
 
   async function handleReorder(stepId: string, direction: "up" | "down") {
     if (!detailUser) return;
-    try {
-      await reorderRoutineStep(detailUser.id, stepId, direction);
-      await reloadRoutine();
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    }
+    try { await reorderRoutineStep(detailUser.id, stepId, direction); await reloadRoutine(); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
   }
 
   async function handleMovePeriod(stepId: string) {
     if (!detailUser) return;
-    try {
-      await moveRoutineStepPeriod(detailUser.id, stepId);
-      await reloadRoutine();
-      toast({ title: "Step movido de período" });
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    }
+    try { await moveRoutineStepPeriod(detailUser.id, stepId); await reloadRoutine(); toast({ title: "Step movido de período" }); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
   }
 
   async function handleDeleteStep(stepId: string) {
     if (!detailUser) return;
-    try {
-      await deleteRoutineStep(detailUser.id, stepId);
-      removeStepFromState(stepId);
-      toast({ title: "Step removido" });
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    }
+    try { await deleteRoutineStep(detailUser.id, stepId); removeStepFromState(stepId); toast({ title: "Step removido" }); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
   }
 
-  function openProductPicker(stepId: string, stepTypeKey: string) {
-    setProductPickerStep({ stepId, stepTypeKey });
-    setProductPickerOpen(true);
-  }
+  function openProductPicker(stepId: string, stepTypeKey: string) { setProductPickerStep({ stepId, stepTypeKey }); setProductPickerOpen(true); }
 
   async function handleProductSelected(product: CatalogProduct | null) {
     setProductPickerOpen(false);
@@ -556,31 +452,19 @@ export default function AdminUsers() {
     setProductPickerStep(null);
     try {
       const result = await assignStepProduct(detailUser.id, stepId, product?.id ?? null);
-      updateStepInState(stepId, {
-        productName: result.productName ?? undefined,
-        productBrand: result.productBrand ?? undefined,
-        productImage: result.productImage ?? undefined,
-      });
+      updateStepInState(stepId, { productName: result.productName ?? undefined, productBrand: result.productBrand ?? undefined, productImage: result.productImage ?? undefined });
       toast({ title: product ? "Produto atualizado" : "Produto removido" });
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    }
+    } catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
   }
 
-  // ── Billing handlers ───────────────────────────────────────────────────────
   async function handleAddCredits() {
     if (!creditsTarget) return;
     const amount = parseInt(creditsAmount, 10);
     if (!amount || amount < 1 || amount > 500) { toast({ title: "Quantidade inválida (1–500)", variant: "destructive" }); return; }
     setCreditsSaving(true);
-    try {
-      await addUserCredits(creditsTarget.id, amount);
-      toast({ title: `${amount} crédito(s) adicionado(s)` });
-      setCreditsTarget(null);
-      load();
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    } finally { setCreditsSaving(false); }
+    try { await addUserCredits(creditsTarget.id, amount); toast({ title: `${amount} crédito(s) adicionado(s)` }); setCreditsTarget(null); load(); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
+    finally { setCreditsSaving(false); }
   }
 
   async function handleActivatePremium() {
@@ -588,60 +472,101 @@ export default function AdminUsers() {
     const days = parseInt(premiumDays, 10);
     if (!premiumPlanKey.trim() || !days || days < 1 || days > 3650) { toast({ title: "Dados inválidos", variant: "destructive" }); return; }
     setPremiumSaving(true);
-    try {
-      await activateUserPremium(premiumTarget.id, premiumPlanKey.trim(), days);
-      toast({ title: `Premium ativado: ${premiumPlanKey} por ${days} dias` });
-      setPremiumTarget(null);
-      load();
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    } finally { setPremiumSaving(false); }
+    try { await activateUserPremium(premiumTarget.id, premiumPlanKey.trim(), days); toast({ title: `Premium ativado: ${premiumPlanKey} por ${days} dias` }); setPremiumTarget(null); load(); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
+    finally { setPremiumSaving(false); }
   }
 
   async function handleRevoke() {
     if (!revokeTarget) return;
     setRevokeSaving(true);
-    try {
-      await revokeUserPremium(revokeTarget.id);
-      toast({ title: "Premium revogado" });
-      setRevokeTarget(null);
-      load();
-    } catch (e: unknown) {
-      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
-    } finally { setRevokeSaving(false); }
+    try { await revokeUserPremium(revokeTarget.id); toast({ title: "Premium revogado" }); setRevokeTarget(null); load(); }
+    catch (e: unknown) { toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" }); }
+    finally { setRevokeSaving(false); }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const actionButtons = (u: AdminUserRow, stopProp = true) => (
+    <div className="flex gap-1 flex-wrap" onClick={stopProp ? (e) => e.stopPropagation() : undefined}>
+      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => { setCreditsTarget(u); setCreditsAmount("5"); }}>+ Créditos</Button>
+      <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => { setPremiumTarget(u); setPremiumPlanKey("monthly"); setPremiumDays("30"); }}>Premium</Button>
+      {u.subscriptionStatus === "active" && (
+        <Button size="sm" variant="ghost" className="text-xs h-7 text-destructive hover:text-destructive" onClick={() => setRevokeTarget(u)}>Revogar</Button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-6">
+    <div className="min-h-screen bg-background p-3 sm:p-6">
       <div className="max-w-5xl mx-auto">
         <AdminNav />
 
+        {/* Search */}
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
           <Input
             placeholder="Buscar por email ou nome..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="max-w-xs"
+            className="sm:max-w-xs"
           />
-          <Button variant="outline" onClick={handleSearch}>Buscar</Button>
-          {search && (
-            <Button variant="ghost" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}>Limpar</Button>
-          )}
+          <Button variant="outline" onClick={handleSearch} className="w-full sm:w-auto">Buscar</Button>
+          {search && <Button variant="ghost" onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }} className="w-full sm:w-auto">Limpar</Button>}
         </div>
 
-        <div className="text-sm text-muted-foreground mb-2">
+        <div className="text-sm text-muted-foreground mb-3">
           {loading ? "Carregando..." : `${total} usuário(s)`}
         </div>
 
-        <div className="rounded-md border overflow-x-auto">
+        {/* ── Mobile cards ───────────────────────────────────────────────── */}
+        <div className="sm:hidden space-y-2">
+          {!loading && users.length === 0 && (
+            <p className="text-center text-muted-foreground py-8">Nenhum usuário encontrado</p>
+          )}
+          {users.map((u) => (
+            <div
+              key={u.id}
+              className="border rounded-xl p-3 space-y-2 cursor-pointer hover:bg-muted/40 active:bg-muted/60 transition-colors"
+              onClick={() => setDetailUser(u)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-medium truncate">
+                      {u.displayName || u.email.split("@")[0]}
+                    </p>
+                    {u.isAdmin && (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded">admin</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono truncate">{u.email}</p>
+                </div>
+                <div className="flex-shrink-0">{statusBadge(u)}</div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                {u.skinType && skinTypeBadge(u.skinType)}
+                <span>{u.creditsRemaining} crédito(s)</span>
+                {u.lastAnalysisAt && <span>· análise {fmtDate(u.lastAnalysisAt)}</span>}
+                <span>· desde {fmtDate(u.createdAt)}</span>
+              </div>
+
+              <div onClick={(e) => e.stopPropagation()}>
+                {actionButtons(u, false)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Desktop table ───────────────────────────────────────────────── */}
+        <div className="hidden sm:block rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Usuário</TableHead>
                 <TableHead>Plano</TableHead>
+                <TableHead>Pele</TableHead>
                 <TableHead className="text-right">Créditos</TableHead>
                 <TableHead>Criado em</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -650,9 +575,7 @@ export default function AdminUsers() {
             <TableBody>
               {!loading && users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    Nenhum usuário encontrado
-                  </TableCell>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum usuário encontrado</TableCell>
                 </TableRow>
               )}
               {users.map((u) => (
@@ -661,32 +584,17 @@ export default function AdminUsers() {
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">
                         {u.displayName || u.email.split("@")[0]}
-                        {u.isAdmin && (
-                          <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded">
-                            admin
-                          </span>
-                        )}
+                        {u.isAdmin && <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded">admin</span>}
                       </span>
                       <span className="text-xs text-muted-foreground font-mono">{u.email}</span>
                     </div>
                   </TableCell>
                   <TableCell>{statusBadge(u)}</TableCell>
+                  <TableCell>{u.skinType ? skinTypeBadge(u.skinType) : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="text-right tabular-nums">{u.creditsRemaining}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{fmtDate(u.createdAt)}</TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-1 justify-end flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => { setCreditsTarget(u); setCreditsAmount("5"); }}>
-                        + Créditos
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => { setPremiumTarget(u); setPremiumPlanKey("monthly"); setPremiumDays("30"); }}>
-                        Premium
-                      </Button>
-                      {u.subscriptionStatus === "active" && (
-                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setRevokeTarget(u)}>
-                          Revogar
-                        </Button>
-                      )}
-                    </div>
+                    {actionButtons(u)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -694,6 +602,7 @@ export default function AdminUsers() {
           </Table>
         </div>
 
+        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 mt-4">
             <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
@@ -713,22 +622,92 @@ export default function AdminUsers() {
                   <SheetTitle className="truncate">
                     {detailUser.displayName || detailUser.email.split("@")[0]}
                   </SheetTitle>
-                  <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => setDetailUser(null)}>
-                    Fechar
-                  </Button>
+                  <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => setDetailUser(null)}>Fechar</Button>
                 </div>
                 <p className="text-xs text-muted-foreground font-mono truncate">{detailUser.email}</p>
-                <div className="flex gap-2 flex-wrap text-xs text-muted-foreground">
-                  <span>{statusBadge(detailUser)}</span>
-                  <span>· {detailUser.creditsRemaining} crédito(s)</span>
+                <div className="flex gap-2 flex-wrap items-center">
+                  {statusBadge(detailUser)}
+                  {detailUser.skinType && skinTypeBadge(detailUser.skinType)}
+                  <span className="text-xs text-muted-foreground">· {detailUser.creditsRemaining} crédito(s)</span>
                 </div>
               </SheetHeader>
 
-              <Tabs defaultValue="routine">
+              <Tabs defaultValue="skin">
                 <TabsList className="w-full mb-4">
+                  <TabsTrigger value="skin" className="flex-1">Pele</TabsTrigger>
                   <TabsTrigger value="routine" className="flex-1">Rotina</TabsTrigger>
                   <TabsTrigger value="products" className="flex-1">Produtos</TabsTrigger>
                 </TabsList>
+
+                {/* ── Pele tab ──────────────────────────────────────────────── */}
+                <TabsContent value="skin" className="space-y-4">
+                  {detailLoading && <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>}
+                  {!detailLoading && !skinProfile && (
+                    <p className="text-sm text-muted-foreground text-center py-8">Nenhuma análise registrada</p>
+                  )}
+                  {skinProfile && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Tipo de pele</p>
+                          <span className="text-base font-semibold">{skinTypeLabel[skinProfile.skinType] ?? skinProfile.skinType}</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Última análise</p>
+                          <p className="text-sm font-medium">{fmtDate(skinProfile.lastAnalysisAt)}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Scores</p>
+                        <ScoreBar label="Acne" score={skinProfile.acneScore} />
+                        <ScoreBar label="Oleosidade" score={skinProfile.oilinessScore} />
+                        <ScoreBar label="Manchas" score={skinProfile.darkSpotsScore} />
+                        <ScoreBar label="Sensibilidade" score={skinProfile.sensitivityScore} />
+                        <ScoreBar label="Envelhecimento" score={skinProfile.agingScore} />
+                        <ScoreBar label="Vermelhidão" score={skinProfile.rednessScore} />
+                        <ScoreBar label="Hidratação" score={skinProfile.hydrationScore} reversed />
+                      </div>
+
+                      {skinProfile.primaryConcerns.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Principais preocupações</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {skinProfile.primaryConcerns.map((c) => (
+                              <span key={c} className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                {concernLabel[c] ?? c}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Características</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { label: "Acne ativa", value: skinProfile.hasActiveAcne },
+                            { label: "Olheiras", value: skinProfile.hasDarkCircles },
+                            { label: "Poros dilatados", value: skinProfile.hasEnlargedPores },
+                            { label: "Linhas finas", value: skinProfile.hasFineLines },
+                            { label: "Usa maquiagem", value: skinProfile.usesMakeup },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="flex items-center gap-1.5 text-xs">
+                              <span className={value ? "text-green-600" : "text-muted-foreground"}>{value ? "✓" : "○"}</span>
+                              <span className={value ? "font-medium" : "text-muted-foreground"}>{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {skinProfile.budgetRange && (
+                        <p className="text-xs text-muted-foreground">
+                          Orçamento: <span className="font-medium capitalize">{skinProfile.budgetRange}</span>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </TabsContent>
 
                 {/* ── Rotina tab ────────────────────────────────────────────── */}
                 <TabsContent value="routine" className="space-y-4">
@@ -739,7 +718,6 @@ export default function AdminUsers() {
                   </div>
 
                   {detailLoading && <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>}
-
                   {!detailLoading && !routine?.routine.morning && !routine?.routine.night && (
                     <p className="text-sm text-muted-foreground text-center py-8">Nenhuma rotina ativa</p>
                   )}
@@ -753,12 +731,8 @@ export default function AdminUsers() {
                         <div className="space-y-2">
                           {periodData.steps.map((s, idx) => (
                             <RoutineStepRow
-                              key={s.stepId}
-                              step={s}
-                              userId={detailUser.id}
-                              period={period}
-                              isFirst={idx === 0}
-                              isLast={idx === periodData.steps.length - 1}
+                              key={s.stepId} step={s} userId={detailUser.id} period={period}
+                              isFirst={idx === 0} isLast={idx === periodData.steps.length - 1}
                               onToggle={handleStepToggle}
                               onReorder={(dir) => handleReorder(s.stepId, dir)}
                               onMovePeriod={() => handleMovePeriod(s.stepId)}
@@ -768,20 +742,14 @@ export default function AdminUsers() {
                             />
                           ))}
                         </div>
-
                         {addingStepPeriod === period ? (
                           <AddStepForm
-                            period={period}
-                            userId={detailUser.id}
+                            period={period} userId={detailUser.id}
                             onDone={async () => { await reloadRoutine(); setAddingStepPeriod(null); }}
                             onCancel={() => setAddingStepPeriod(null)}
                           />
                         ) : (
-                          <Button
-                            size="sm" variant="ghost"
-                            className="text-xs mt-2 text-muted-foreground w-full border border-dashed h-8"
-                            onClick={() => setAddingStepPeriod(period)}
-                          >
+                          <Button size="sm" variant="ghost" className="text-xs mt-2 text-muted-foreground w-full border border-dashed h-8" onClick={() => setAddingStepPeriod(period)}>
                             + Adicionar step
                           </Button>
                         )}
@@ -800,9 +768,7 @@ export default function AdminUsers() {
                 {/* ── Produtos tab ──────────────────────────────────────────── */}
                 <TabsContent value="products" className="space-y-3">
                   {detailLoading && <p className="text-sm text-muted-foreground text-center py-8">Carregando...</p>}
-                  {!detailLoading && userProducts.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">Nenhum produto adicionado</p>
-                  )}
+                  {!detailLoading && userProducts.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhum produto adicionado</p>}
                   {userProducts.map((p) => <UserProductRow key={p.id} product={p} />)}
                 </TabsContent>
               </Tabs>
