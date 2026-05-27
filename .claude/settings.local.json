@@ -110,7 +110,8 @@
       "Bash(Get-Content backend/SkinAnalysis.Api/Program.cs)",
       "Bash(Select-Object -First 120)",
       "Bash(Select-Object -First 50)",
-      "Bash(Format-Table Name, FullName)"
+      "Bash(Format-Table Name, FullName)",
+      "Bash(grep -E \"#[0-9A-Fa-f]{3,6}|rgba|hsl\")"
     ]
   }
 }

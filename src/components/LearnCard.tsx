@@ -133,14 +133,14 @@ function ModalMyths({ card }: { card: LearnCardData }) {
             </div>
             {/* Card da verdade */}
             <div style={{
-              background: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
+              background: "linear-gradient(135deg, rgba(129,193,167,0.14), rgba(129,193,167,0.22))",
               padding: "12px 14px",
             }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                <CheckCircle2 size={16} style={{ color: "#16a34a", flexShrink: 0, marginTop: 1 }} />
+                <CheckCircle2 size={16} style={{ color: "#81c1a7", flexShrink: 0, marginTop: 1 }} />
                 <div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#15803d", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 3 }}>Verdade</span>
-                  <p style={{ margin: 0, fontSize: 13, color: "#14532d", lineHeight: 1.5 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#2d6b52", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 3 }}>Verdade</span>
+                  <p style={{ margin: 0, fontSize: 13, color: "#2d6b52", lineHeight: 1.5 }}>
                     {item.truth}
                   </p>
                 </div>

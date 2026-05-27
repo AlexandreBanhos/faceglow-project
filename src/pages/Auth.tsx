@@ -20,7 +20,7 @@ function getPasswordStrength(score: number) {
   if (score <= 1) return { label: "fraca",      color: "#ef4444" };
   if (score <= 2) return { label: "média",      color: "#f59e0b" };
   if (score <= 3) return { label: "forte",      color: "#3b82f6" };
-  return              { label: "muito forte", color: "#22c55e" };
+  return              { label: "muito forte", color: "#81c1a7" };
 }
 function PasswordStrengthCard({ password }: { password: string }) {
   const checks   = getPasswordChecks(password);
@@ -53,7 +53,7 @@ function PasswordStrengthCard({ password }: { password: string }) {
               {checks.map((c) => (
                 <div key={c.label} className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-                    style={{ background: c.ok ? "#22c55e" : "#e2e8f0" }}>
+                    style={{ background: c.ok ? "#81c1a7" : "#e2e8f0" }}>
                     {c.ok
                       ? <Check size={9} className="text-white" strokeWidth={3} />
                       : <XIcon size={8} className="text-slate-400" strokeWidth={3} />}

@@ -48,7 +48,7 @@ export const LoadingSpinner = ({
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "linear-gradient(135deg, #afe1dc, #7dcfc9)",
+          background: "linear-gradient(135deg, #81c1a7, #5da888)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

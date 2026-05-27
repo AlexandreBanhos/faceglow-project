@@ -117,7 +117,7 @@ function pct(raw: number, inverted: boolean) {
   return inverted ? Math.max(0, (10 - raw) * 10) : raw * 10;
 }
 function scoreColor(p: number) {
-  return p >= 70 ? "#22c55e" : p >= 45 ? "#f59e0b" : "#ef4444";
+  return p >= 70 ? "#81c1a7" : p >= 45 ? "#f59e0b" : "#ef4444";
 }
 function scoreLabel(p: number) {
   return p >= 80 ? "Ótimo" : p >= 60 ? "Bom" : p >= 40 ? "Médio" : "Atenção";
@@ -306,7 +306,7 @@ export function UserProfileModal({
   const statsItems = [
     { label: "Análises",  value: totalAnalyses  > 0 ? String(totalAnalyses)  : "0", Icon: TrendingUp, color: "#a855f7" },
     { label: "Score",     value: bestScore       > 0 ? String(bestScore)       : "—",  Icon: Trophy,     color: "#f59e0b" },
-    { label: "Ativos",    value: activeProducts  > 0 ? String(activeProducts)  : "—",  Icon: Coins,      color: "#22c55e" },
+    { label: "Ativos",    value: activeProducts  > 0 ? String(activeProducts)  : "—",  Icon: Coins,      color: "#81c1a7" },
     { label: "Sequência", value: streakDays      > 0 ? `${streakDays}d`        : "—",  Icon: Flame,      color: "#f97316" },
   ];
 

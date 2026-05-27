@@ -29,7 +29,7 @@ function getStrength(checks: PasswordCheck[]): { level: Strength; score: number;
   if (score <= 1) return { level: "fraca",      score, color: "#ef4444" };
   if (score <= 2) return { level: "média",      score, color: "#f59e0b" };
   if (score <= 3) return { level: "forte",      score, color: "#3b82f6" };
-  return              { level: "muito forte", score, color: "#22c55e" };
+  return              { level: "muito forte", score, color: "#81c1a7" };
 }
 
 function StrengthCard({ password }: { password: string }) {
@@ -72,7 +72,7 @@ function StrengthCard({ password }: { password: string }) {
                 <div key={c.label} className="flex items-center gap-2">
                   <div
                     className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
-                    style={{ background: c.ok ? "#22c55e" : "#e2e8f0" }}
+                    style={{ background: c.ok ? "#81c1a7" : "#e2e8f0" }}
                   >
                     {c.ok
                       ? <Check size={9} className="text-white" strokeWidth={3} />

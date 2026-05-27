@@ -316,32 +316,6 @@ const Results = () => {
   const skinRoutineTips = getSkinTypeTips(analysis.skinType);
   const activeTips = getConditionTips(activeConditions);
 
-  // Gerar insight dinamicamente baseado nos scores reais (não no summary do backend que pode estar desatualizado)
-  const generateInsight = () => {
-    const issuesList: string[] = [];
-    
-    if (analysis.scores.olheiras && analysis.scores.olheiras > 0) issuesList.push("olheiras");
-    if (analysis.scores.poros && analysis.scores.poros > 0) issuesList.push("poros visíveis");
-    if (analysis.scores.oiliness && analysis.scores.oiliness > 0) issuesList.push("oleosidade");
-    if (analysis.scores.acne && analysis.scores.acne > 0) issuesList.push("acne");
-    if (analysis.scores.darkSpots && analysis.scores.darkSpots > 0) issuesList.push("manchas");
-    if (analysis.scores.linhasFinas && analysis.scores.linhasFinas > 0) issuesList.push("linhas finas");
-    if ((analysis.scores.hydration ?? 10) < 4) issuesList.push("ressecamento");
-    if (analysis.scores.sensitivity && analysis.scores.sensitivity > 5) issuesList.push("sensibilidade");
-    if (analysis.scores.vermelhidao && analysis.scores.vermelhidao > 0) issuesList.push("vermelhidão");
-    
-    if (issuesList.length === 0) {
-      return "A pele apresenta um perfil saudável. Mantenha uma rotina consistente para manter os resultados.";
-    }
-    
-    // Construir frase baseada nos problemas detectados
-    const zone = analysis.scores.oiliness > 5 ? " na zona T" : "";
-    const issuesStr = issuesList.join(", ");
-    return `A pele apresenta ${issuesStr}${zone}. Recomenda-se uma rotina personalizada para estes problemas.`;
-  };
-
-  const insight = generateInsight();
-
   // ── S2: barras de melhoria — todos os itens, incluindo 0% ────────────────
   const isAProblem = (score: number | undefined, cond: boolean | undefined) =>
     (score ?? 0) > 0 || Boolean(cond);
@@ -371,8 +345,24 @@ const Results = () => {
   const improvementMetrics = allImprovementMetrics.filter((m) => isAProblem(m.value / 10, m.cond));
   // Itens "não identificados" (score = 0 e sem condição) — aparecem no final
   const okMetrics = allImprovementMetrics.filter((m) => !isAProblem(m.value / 10, m.cond));
-  // Todos os itens para exibição na aba (problemas primeiro, depois os ok)
-  const allDisplayMetrics = [...improvementMetrics, ...okMetrics];
+  // Resumo coerente com os scores exibidos (nunca usa texto bruto da IA que pode contradizer)
+  const insight = (() => {
+    if (improvementMetrics.length === 0) {
+      return `Sua pele está em ótimo estado — nenhuma condição problemática foi identificada. Continue com a rotina atual e aplique protetor solar diariamente.`;
+    }
+    const top = improvementMetrics[0];
+    const others = improvementMetrics.slice(1, 3).map(m => m.label.toLowerCase());
+    let text = `A análise identificou ${top.label.toLowerCase()} como principal preocupação`;
+    if (others.length === 1) text += ` e ${others[0]}`;
+    else if (others.length > 1) text += `, ${others[0]} e ${others[1]}`;
+    text += `. `;
+    if (okMetrics.length > 0) {
+      text += `${okMetrics.length} condição${okMetrics.length > 1 ? "s estão" : " está"} dentro do esperado. `;
+    }
+    const info = CONDITION_INFO[top.label];
+    if (info) text += info.tip;
+    return text;
+  })();
 
   // Top issue (maior percentual) para card informativo
   const topIssue = improvementMetrics[0] ?? null;
@@ -420,9 +410,6 @@ const Results = () => {
   const okConditions = ALL_CHECKS
     .filter((c) => !isAProblem(c.score, c.cond) && !problemLabelSet.has(c.label.toLowerCase()))
     .map((c) => c.label);
-
-  // ── S6: comentário da IA ─────────────────────────────────────────────────
-  const aiCommentary = analysis.summary?.trim() || analysis.additionalRecommendations?.trim() || null;
 
   return (
     <div className="relative w-full min-h-screen px-6 pt-4 pb-8 overflow-hidden" style={{ background: "var(--grad-aurora)" }}>
@@ -480,7 +467,7 @@ const Results = () => {
         {skinAge > 0 && (() => {
           // Escala 18–42: quanto mais jovem o aparente, melhor (barra mais cheia)
           const ageProgress = Math.round(Math.max(0, Math.min(100, ((42 - skinAge) / (42 - 18)) * 100)));
-          const ageColor = ageProgress >= 70 ? "#afe1dc" : ageProgress >= 45 ? "#f5d9a0" : "#f5a8b8";
+          const ageColor = ageProgress >= 70 ? "#81c1a7" : ageProgress >= 45 ? "#f5d9a0" : "#f5a8b8";
           return (
             <div className="mt-5 w-full">
               <div className="flex items-center justify-between mb-1.5">
@@ -606,8 +593,8 @@ const Results = () => {
               </div>
             </div>
 
-            {/* S6: Assistente IA */}
-            {aiCommentary && (
+            {/* S6: Resumo da análise */}
+            {insight && (
               <div className="rounded-2xl overflow-hidden mb-5"
                 style={{
                   background: "linear-gradient(135deg, var(--glass-bg-strong) 0%, rgba(239,143,184,0.08) 100%)",
@@ -624,9 +611,9 @@ const Results = () => {
                       style={{ background: "var(--grad-coral)", boxShadow: "0 3px 10px -2px rgba(220,100,140,0.4)" }}>
                       <Sparkles size={14} className="text-white" />
                     </div>
-                    <span className="text-sm font-bold text-primary">Assistente IA</span>
+                    <span className="text-sm font-bold text-primary">Resumo da análise</span>
                   </div>
-                  <p className="text-sm text-foreground leading-relaxed">{aiCommentary}</p>
+                  <p className="text-sm text-foreground leading-relaxed">{insight}</p>
                 </div>
               </div>
             )}
@@ -726,10 +713,10 @@ const Results = () => {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(175,225,220,0.15)", border: "1px solid rgba(175,225,220,0.4)" }}>
-                  <CheckCircle2 size={28} style={{ color: "#afe1dc", margin: "0 auto 8px" }} />
-                  <p style={{ fontSize: 14, fontWeight: 700, color: "#1a5c59", margin: "0 0 4px" }}>Nenhuma condição crítica encontrada</p>
-                  <p style={{ fontSize: 12, color: "#2d7d79", margin: 0 }}>Sua pele está em ótimo estado!</p>
+                <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(129,193,167,0.15)", border: "1px solid rgba(129,193,167,0.4)" }}>
+                  <CheckCircle2 size={28} style={{ color: "#81c1a7", margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "#2d6b52", margin: "0 0 4px" }}>Nenhuma condição crítica encontrada</p>
+                  <p style={{ fontSize: 12, color: "#3d8a65", margin: 0 }}>Sua pele está em ótimo estado!</p>
                 </div>
               )}
             </div>
@@ -739,7 +726,7 @@ const Results = () => {
               <div className="mb-5">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "linear-gradient(135deg, #afe1dc, #7dcfc9)", boxShadow: "0 4px 12px -2px rgba(175,225,220,0.4)" }}>
+                    style={{ background: "linear-gradient(135deg, #81c1a7, #7dcfc9)", boxShadow: "0 4px 12px -2px rgba(129,193,167,0.4)" }}>
                     <CheckCircle2 size={16} className="text-white" />
                   </div>
                   <div>
@@ -747,11 +734,11 @@ const Results = () => {
                     <p className="text-xs text-muted-foreground">Condições não identificadas na sua pele</p>
                   </div>
                 </div>
-                <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(175,225,220,0.15), rgba(144,210,205,0.22))", border: "1px solid rgba(175,225,220,0.45)" }}>
+                <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(129,193,167,0.15), rgba(144,210,205,0.22))", border: "1px solid rgba(129,193,167,0.45)" }}>
                   <div className="flex flex-wrap gap-2">
                     {okMetrics.map((m) => (
                       <span key={m.label} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full"
-                        style={{ background: "rgba(175,225,220,0.35)", color: "#1a6663", border: "1px solid rgba(175,225,220,0.6)" }}>
+                        style={{ background: "rgba(129,193,167,0.35)", color: "#2d6b52", border: "1px solid rgba(129,193,167,0.6)" }}>
                         <Check size={10} strokeWidth={3} />
                         {m.label}
                       </span>
@@ -832,7 +819,7 @@ const Results = () => {
               <div className="mb-5">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "linear-gradient(135deg, #afe1dc, #96d4cf)", boxShadow: "0 4px 12px -2px rgba(175,225,220,0.4)" }}>
+                    style={{ background: "linear-gradient(135deg, #81c1a7, #81c1a7)", boxShadow: "0 4px 12px -2px rgba(129,193,167,0.4)" }}>
                     <FontAwesomeIcon icon={faStar} className="text-white text-sm" />
                   </div>
                   <div>

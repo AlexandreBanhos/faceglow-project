@@ -17,7 +17,7 @@ const SKIN_LABELS: Record<string, string> = {
 };
 
 const SKIN_COLORS: Record<string, { bg: string; text: string }> = {
-  normal:   { bg: "rgba(34,197,94,0.12)",  text: "#15803d" },
+  normal:   { bg: "rgba(129,193,167,0.15)", text: "#2d6b52" },
   seca:     { bg: "rgba(59,130,246,0.12)", text: "#1d4ed8" },
   oleosa:   { bg: "rgba(245,158,11,0.12)", text: "#b45309" },
   mista:    { bg: "rgba(249,115,22,0.12)", text: "#c2410c" },

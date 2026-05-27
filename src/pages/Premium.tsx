@@ -298,7 +298,7 @@ const Premium = () => {
                           <div>
                             <p className="font-extrabold text-foreground text-sm">{p.name}</p>
                             {p.savings && (
-                              <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#7dcfc9" }}>{p.savings}</p>
+                              <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#81c1a7" }}>{p.savings}</p>
                             )}
                           </div>
                           <div className="text-right flex-shrink-0">
@@ -466,7 +466,7 @@ const Premium = () => {
             {/* Rodapé legal */}
             <div className="text-center space-y-1.5 pb-4">
               <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                <ShieldCheck size={12} style={{ color: "#7dcfc9" }} className="" />
+                <ShieldCheck size={12} style={{ color: "#81c1a7" }} className="" />
                 <span>Pagamento único · Sem renovação automática · Sem cobranças futuras</span>
               </div>
               <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground flex-wrap">
@@ -490,7 +490,7 @@ const FeatureTick = ({ ok, highlight }: { ok: boolean; highlight?: boolean }) =>
       <CheckCircle2
         size={16}
         className={highlight ? "text-primary" : ""}
-        style={!highlight ? { color: "#7dcfc9" } : undefined}
+        style={!highlight ? { color: "#81c1a7" } : undefined}
         style={highlight ? { filter: "drop-shadow(0 0 4px rgba(220,100,140,0.4))" } : undefined}
       />
     ) : (
@@ -609,7 +609,7 @@ const ActivePremiumView = ({
               transition={{ delay: 0.1 + i * 0.04 }}
               className="flex items-center gap-3 p-3 rounded-xl lg-surface"
             >
-              <CheckCircle2 size={16} className="flex-shrink-0" style={{ color: "#7dcfc9" }} />
+              <CheckCircle2 size={16} className="flex-shrink-0" style={{ color: "#81c1a7" }} />
               <span className="text-sm font-medium text-foreground">{feat}</span>
             </motion.div>
           ))}

@@ -2446,7 +2446,7 @@ const Routine = () => {
                       cx="18" cy="18" r={R}
                       fill="none" strokeWidth="3.5"
                       strokeLinecap="round"
-                      stroke={isRoutineComplete ? "#22c55e" : "var(--grad-coral, #f97316)"}
+                      stroke={isRoutineComplete ? "#81c1a7" : "var(--grad-coral, #f97316)"}
                       strokeDasharray={circ}
                       initial={{ strokeDashoffset: circ }}
                       animate={{ strokeDashoffset: circ * (1 - completionPercent / 100) }}
@@ -2455,7 +2455,7 @@ const Routine = () => {
                     />
                     <text x="18" y="18" textAnchor="middle" dominantBaseline="middle"
                       fontSize="8" fontWeight="800"
-                      fill={isRoutineComplete ? "#22c55e" : "var(--fg-ink, #2D2D2D)"}>
+                      fill={isRoutineComplete ? "#81c1a7" : "var(--fg-ink, #2D2D2D)"}>
                       {completionPercent}%
                     </text>
                   </svg>
@@ -2465,7 +2465,7 @@ const Routine = () => {
                 <motion.div
                   initial={{ scale: 0 }} animate={{ scale: [0, 1.3, 1] }}
                   transition={{ duration: 0.4, delay: 0.1 }}
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center"
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#81c1a7" }}
                 >
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
                     <path d="M1.5 4L3 5.5L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -2477,7 +2477,7 @@ const Routine = () => {
             <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/65">
               <motion.div
                 className="h-full rounded-full"
-                style={{ background: isRoutineComplete ? "#22c55e" : "var(--grad-coral)" }}
+                style={{ background: isRoutineComplete ? "#81c1a7" : "var(--grad-coral)" }}
                 initial={{ width: 0 }}
                 animate={{ width: `${completionPercent}%` }}
                 transition={{ duration: 0.4, ease: "easeOut" }}

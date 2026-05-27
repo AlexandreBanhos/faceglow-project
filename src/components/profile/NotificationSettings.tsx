@@ -11,7 +11,7 @@ const PREFS: { key: NotifPref; icon: React.ReactNode; label: string; sub: string
 
 function statusLabel(status: PushStatus): { text: string; color: string } {
   switch (status) {
-    case "granted_active":   return { text: "Ativadas",       color: "#22c55e" };
+    case "granted_active":   return { text: "Ativadas",       color: "#81c1a7" };
     case "granted_inactive": return { text: "Permissão dada", color: "#f59e0b" };
     case "denied":           return { text: "Bloqueadas",      color: "#ef4444" };
     case "unsupported":      return { text: "Não suportado",   color: "#94a3b8" };

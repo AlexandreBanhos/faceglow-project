@@ -18,7 +18,7 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 const SCORE_COLOR = (s: number) =>
-  s >= 70 ? "#22c55e" : s >= 50 ? "#f59e0b" : "#ef4444";
+  s >= 70 ? "#81c1a7" : s >= 50 ? "#f59e0b" : "#ef4444";
 
 const SCORE_LABEL = (s: number) =>
   s >= 80 ? "Ótimo" : s >= 60 ? "Bom" : s >= 40 ? "Médio" : "Atenção";

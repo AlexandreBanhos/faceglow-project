@@ -332,7 +332,7 @@ const Profile = () => {
             {lastScore > 0 && (
               <span
                 className="text-base font-extrabold flex-shrink-0 mr-0.5"
-                style={{ color: lastScore >= 70 ? "#afe1dc" : lastScore >= 50 ? "#f5d9a0" : "#f5a8b8" }}
+                style={{ color: lastScore >= 70 ? "#81c1a7" : lastScore >= 50 ? "#f5d9a0" : "#f5a8b8" }}
               >
                 {lastScore}
               </span>
@@ -683,7 +683,7 @@ const Profile = () => {
                 ID: {userId}
               </span>
               {copiedId
-                ? <Check size={10} className="flex-shrink-0" style={{ color: "#7dcfc9" }} />
+                ? <Check size={10} className="flex-shrink-0" style={{ color: "#81c1a7" }} />
                 : <Copy size={10} className="text-muted-foreground/25 flex-shrink-0" />
               }
             </button>

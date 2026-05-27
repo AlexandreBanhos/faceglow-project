@@ -28,17 +28,17 @@ export function StrengthCard({ insight }: { insight: SkinInsight }) {
   const IconComp = EMOJI_ICON[insight.icon] ?? Star;
   return (
     <div style={{
-      background: "linear-gradient(135deg, rgba(175,225,220,0.28) 0%, rgba(144,210,205,0.38) 100%)",
+      background: "linear-gradient(135deg, rgba(129,193,167,0.28) 0%, rgba(144,210,205,0.38) 100%)",
       borderRadius: "20px",
       padding: "16px",
-      border: "1px solid rgba(175,225,220,0.55)",
+      border: "1px solid rgba(129,193,167,0.55)",
       display: "flex",
       flexDirection: "column",
       gap: "10px",
     }}>
       <div style={{
         width: 36, height: 36, borderRadius: 10,
-        background: "linear-gradient(135deg, #afe1dc, #7dcfc9)",
+        background: "linear-gradient(135deg, #81c1a7, #5da888)",
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0,
         boxShadow: "0 3px 10px -2px rgba(125,207,201,0.4)",

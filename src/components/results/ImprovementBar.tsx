@@ -34,8 +34,8 @@ export function ImprovementBar({ label, value, delay = 0 }: ImprovementBarProps)
           <span style={{
             fontSize: "10px", fontWeight: 700, letterSpacing: "0.02em",
             padding: "2px 8px", borderRadius: "999px",
-            background: c.isOk ? "#f0fdf4" : c.bg,
-            color: c.isOk ? "#15803d" : c.text,
+            background: c.isOk ? "rgba(129,193,167,0.12)" : c.bg,
+            color: c.isOk ? "#2d6b52" : c.text,
           }}>
             {c.label}
           </span>

@@ -25,8 +25,8 @@ const GUARANTEES = [
   },
   {
     Icon: UserCheck,
-    color: "#16a34a",
-    bg: "#f0fdf4",
+    color: "#2d6b52",
+    bg: "rgba(129,193,167,0.12)",
     title: "Análise segura e privada",
     desc: "Os resultados são acessíveis apenas por você. Tudo protegido conforme a LGPD.",
   },
