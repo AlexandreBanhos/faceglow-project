@@ -118,8 +118,13 @@ const Profile = () => {
   // Ref para evitar waterfall: isCustomAvatar lido de forma assíncrona pelo getCurrentUser
   const isCustomAvatarRef = useRef(false);
 
-  // Questionário
-  const [quizAnswers, setQuizAnswers] = useState<LifestyleAnswers | null>(null);
+  // Questionário — init síncrono do localStorage para evitar flash vazio no modal
+  const [quizAnswers, setQuizAnswers] = useState<LifestyleAnswers | null>(() => {
+    try {
+      const saved = localStorage.getItem("faceglow-quiz-answers");
+      return saved ? JSON.parse(saved) as LifestyleAnswers : null;
+    } catch { return null; }
+  });
 
   // UI state
   const [showProfileModal, setShowProfileModal]       = useState(false);

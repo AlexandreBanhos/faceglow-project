@@ -360,7 +360,7 @@ export function OutrasRespostasModal({ isOpen, onClose, quizAnswers, onAnswersCh
             label="Tipo de pele"
             value={
               analyzedSkinType
-                ? `${SKIN_TYPE_LABELS[analyzedSkinType] ?? analyzedSkinType} (análise IA)`
+                ? `${SKIN_TYPE_LABELS[analyzedSkinType.toLowerCase()] ?? analyzedSkinType} (análise IA)`
                 : showSingle(a?.selfReportedSkinType, SKIN_TYPE_LABELS)
             }
             onClick={() => edit("selfReportedSkinType")}
