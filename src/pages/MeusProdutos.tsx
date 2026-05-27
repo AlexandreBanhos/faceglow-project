@@ -513,7 +513,7 @@ export default function MeusProdutos() {
                             </div>
                           )}
                           {usagePeriod && (
-                            <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
+                            <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm" style={{ background: "#81c1a7" }}>
                               <Check size={9} className="text-white" />
                             </div>
                           )}
@@ -613,7 +613,7 @@ export default function MeusProdutos() {
                                   <div className="absolute bottom-1.5 left-1.5">
                                     <PeriodBadge period={s.period} />
                                   </div>
-                                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm">
+                                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center shadow-sm" style={{ background: "#81c1a7" }}>
                                     <Check size={9} className="text-white" />
                                   </div>
                                 </div>

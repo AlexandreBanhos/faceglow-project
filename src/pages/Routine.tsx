@@ -2071,7 +2071,7 @@ const Routine = () => {
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Salvando..." />
             )}
             {saveStatus === "saved" && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400" title="Salvo" />
+              <span className="w-2 h-2 rounded-full" style={{ background: "#81c1a7" }} title="Salvo" />
             )}
             {saveStatus === "error" && (
               <span className="w-2 h-2 rounded-full bg-red-400" title="Erro ao salvar" />
@@ -2405,8 +2405,8 @@ const Routine = () => {
                 }}
                 title="Marcar tudo como feito"
               >
-                <ListChecks size={13} style={{ color: isRoutineComplete ? "#16a34a" : "#9CA3AF" }} />
-                <span className="text-[10px] font-bold" style={{ color: isRoutineComplete ? "#16a34a" : "#9CA3AF" }}>
+                <ListChecks size={13} style={{ color: isRoutineComplete ? "#81c1a7" : "#9CA3AF" }} />
+                <span className="text-[10px] font-bold" style={{ color: isRoutineComplete ? "#81c1a7" : "#9CA3AF" }}>
                   Fiz tudo
                 </span>
               </motion.button>
@@ -3716,11 +3716,11 @@ const Routine = () => {
       {/* ── Card "Refinar minha rotina" + Histórico ── */}
       <div className="mx-auto max-w-md px-5 pb-6 space-y-3">
         {refineSuccess ? (
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
-            <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
+          <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: "rgba(129,193,167,0.12)", border: "1px solid rgba(129,193,167,0.4)" }}>
+            <CheckCircle2 size={18} style={{ color: "#81c1a7" }} className="flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-emerald-800">Sugestões geradas!</p>
-              <p className="text-xs text-emerald-600">Verifique as sugestões acima para aplicar à sua rotina.</p>
+              <p className="text-sm font-semibold" style={{ color: "#2d6b52" }}>Sugestões geradas!</p>
+              <p className="text-xs" style={{ color: "#3d8a65" }}>Verifique as sugestões acima para aplicar à sua rotina.</p>
             </div>
           </div>
         ) : questionnaireCompletedAt === null ? (
@@ -3841,7 +3841,7 @@ const Routine = () => {
                                 : isRestored                            ? "Restaurada de versão anterior"
                                 : "Editada por você";
                               const changeIcon =
-                                isCurrentVersion     ? <CheckCircle2 size={13} className="text-emerald-500" />
+                                isCurrentVersion     ? <CheckCircle2 size={13} style={{ color: "#81c1a7" }} />
                                 : v.changeType === "initial_generation" ? <Sparkles size={13} className="text-violet-500" />
                                 : v.changeType === "ai_regeneration"    ? <Sparkles size={13} className="text-rose-400" />
                                 : isRestored                            ? <RotateCcw size={13} className="text-indigo-400" />
@@ -3863,7 +3863,7 @@ const Routine = () => {
                                     <div className="flex items-center gap-2">
                                       <p className="text-xs font-bold text-slate-800 truncate">{changeLabel}</p>
                                       {isCurrentVersion && (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0">ATUAL</span>
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(129,193,167,0.18)", color: "#2d6b52" }}>ATUAL</span>
                                       )}
                                     </div>
                                     <p className="text-[11px] text-slate-400 mt-0.5">
