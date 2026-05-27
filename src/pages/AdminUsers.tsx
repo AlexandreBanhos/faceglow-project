@@ -414,9 +414,14 @@ export default function AdminUsers() {
           {detailUser && (
             <>
               <SheetHeader className="mb-4">
-                <SheetTitle className="truncate">
-                  {detailUser.displayName || detailUser.email.split("@")[0]}
-                </SheetTitle>
+                <div className="flex items-start justify-between gap-2">
+                  <SheetTitle className="truncate">
+                    {detailUser.displayName || detailUser.email.split("@")[0]}
+                  </SheetTitle>
+                  <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => setDetailUser(null)}>
+                    Fechar
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground font-mono truncate">{detailUser.email}</p>
                 <div className="flex gap-2 flex-wrap text-xs text-muted-foreground">
                   <span>{statusBadge(detailUser)}</span>
