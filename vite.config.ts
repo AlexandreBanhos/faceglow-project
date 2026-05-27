@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => ({
       filename: "sw.ts",
       registerType: "autoUpdate",
       injectManifest: {
-        // Precacha só JS/CSS/HTML/ícones — exclui imagens grandes e vídeos
-        globPatterns: ["**/*.{js,css,html,ico,woff2}"],
+        // Precacha JS/CSS/fonts — HTML excluído para navegações sempre irem à rede
+        globPatterns: ["**/*.{js,css,ico,woff2}"],
         globIgnores: [
           "**/*.{png,jpg,jpeg,webp,mp4,webm,svg}",
           "**/passos*",
