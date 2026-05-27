@@ -25,12 +25,12 @@ const ScoreRing = ({ score, size = 120, strokeWidth = 8, label }: ScoreRingProps
         <svg width={size} height={size} className="-rotate-90">
           <defs>
             <linearGradient id="gradient-excellent" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="hsl(350, 70%, 65%)" />
-              <stop offset="100%" stopColor="hsl(10, 80%, 68%)" />
+              <stop offset="0%" stopColor="#f5a8b8" />
+              <stop offset="100%" stopColor="#f5c0a0" />
             </linearGradient>
             <linearGradient id="gradient-good" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="hsl(260, 50%, 78%)" />
-              <stop offset="100%" stopColor="hsl(350, 70%, 65%)" />
+              <stop offset="0%" stopColor="#c8baf0" />
+              <stop offset="100%" stopColor="#f5a8b8" />
             </linearGradient>
           </defs>
           <circle

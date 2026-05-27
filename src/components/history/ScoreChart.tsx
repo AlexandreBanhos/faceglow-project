@@ -85,7 +85,7 @@ export function ScoreChart({ analyses }: ScoreChartProps) {
       <div className="flex items-center gap-1.5 mb-3 px-1">
         <span
           className="text-xs font-semibold"
-          style={{ color: delta > 0 ? "#16A34A" : delta < 0 ? "#DC2626" : "var(--fg-ink-3)" }}
+          style={{ color: delta > 0 ? "#7dcfc9" : delta < 0 ? "#e8829a" : "var(--fg-ink-3)" }}
         >
           {delta > 0 ? "+" : ""}{delta} pts
         </span>

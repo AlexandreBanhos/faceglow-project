@@ -16,13 +16,13 @@ interface ZoneColors {
 }
 
 const SKIN_COLOR_MAP: Record<SkinTypeSVG, ZoneColors> = {
-  mista:       { zonaT: "#FFF176", zonaTOpacity: 0.50, bochechas: "#B3E5FC", bochechasOpacity: 0.40 },
-  oleosa:      { zonaT: "#FFF176", zonaTOpacity: 0.60, bochechas: "#FFF176", bochechasOpacity: 0.60 },
-  seca:        { zonaT: "#E1F5FE", zonaTOpacity: 0.50, bochechas: "#E1F5FE", bochechasOpacity: 0.50 },
-  sensivel:    { zonaT: "transparent", zonaTOpacity: 0, bochechas: "#FCE4EC", bochechasOpacity: 0.60 },
-  equilibrada: { zonaT: "#E8F5E9", zonaTOpacity: 0.30, bochechas: "#E8F5E9", bochechasOpacity: 0.30 },
-  normal:      { zonaT: "#E8F5E9", zonaTOpacity: 0.30, bochechas: "#E8F5E9", bochechasOpacity: 0.30 },
-  acneica:     { zonaT: "#FFCDD2", zonaTOpacity: 0.50, bochechas: "#FFCDD2", bochechasOpacity: 0.40 },
+  mista:       { zonaT: "#fdf0c0", zonaTOpacity: 0.55, bochechas: "#c8e8f5", bochechasOpacity: 0.45 },
+  oleosa:      { zonaT: "#fdf0c0", zonaTOpacity: 0.65, bochechas: "#fdf0c0", bochechasOpacity: 0.65 },
+  seca:        { zonaT: "#daeef8", zonaTOpacity: 0.55, bochechas: "#daeef8", bochechasOpacity: 0.55 },
+  sensivel:    { zonaT: "transparent", zonaTOpacity: 0, bochechas: "#f9dce8", bochechasOpacity: 0.65 },
+  equilibrada: { zonaT: "#d8f0e0", zonaTOpacity: 0.35, bochechas: "#d8f0e0", bochechasOpacity: 0.35 },
+  normal:      { zonaT: "#d8f0e0", zonaTOpacity: 0.35, bochechas: "#d8f0e0", bochechasOpacity: 0.35 },
+  acneica:     { zonaT: "#f9dce8", zonaTOpacity: 0.55, bochechas: "#f9dce8", bochechasOpacity: 0.45 },
 };
 
 const ACNE_DOTS = [
@@ -105,7 +105,7 @@ export const FaceSkinSVG = ({ skinType, size = 160 }: FaceSkinSVGProps) => {
           cx={dot.cx}
           cy={dot.cy}
           r={3}
-          fill="#E24B4A"
+          fill="#e8a0b0"
           style={{ transformOrigin: `${dot.cx}px ${dot.cy}px` }}
           animate={{ opacity: [0.55, 1, 0.55], scale: [0.75, 1.25, 0.75] }}
           transition={{

@@ -8,10 +8,10 @@ interface MetricBarProps {
 }
 
 const getColor = (v: number) => {
-  if (v <= 30) return { bar: "#818CF8", text: "#6366F1" };  // indigo — baixo
-  if (v <= 60) return { bar: "#F59E0B", text: "#D97706" };  // amber — médio
-  if (v <= 80) return { bar: "#F97316", text: "#EA580C" };  // orange — alto
-  return { bar: "#EF4444", text: "#DC2626" };               // red — crítico
+  if (v <= 30) return { bar: "#c4c4f5", text: "#9090d8" };
+  if (v <= 60) return { bar: "#f5d9a0", text: "#c8a060" };
+  if (v <= 80) return { bar: "#f5c0a0", text: "#c89070" };
+  return { bar: "#f5a8b8", text: "#c87090" };
 };
 
 const MetricBar = ({ label, value, icon, delay = 0 }: MetricBarProps) => {
