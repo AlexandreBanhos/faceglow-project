@@ -72,7 +72,8 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("/framer-motion/")) return "vendor-framer";
           // Supabase — 180KB, raramente atualizado
           if (id.includes("/@supabase/")) return "vendor-supabase";
-          // Sentry — carregado em paralelo, não bloqueia hydration
+          // Sentry — separado em core e integrações para evitar circular chunk com vendor
+          if (id.includes("/@sentry/core") || id.includes("/@sentry/utils") || id.includes("/@sentry/hub")) return "vendor-sentry-core";
           if (id.includes("/@sentry/")) return "vendor-sentry";
           // Recharts + D3 — usado só em ScoreChart
           if (id.includes("/recharts/") || id.includes("/d3-") || id.includes("/victory-")) return "vendor-charts";

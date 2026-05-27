@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from "workbox-precaching";
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { NavigationRoute, registerRoute } from "workbox-routing";
+import { NetworkFirst } from "workbox-strategies";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -8,8 +9,16 @@ declare const self: ServiceWorkerGlobalScope;
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Offline fallback: serve index.html para todas as navegações (SPA + offline)
-registerRoute(new NavigationRoute(createHandlerBoundToURL("/index.html")));
+// Navegação SPA: NetworkFirst (3s timeout) com fallback para cache
+// Evita servir index.html stale após novos deploys
+registerRoute(
+  new NavigationRoute(
+    new NetworkFirst({
+      cacheName: "pages-cache",
+      networkTimeoutSeconds: 3,
+    })
+  )
+);
 
 // ── Push notifications ────────────────────────────────────────────────────────
 
