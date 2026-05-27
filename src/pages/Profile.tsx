@@ -22,6 +22,7 @@ import { CarteirinhaEditModal } from "@/components/profile/CarteirinhaEditModal"
 import { StatsRow } from "@/components/profile/StatsRow";
 import { UserProfileModal } from "@/components/profile/UserProfileModal";
 import { PreferenciasModal, OutrasRespostasModal } from "@/components/profile/PreferenciasModal";
+import { fetchQuizAnswers } from "@/lib/quiz";
 import logoIcon from "@/assets/logos/logo-faceglow.svg";
 import logoUrl from "@/assets/logos/logo-faceglow-escrito-color.webp";
 
@@ -184,10 +185,18 @@ const Profile = () => {
         if (parsed.imageUrl) setLastImageUrl(parsed.imageUrl);
       }
     } catch { /* ignora */ }
+
+    // Carrega respostas: localStorage imediato, backend em background (fonte de verdade)
     try {
       const qRaw = localStorage.getItem("faceglow-quiz-answers");
       if (qRaw) setQuizAnswers(JSON.parse(qRaw) as LifestyleAnswers);
     } catch { /* ignora */ }
+    fetchQuizAnswers().then((remote) => {
+      if (remote) {
+        setQuizAnswers(remote);
+        try { localStorage.setItem("faceglow-quiz-answers", JSON.stringify(remote)); } catch { /* quota */ }
+      }
+    });
   }, []);
 
   const avatarLetter = useMemo(() => {

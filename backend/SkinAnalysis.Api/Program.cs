@@ -367,6 +367,7 @@ app.MapUserProductEndpoints();
 app.MapSuggestionEndpoints();
 app.MapNotificationEndpoints();
 app.MapAffiliateEndpoints();
+app.MapQuizEndpoints();
 
 // ── Lifestyle refinement ─────────────────────────────────────────────────────
 app.MapPut("/profile/lifestyle", async (

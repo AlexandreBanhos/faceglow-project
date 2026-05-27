@@ -5,6 +5,7 @@ import {
   Droplets, Layers, Shield, Heart, Target, Sparkles,
 } from "lucide-react";
 import type { LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
+import { saveQuizAnswers } from "@/lib/quiz";
 import SkinQuiz from "@/components/quiz/SkinQuiz";
 import { FULL_QUESTIONS } from "@/components/quiz/quizQuestions";
 import type { QuizQuestion } from "@/components/quiz/SkinQuiz";
@@ -113,6 +114,7 @@ function mergeAndSave(
     }
   }
   try { localStorage.setItem(QUIZ_KEY, JSON.stringify(updated)); } catch { /* quota */ }
+  saveQuizAnswers(updated);
   onSave(updated);
 }
 

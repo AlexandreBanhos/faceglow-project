@@ -27,4 +27,5 @@ export const apiRoutes = {
   myProducts: `/products/my`,
   routineMarkComplete: `/routine/mark-complete`,
   billingCancel: `/billing/cancel`,
+  quizAnswers: `/quiz/answers`,
 };
