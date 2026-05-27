@@ -542,16 +542,20 @@ const ActivePremiumView = ({
       {/* Header */}
       <div className="text-center">
         <div className="relative w-24 h-24 mx-auto mb-4">
-          <img
-            src={logoIcon}
-            alt="FaceGlow Premium"
-            style={{
-              width: 96,
-              height: 96,
-              objectFit: "contain",
-              filter: "sepia(1) saturate(3.5) hue-rotate(350deg) brightness(1.15) drop-shadow(0 6px 18px rgba(200,160,60,0.45))",
-            }}
-          />
+          <div style={{
+            width: 96,
+            height: 96,
+            maskImage: `url(${logoIcon})`,
+            WebkitMaskImage: `url(${logoIcon})`,
+            maskSize: "contain",
+            WebkitMaskSize: "contain",
+            maskRepeat: "no-repeat",
+            WebkitMaskRepeat: "no-repeat",
+            maskPosition: "center",
+            WebkitMaskPosition: "center",
+            background: "var(--grad-coral)",
+            filter: "drop-shadow(0 6px 18px rgba(220,100,140,0.45))",
+          }} />
           <div
             className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full flex items-center justify-center"
             style={{
