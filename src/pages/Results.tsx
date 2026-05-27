@@ -463,6 +463,30 @@ const Results = () => {
           {confidence}% de confiança na análise
         </p>
 
+        {/* Mini score cards — top 3 condições */}
+        {metricCards.length > 0 && (
+          <div className="mt-4 w-full grid grid-cols-3 gap-2">
+            {metricCards.map((card, i) => {
+              const color = card.value >= 80 ? "#e8749a" : card.value >= 50 ? "#f5a87a" : "#f5c84a";
+              const bg    = card.value >= 80 ? "rgba(232,116,154,0.08)" : card.value >= 50 ? "rgba(245,168,122,0.08)" : "rgba(245,200,74,0.08)";
+              const border= card.value >= 80 ? "rgba(232,116,154,0.22)" : card.value >= 50 ? "rgba(245,168,122,0.22)" : "rgba(245,200,74,0.22)";
+              return (
+                <motion.div
+                  key={card.label}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.15 + i * 0.07 }}
+                  className="flex flex-col items-center gap-1 py-2.5 px-1 rounded-2xl"
+                  style={{ background: bg, border: `1px solid ${border}` }}
+                >
+                  <span className="text-lg font-extrabold leading-none" style={{ color }}>{card.value}%</span>
+                  <span className="text-[9px] font-bold text-muted-foreground text-center leading-tight">{card.label}</span>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Anos aparentes — barra de progresso */}
         {skinAge > 0 && (() => {
           // Escala 18–42: quanto mais jovem o aparente, melhor (barra mais cheia)
