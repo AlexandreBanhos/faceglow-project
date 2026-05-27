@@ -29,6 +29,7 @@ export class ApiClient {
   async request<T>(endpoint: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     const maxRetries = Math.max(1, config.retries ?? this.retries);
+    const timeoutMs = config.timeout ?? this.timeout;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -41,14 +42,20 @@ export class ApiClient {
           ...config.headers,
         };
 
-        const fetchOptions: RequestInit = {
-          method: config.method || "GET",
-          headers,
-        };
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), timeoutMs);
 
-        if (config.body) fetchOptions.body = JSON.stringify(config.body);
-
-        const response = await fetch(url, fetchOptions);
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            method: config.method || "GET",
+            headers,
+            body: config.body ? JSON.stringify(config.body) : undefined,
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(tid);
+        }
 
         let responseData: any;
         try { responseData = await response.json(); } catch { responseData = null; }
@@ -70,11 +77,15 @@ export class ApiClient {
 
         return { ok: false, status: response.status, statusText: response.statusText, error: errorMessage };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Erro desconhecido";
-        if (attempt === maxRetries) {
-          return { ok: false, status: 0, statusText: "Network Error", error: message };
+        const isAbort = error instanceof DOMException && error.name === "AbortError";
+        const message = isAbort
+          ? `Timeout após ${timeoutMs}ms`
+          : (error instanceof Error ? error.message : "Erro desconhecido");
+        if (attempt < maxRetries) {
+          await this.delay(1000 * attempt);
+          continue;
         }
-        await this.delay(1000 * attempt);
+        return { ok: false, status: 0, statusText: isAbort ? "Timeout" : "Network Error", error: message };
       }
     }
 

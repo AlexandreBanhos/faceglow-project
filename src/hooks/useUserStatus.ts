@@ -20,9 +20,11 @@ interface CreditsResponse {
 export const useUserStatus = (enabled = true) => {
   const { setUserStatus, userStatus } = useUserContext();
 
-  const fetchUserStatus = useCallback(async () => {
+  const fetchUserStatus = useCallback(async (showLoading = true) => {
     try {
-      setUserStatus((prev) => ({ ...prev, isLoading: true }));
+      if (showLoading) {
+        setUserStatus((prev) => ({ ...prev, isLoading: true }));
+      }
 
       const token = await getTokenOrWait(3000);
       if (!token) {
@@ -30,26 +32,32 @@ export const useUserStatus = (enabled = true) => {
         return;
       }
 
-      const results = await Promise.race([
-        Promise.allSettled([
-          apiClient.get<BillingStatusResponse>("/billing/status", { timeout: 4000 }),
-          apiClient.get<CreditsResponse>("/analysis/credits", { timeout: 4000 }),
-        ]),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout ao carregar status")), 6000)
-        ),
+      // 8s por request, até 3 tentativas — cobre cold start do backend (503/timeout)
+      const [billingRes, creditsRes] = await Promise.allSettled([
+        apiClient.get<BillingStatusResponse>("/billing/status", { timeout: 8000, retries: 3 }),
+        apiClient.get<CreditsResponse>("/analysis/credits", { timeout: 8000, retries: 3 }),
       ]);
+
+      const billingOk = billingRes.status === "fulfilled" && billingRes.value?.ok === true;
+      const creditsOk = creditsRes.status === "fulfilled" && creditsRes.value?.ok === true;
+
+      // Ambas falharam — preserva cache para não bloquear premium users
+      if (!billingOk && !creditsOk) {
+        const cached = readUserStatusCache();
+        if (cached) {
+          setUserStatus({ ...cached, isLoading: false, statusUnknown: true });
+          return;
+        }
+      }
 
       let isPremium = false;
       let subscriptionType: UserStatus["subscriptionType"];
       let subscriptionStatus: UserStatus["subscriptionStatus"];
       let expiresAtUtc: string | undefined;
 
-      const billingRes = (results as PromiseSettledResult<any>[])[0];
-      if (billingRes.status === "fulfilled") {
-        const response = billingRes.value;
-        if (response?.status !== 404 && response?.data) {
-          const billing = response.data;
+      if (billingOk) {
+        const billing = (billingRes as PromiseFulfilledResult<{ ok: boolean; data?: BillingStatusResponse }>).value.data;
+        if (billing) {
           isPremium = billing.isPremium === true;
           if (billing.planKey && ["credits", "monthly", "annual", "test"].includes(billing.planKey)) {
             subscriptionType = billing.planKey as UserStatus["subscriptionType"];
@@ -62,9 +70,11 @@ export const useUserStatus = (enabled = true) => {
       }
 
       let creditsRemaining = 0;
-      const creditsRes = (results as PromiseSettledResult<any>[])[1];
-      if (creditsRes.status === "fulfilled" && creditsRes.value?.data?.creditsRemaining) {
-        creditsRemaining = creditsRes.value.data.creditsRemaining;
+      if (creditsOk) {
+        const credits = (creditsRes as PromiseFulfilledResult<{ ok: boolean; data?: CreditsResponse }>).value.data;
+        if (credits?.creditsRemaining) {
+          creditsRemaining = credits.creditsRemaining;
+        }
       }
 
       const userId = (() => {
@@ -86,11 +96,16 @@ export const useUserStatus = (enabled = true) => {
       writeUserStatusCache(newStatus);
     } catch (error) {
       console.warn("[useUserStatus] Erro ao carregar status:", error);
-      setUserStatus((prev) => ({ ...prev, isLoading: false, statusUnknown: true }));
+      // Fallback ao cache para não zerar isPremium/creditsRemaining
+      const cached = readUserStatusCache();
+      if (cached) {
+        setUserStatus({ ...cached, isLoading: false, statusUnknown: true });
+      } else {
+        setUserStatus((prev) => ({ ...prev, isLoading: false, statusUnknown: true }));
+      }
     }
   }, [setUserStatus]);
 
-  // Registra o fetch real para que refreshPremiumStatus() do context funcione
   useEffect(() => {
     setStatusRefreshFn(fetchUserStatus);
     return () => setStatusRefreshFn(null);
@@ -101,11 +116,12 @@ export const useUserStatus = (enabled = true) => {
 
     const cached = readUserStatusCache();
     if (cached) {
-      // Aplica cache imediatamente para render rápido
-      setUserStatus((prev) => (prev.isLoading ? { ...prev, isLoading: false } : prev));
+      // Aplica cache imediatamente (sem loading) e revalida em background
+      setUserStatus({ ...cached, isLoading: false });
+      fetchUserStatus(false);
+    } else {
+      fetchUserStatus(true);
     }
-    // Sempre re-busca em background para garantir dados frescos
-    fetchUserStatus();
   }, [enabled, fetchUserStatus, setUserStatus]);
 
   return { ...userStatus, refetch: fetchUserStatus };
