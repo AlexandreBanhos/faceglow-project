@@ -82,12 +82,22 @@ const showMulti = (arr: string[] | undefined, map: Record<string, string>, limit
 const findQ = (id: string): QuizQuestion | undefined =>
   FULL_QUESTIONS.find((q) => q.id === id);
 
+const EMPTY_ANSWERS: LifestyleAnswers = {
+  ageRange: "", gender: "", skinTone: "", selfReportedSkinType: "",
+  skinSensitivity: "", primaryConcern: "", secondaryConcerns: [],
+  budgetRange: "", makeupUsage: "", sunscreenUsage: "",
+  currentRoutineItems: [], hormonalConditions: [], skinConditions: [],
+  ingredientReactions: [], productPreferences: [], certifications: [],
+};
+
 function mergeAndSave(
   raw: Record<string, string[]>,
   existing: LifestyleAnswers | null,
   onSave: (a: LifestyleAnswers) => void,
 ) {
-  const updated = { ...(existing ?? {} as LifestyleAnswers) } as LifestyleAnswers;
+  // Usa EMPTY_ANSWERS como base para garantir que campos array sempre iniciam como [],
+  // evitando que Array.isArray() retorne false e salve string no lugar de array.
+  const updated = { ...EMPTY_ANSWERS, ...(existing ?? {}) } as LifestyleAnswers;
   if (raw.primaryConcern !== undefined) {
     const concerns = raw.primaryConcern;
     (updated as Record<string, unknown>).primaryConcern = concerns[0] ?? "";
