@@ -176,11 +176,19 @@
     overscroll-behavior-y: none;
     min-height: 100svh;
     min-height: 100dvh;
+    /* Prevent double-tap zoom on interactive elements */
+    touch-action: manipulation;
     /*
      * Empurra conteúdo abaixo da status bar transparente (black-translucent).
      * A área de padding exibe o background do body — aurora + cor sólida.
      */
     padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+  /* Prevent iOS Safari auto-zoom on input focus (requires font-size >= 16px) */
+  input, textarea, select {
+    font-size: max(16px, 1em);
   }
 }
 

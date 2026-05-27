@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Ellipsis, BookOpen, AlertTriangle, Lock, Sparkles, CheckCircle2, Info } from "lucide-react";
+import { ArrowLeft, Ellipsis, BookOpen, AlertTriangle, Lock, Sparkles, CheckCircle2, Info, Check } from "lucide-react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSun, faDroplet, faSprayCan, faMicroscope, faMapLocation, faStar, faShieldHalved, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import { FloatingAnalysisCard } from "@/components/FloatingAnalysisCard";
@@ -719,12 +719,47 @@ const Results = () => {
                 </div>
               )}
 
-              <div className="space-y-2.5">
-                {allDisplayMetrics.map((m, i) => (
-                  <ImprovementBar key={m.label} label={m.label} value={m.value} delay={i * 0.05} />
-                ))}
-              </div>
+              {improvementMetrics.length > 0 ? (
+                <div className="space-y-2.5">
+                  {improvementMetrics.map((m, i) => (
+                    <ImprovementBar key={m.label} label={m.label} value={m.value} delay={i * 0.05} />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(175,225,220,0.15)", border: "1px solid rgba(175,225,220,0.4)" }}>
+                  <CheckCircle2 size={28} style={{ color: "#afe1dc", margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "#1a5c59", margin: "0 0 4px" }}>Nenhuma condição crítica encontrada</p>
+                  <p style={{ fontSize: 12, color: "#2d7d79", margin: 0 }}>Sua pele está em ótimo estado!</p>
+                </div>
+              )}
             </div>
+
+            {/* Pontos para não se preocupar */}
+            {okMetrics.length > 0 && (
+              <div className="mb-5">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #afe1dc, #7dcfc9)", boxShadow: "0 4px 12px -2px rgba(175,225,220,0.4)" }}>
+                    <CheckCircle2 size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-foreground leading-tight">Pontos para não se preocupar</h3>
+                    <p className="text-xs text-muted-foreground">Condições não identificadas na sua pele</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-4" style={{ background: "linear-gradient(135deg, rgba(175,225,220,0.15), rgba(144,210,205,0.22))", border: "1px solid rgba(175,225,220,0.45)" }}>
+                  <div className="flex flex-wrap gap-2">
+                    {okMetrics.map((m) => (
+                      <span key={m.label} className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full"
+                        style={{ background: "rgba(175,225,220,0.35)", color: "#1a6663", border: "1px solid rgba(175,225,220,0.6)" }}>
+                        <Check size={10} strokeWidth={3} />
+                        {m.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* S3: Análise por Região */}
             {uniqueRegionPoints.length > 0 && (
