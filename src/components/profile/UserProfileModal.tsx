@@ -172,6 +172,7 @@ interface UserProfileModalProps {
   latestAnalysis: AnalysisResponse | null;
   quizAnswers: LifestyleAnswers | null;
   onEdit: () => void;
+  onOpenEdit?: () => void;
   onViewAnalysis: () => void;
   totalAnalyses: number;
   bestScore: number;
@@ -181,7 +182,7 @@ interface UserProfileModalProps {
 
 export function UserProfileModal({
   isOpen, onClose, latestAnalysis, quizAnswers,
-  onEdit, onViewAnalysis,
+  onEdit, onOpenEdit, onViewAnalysis,
   totalAnalyses, bestScore, activeProducts, streakDays,
 }: UserProfileModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -453,7 +454,7 @@ export function UserProfileModal({
                     <ClipboardList size={13} style={{ color: "#a855f7" }} />
                     <span style={{ fontSize: 10, fontWeight: 800, color: "#8b7fa0", textTransform: "uppercase", letterSpacing: "0.1em" }}>Questionário</span>
                   </div>
-                  <button onClick={onEdit}
+                  <button onClick={onOpenEdit ?? onEdit}
                     className="flex items-center gap-1 active:scale-95 transition-transform"
                     style={{ fontSize: 12, fontWeight: 700, color: "#a855f7" }}>
                     <Pencil size={12} />
@@ -487,7 +488,7 @@ export function UserProfileModal({
                 ) : (
                   <div className="rounded-2xl p-5 flex flex-col items-center gap-2 text-center" style={CARD}>
                     <p style={{ fontSize: 13, color: "#8b7fa0" }}>Responda o questionário para ver os dados completos.</p>
-                    <button onClick={onEdit}
+                    <button onClick={onOpenEdit ?? onEdit}
                       className="px-4 py-2 rounded-xl active:scale-95 transition-transform"
                       style={{ fontSize: 13, fontWeight: 700, color: "#a855f7", background: "rgba(168,85,247,0.1)" }}>
                       Responder agora

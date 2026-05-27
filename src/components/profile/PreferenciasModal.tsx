@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, ChevronRight, Coins, ClipboardList, Tag, AlertTriangle,
-  Droplets, Layers, Shield, Heart, Target, Sparkles,
+  Droplets, Layers, Shield, Heart, Target, Sparkles, CalendarDays, Users,
 } from "lucide-react";
 import type { LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
 import { saveQuizAnswers } from "@/lib/quiz";
@@ -12,6 +12,15 @@ import type { QuizQuestion } from "@/components/quiz/SkinQuiz";
 
 const QUIZ_KEY = "faceglow-quiz-answers";
 const BG = "linear-gradient(160deg,#fff8f7 0%,#fdf2f5 28%,#fdf8f7 55%,#fff5f0 100%)";
+
+const AGE_LABELS: Record<string, string> = {
+  under25: "Menos de 25 anos", "25to34": "25–34 anos",
+  "35to44": "35–44 anos", "45to60": "45–60 anos", over60: "Mais de 60",
+};
+const GENDER_LABELS: Record<string, string> = {
+  female: "Feminino", male: "Masculino",
+  nonbinary: "Não binário", prefer_not: "Prefiro não informar",
+};
 const CARD = {
   background: "rgba(255,255,255,0.65)",
   border: "1px solid rgba(255,255,255,0.9)",
@@ -332,6 +341,20 @@ export function OutrasRespostasModal({ isOpen, onClose, quizAnswers, onAnswersCh
     <>
       <BottomModal isOpen={isOpen} onClose={onClose} title="Outras respostas">
         <div className="rounded-2xl overflow-hidden" style={CARD}>
+          <PrefRow
+            icon={<CalendarDays size={15} style={{ color: "var(--primary)" }} />}
+            label="Idade"
+            value={showSingle(a?.ageRange, AGE_LABELS)}
+            onClick={() => edit("ageRange")}
+          />
+          <Divider />
+          <PrefRow
+            icon={<Users size={15} style={{ color: "var(--primary)" }} />}
+            label="Gênero"
+            value={showSingle(a?.gender, GENDER_LABELS)}
+            onClick={() => edit("gender")}
+          />
+          <Divider />
           <PrefRow
             icon={<Layers size={15} style={{ color: "var(--primary)" }} />}
             label="Tipo de pele"

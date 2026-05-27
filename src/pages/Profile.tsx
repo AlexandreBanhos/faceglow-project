@@ -320,7 +320,7 @@ const Profile = () => {
             </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold text-foreground">
-                {lastSkinType ? `Pele ${lastSkinType.toLowerCase()}` : "Ver meu diagnóstico"}
+                {lastSkinType ? `Pele ${lastSkinType.charAt(0).toUpperCase() + lastSkinType.slice(1).toLowerCase()}` : "Ver meu diagnóstico"}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Análise · Scores · Questionário
@@ -377,7 +377,7 @@ const Profile = () => {
             {
               icon: <ScanFace size={15} className="text-foreground" />,
               label: "Perfil de pele",
-              sub: lastSkinType ? lastSkinType : "Análise, scores e questionário",
+              sub: lastSkinType ? lastSkinType.charAt(0).toUpperCase() + lastSkinType.slice(1).toLowerCase() : "Análise, scores e questionário",
               onClick: () => setShowProfileModal(true),
             },
             {
@@ -395,7 +395,7 @@ const Profile = () => {
             {
               icon: <ClipboardList size={15} className="text-foreground" />,
               label: "Outras respostas",
-              sub: "Tipo de pele, makeup, condições",
+              sub: "Tipo de pele, maquiagem, condições",
               onClick: () => setShowOutrasRespostas(true),
             },
           ]} />
@@ -695,6 +695,7 @@ const Profile = () => {
         latestAnalysis={latestAnalysis}
         quizAnswers={quizAnswers}
         onEdit={() => { setShowProfileModal(false); navigate("/analyze"); }}
+        onOpenEdit={() => { setShowProfileModal(false); setShowOutrasRespostas(true); }}
         onViewAnalysis={() => {
           setShowProfileModal(false);
           if (latestAnalysis) navigate("/results", { state: { analysis: latestAnalysis } });
