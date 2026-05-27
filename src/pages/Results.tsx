@@ -480,7 +480,7 @@ const Results = () => {
         {skinAge > 0 && (() => {
           // Escala 18–42: quanto mais jovem o aparente, melhor (barra mais cheia)
           const ageProgress = Math.round(Math.max(0, Math.min(100, ((42 - skinAge) / (42 - 18)) * 100)));
-          const ageColor = ageProgress >= 70 ? "#22c55e" : ageProgress >= 45 ? "#f59e0b" : "#ef4444";
+          const ageColor = ageProgress >= 70 ? "#afe1dc" : ageProgress >= 45 ? "#f5d9a0" : "#f5a8b8";
           return (
             <div className="mt-5 w-full">
               <div className="flex items-center justify-between mb-1.5">
@@ -666,7 +666,7 @@ const Results = () => {
                   <div className="flex flex-wrap gap-1.5">
                     {activeConditions.map((c) => (
                       <span key={c.key} className="text-xs font-bold px-3 py-1 rounded-full"
-                        style={{ background: "linear-gradient(135deg, #fff1f2, #ffe4e6)", color: "#e11d48", border: "1px solid #fecdd3" }}>
+                        style={{ background: "#fdf0f4", color: "#c07090", border: "1px solid #f5c0d0" }}>
                         {c.label}
                       </span>
                     ))}
@@ -679,7 +679,7 @@ const Results = () => {
             <div className="mb-5">
               <div className="mb-3 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "linear-gradient(135deg, #f97316, #ef4444)", boxShadow: "0 4px 12px -2px rgba(239,68,68,0.38)" }}>
+                  style={{ background: "linear-gradient(135deg, #f5c0a0, #f5a8b8)", boxShadow: "0 4px 12px -2px rgba(245,168,184,0.4)" }}>
                   <FontAwesomeIcon icon={faMicroscope} className="text-white text-sm" />
                 </div>
                 <div>
@@ -692,26 +692,26 @@ const Results = () => {
               {topIssue && topIssue.value > 0 && CONDITION_INFO[topIssue.label] && (
                 <div className="mb-3 rounded-2xl overflow-hidden"
                   style={{
-                    background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(239,68,68,0.04) 100%)",
-                    border: "1px solid rgba(249,115,22,0.2)",
+                    background: "linear-gradient(135deg, rgba(245,192,160,0.08) 0%, rgba(245,168,184,0.06) 100%)",
+                    border: "1px solid rgba(245,192,160,0.3)",
                   }}>
-                  <div style={{ height: "3px", background: "linear-gradient(90deg, #f97316, #ef4444)" }} />
+                  <div style={{ height: "3px", background: "linear-gradient(90deg, #f5c0a0, #f5a8b8)" }} />
                   <div className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: "linear-gradient(135deg, #f97316, #ef4444)" }}>
+                        style={{ background: "linear-gradient(135deg, #f5c0a0, #f5a8b8)" }}>
                         <Info size={13} className="text-white" />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-orange-700 uppercase tracking-wide">Maior preocupação detectada</p>
+                        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "#c09070" }}>Maior preocupação detectada</p>
                         <p className="text-sm font-extrabold text-foreground">{topIssue.label} — {topIssue.value}%</p>
                       </div>
                     </div>
                     <div className="space-y-1.5 text-xs text-muted-foreground leading-relaxed">
                       <p><strong className="text-foreground">Causa:</strong> {CONDITION_INFO[topIssue.label].cause}</p>
                       <p><strong className="text-foreground">Dica:</strong> {CONDITION_INFO[topIssue.label].tip}</p>
-                      <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-orange-100">
-                        <span className="font-bold text-orange-700">Ativos indicados:</span>
+                      <div className="flex items-center gap-1.5 mt-2 pt-2" style={{ borderTop: "1px solid rgba(245,192,160,0.4)" }}>
+                        <span className="font-bold" style={{ color: "#c09070" }}>Ativos indicados:</span>
                         <span>{CONDITION_INFO[topIssue.label].ingredient}</span>
                       </div>
                     </div>
@@ -731,7 +731,7 @@ const Results = () => {
               <div className="mb-5">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", boxShadow: "0 4px 12px -2px rgba(99,102,241,0.38)" }}>
+                    style={{ background: "linear-gradient(135deg, #c8baf0, #b8c4f5)", boxShadow: "0 4px 12px -2px rgba(184,196,245,0.4)" }}>
                     <FontAwesomeIcon icon={faMapLocation} className="text-white text-sm" />
                   </div>
                   <div>
@@ -752,7 +752,7 @@ const Results = () => {
               <div className="mb-5">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "linear-gradient(135deg, #f97316, #f59e0b)", boxShadow: "0 4px 12px -2px rgba(249,115,22,0.38)" }}>
+                    style={{ background: "linear-gradient(135deg, #f5c0a0, #f5d9a0)", boxShadow: "0 4px 12px -2px rgba(245,192,160,0.4)" }}>
                     <FontAwesomeIcon icon={faTriangleExclamation} className="text-white text-sm" />
                   </div>
                   <div>
@@ -774,7 +774,7 @@ const Results = () => {
                       }}
                     >
                       <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: "linear-gradient(135deg, #f97316, #f59e0b)" }}>
+                        style={{ background: "linear-gradient(135deg, #f5c0a0, #f5d9a0)" }}>
                         <FontAwesomeIcon icon={faTriangleExclamation} className="text-white text-xs" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -797,7 +797,7 @@ const Results = () => {
               <div className="mb-5">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 4px 12px -2px rgba(16,185,129,0.38)" }}>
+                    style={{ background: "linear-gradient(135deg, #afe1dc, #96d4cf)", boxShadow: "0 4px 12px -2px rgba(175,225,220,0.4)" }}>
                     <FontAwesomeIcon icon={faStar} className="text-white text-sm" />
                   </div>
                   <div>

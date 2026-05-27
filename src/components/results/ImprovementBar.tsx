@@ -9,9 +9,9 @@ interface ImprovementBarProps {
 
 function severityColor(v: number) {
   if (v === 0)   return { bar: "#d1d5db", bg: "#f9fafb", text: "#6b7280", label: "Não identificado", isOk: true };
-  if (v >= 80)   return { bar: "#ef4444", bg: "#fef2f2", text: "#b91c1c", label: "Crítico",         isOk: false };
-  if (v >= 50)   return { bar: "#f97316", bg: "#fff7ed", text: "#c2410c", label: "Moderado",         isOk: false };
-  return           { bar: "#eab308", bg: "#fefce8", text: "#a16207", label: "Leve",             isOk: false };
+  if (v >= 80)   return { bar: "#f5a8b8", bg: "#fdf0f4", text: "#c07090", label: "Crítico",          isOk: false };
+  if (v >= 50)   return { bar: "#f5c0a0", bg: "#fdf5f0", text: "#c09070", label: "Moderado",          isOk: false };
+  return           { bar: "#f5d9a0", bg: "#fdf8f0", text: "#c0a060", label: "Leve",              isOk: false };
 }
 
 export function ImprovementBar({ label, value, delay = 0 }: ImprovementBarProps) {

@@ -57,15 +57,17 @@ function ProfileCard({ items }: { items: RowItem[] }) {
           onClick={item.onClick}
           className={`w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-muted/40 transition-colors text-left ${
             i < items.length - 1 ? "border-b border-border/30" : ""
-          } ${item.danger ? "bg-red-500/5" : ""}`}
+          }`}
+          style={item.danger ? { background: "rgba(245,168,184,0.07)" } : {}}
         >
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            item.danger ? "bg-red-100" : "bg-muted/60"
-          }`}>
+            item.danger ? "" : "bg-muted/60"
+          }`} style={item.danger ? { background: "#fdf0f4" } : {}}>
             {item.icon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-semibold leading-tight ${item.danger ? "text-red-600" : "text-foreground"}`}>
+            <p className={`text-sm font-semibold leading-tight ${item.danger ? "" : "text-foreground"}`}
+               style={item.danger ? { color: "#c87090" } : {}}>
               {item.label}
             </p>
             {item.sub && <p className="text-xs text-muted-foreground mt-0.5">{item.sub}</p>}
@@ -327,7 +329,7 @@ const Profile = () => {
             {lastScore > 0 && (
               <span
                 className="text-base font-extrabold flex-shrink-0 mr-0.5"
-                style={{ color: lastScore >= 70 ? "#22c55e" : lastScore >= 50 ? "#f59e0b" : "#ef4444" }}
+                style={{ color: lastScore >= 70 ? "#afe1dc" : lastScore >= 50 ? "#f5d9a0" : "#f5a8b8" }}
               >
                 {lastScore}
               </span>
@@ -427,10 +429,10 @@ const Profile = () => {
               className="w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-muted/40 transition-colors"
             >
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                isFullAccess ? "gradient-primary shadow-glow" : isPremium ? "bg-emerald-100" : "bg-muted/60"
-              }`}>
+                isFullAccess ? "gradient-primary shadow-glow" : "bg-muted/60"
+              }`} style={isPremium && !isFullAccess ? { background: "#d8f0e0" } : {}}>
                 {isFullAccess ? <Sparkles size={15} className="text-white" />
-                  : isPremium ? <Coins size={15} className="text-emerald-600" />
+                  : isPremium ? <Coins size={15} style={{ color: "#5aada0" }} />
                   : <CreditCard size={15} className="text-muted-foreground" />}
               </div>
               <div className="flex-1 text-left">
@@ -460,12 +462,15 @@ const Profile = () => {
               <button
                 onClick={handleCancelSubscription}
                 disabled={cancelLoading}
-                className="w-full flex items-center gap-3.5 px-4 py-3 border-t border-border/30 active:bg-red-50/50 transition-colors disabled:opacity-50"
+                className="w-full flex items-center gap-3.5 px-4 py-3 border-t border-border/30 transition-colors disabled:opacity-50"
+                style={{ "--tw-bg-opacity": "1" } as React.CSSProperties}
+                onMouseDown={(e) => (e.currentTarget.style.background = "rgba(245,168,184,0.1)")}
+                onMouseUp={(e) => (e.currentTarget.style.background = "")}
               >
-                <div className="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                  <XCircle size={15} className="text-red-500" />
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#fdf0f4" }}>
+                  <XCircle size={15} style={{ color: "#e8829a" }} />
                 </div>
-                <p className="text-sm font-semibold text-red-600 text-left flex-1">
+                <p className="text-sm font-semibold text-left flex-1" style={{ color: "#c87090" }}>
                   {cancelLoading ? "Cancelando..." : "Cancelar assinatura"}
                 </p>
               </button>
@@ -612,7 +617,7 @@ const Profile = () => {
                 {shareToast && (
                   <motion.p
                     initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    className="text-center text-xs text-emerald-600 font-semibold mt-2"
+                    className="text-center text-xs font-semibold mt-2" style={{ color: "#5aada0" }}
                   >
                     Link copiado!
                   </motion.p>
@@ -627,7 +632,7 @@ const Profile = () => {
           whileTap={{ scale: 0.97 }}
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base active:scale-[0.97] transition-transform"
-          style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626", border: "1px solid rgba(239,68,68,0.15)" }}
+          style={{ background: "rgba(245,168,184,0.1)", color: "#c87090", border: "1px solid rgba(245,168,184,0.2)" }}
         >
           <LogOut size={17} />
           Sair da conta
@@ -675,7 +680,7 @@ const Profile = () => {
                 ID: {userId}
               </span>
               {copiedId
-                ? <Check size={10} className="text-emerald-400 flex-shrink-0" />
+                ? <Check size={10} className="flex-shrink-0" style={{ color: "#7dcfc9" }} />
                 : <Copy size={10} className="text-muted-foreground/25 flex-shrink-0" />
               }
             </button>
