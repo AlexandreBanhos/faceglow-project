@@ -175,7 +175,7 @@ const Support = () => {
               </div>
             </a>
             <a
-              href="https://wa.me/5511999999999?text=Ol%C3%A1,%20preciso%20de%20ajuda%20com%20o%20FaceGlow"
+              href="https://wa.me/5527992031718?text=Ol%C3%A1,%20preciso%20de%20ajuda%20com%20o%20FaceGlow"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-4 px-4 py-4 rounded-2xl lg-surface active:scale-[0.98] transition-transform"
