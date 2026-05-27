@@ -11,11 +11,11 @@ import { FULL_QUESTIONS } from "@/components/quiz/quizQuestions";
 import type { QuizQuestion } from "@/components/quiz/SkinQuiz";
 
 const QUIZ_KEY = "faceglow-quiz-answers";
-const BG = "linear-gradient(160deg,#f4f2ff 0%,#ede8ff 28%,#f8f5ff 55%,#fff0f8 100%)";
+const BG = "linear-gradient(160deg,#fff8f7 0%,#fdf2f5 28%,#fdf8f7 55%,#fff5f0 100%)";
 const CARD = {
   background: "rgba(255,255,255,0.65)",
   border: "1px solid rgba(255,255,255,0.9)",
-  boxShadow: "0 2px 14px rgba(120,80,160,0.07)",
+  boxShadow: "0 2px 14px rgba(220,100,140,0.07)",
 };
 
 const BUDGET_LABELS: Record<string, string> = {
@@ -129,7 +129,7 @@ function PrefRow({
       className="w-full flex items-center gap-3.5 px-4 py-3.5 active:bg-black/5 transition-colors text-left"
     >
       <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: "rgba(139,92,246,0.09)" }}>
+        style={{ background: "rgba(232,116,138,0.08)" }}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -256,35 +256,35 @@ export function PreferenciasModal({
       <BottomModal isOpen={isOpen} onClose={onClose} title="Preferências">
         <div className="rounded-2xl overflow-hidden" style={CARD}>
           <PrefRow
-            icon={<Coins size={15} className="text-violet-500" />}
+            icon={<Coins size={15} style={{ color: "var(--primary)" }} />}
             label="Preço"
             value={showSingle(a?.budgetRange, BUDGET_LABELS)}
             onClick={() => edit("budgetRange")}
           />
           <Divider />
           <PrefRow
-            icon={<ClipboardList size={15} className="text-violet-500" />}
+            icon={<ClipboardList size={15} style={{ color: "var(--primary)" }} />}
             label="Rotina criada"
             value={rotinaLabel}
             onClick={() => { onClose(); onViewRoutine(); }}
           />
           <Divider />
           <PrefRow
-            icon={<Tag size={15} className="text-violet-500" />}
+            icon={<Tag size={15} style={{ color: "var(--primary)" }} />}
             label="Fatores skincare"
             value={factorLabel}
             onClick={() => edit("productPreferences", "certifications")}
           />
           <Divider />
           <PrefRow
-            icon={<AlertTriangle size={15} className="text-violet-500" />}
+            icon={<AlertTriangle size={15} style={{ color: "var(--primary)" }} />}
             label="Alergias"
             value={showMulti(a?.ingredientReactions, ALLERGY_LABELS)}
             onClick={() => edit("ingredientReactions")}
           />
           <Divider />
           <PrefRow
-            icon={<Droplets size={15} className="text-violet-500" />}
+            icon={<Droplets size={15} style={{ color: "var(--primary)" }} />}
             label="Tom de pele"
             value={showSingle(a?.skinTone, SKIN_TONE_LABELS)}
             onClick={() => edit("skinTone")}
@@ -333,7 +333,7 @@ export function OutrasRespostasModal({ isOpen, onClose, quizAnswers, onAnswersCh
       <BottomModal isOpen={isOpen} onClose={onClose} title="Outras respostas">
         <div className="rounded-2xl overflow-hidden" style={CARD}>
           <PrefRow
-            icon={<Layers size={15} className="text-violet-500" />}
+            icon={<Layers size={15} style={{ color: "var(--primary)" }} />}
             label="Tipo de pele"
             value={
               analyzedSkinType
@@ -344,35 +344,35 @@ export function OutrasRespostasModal({ isOpen, onClose, quizAnswers, onAnswersCh
           />
           <Divider />
           <PrefRow
-            icon={<Sparkles size={15} className="text-violet-500" />}
+            icon={<Sparkles size={15} style={{ color: "var(--primary)" }} />}
             label="Maquiagem"
             value={showSingle(a?.makeupUsage, MAKEUP_LABELS)}
             onClick={() => edit("makeupUsage")}
           />
           <Divider />
           <PrefRow
-            icon={<Shield size={15} className="text-violet-500" />}
+            icon={<Shield size={15} style={{ color: "var(--primary)" }} />}
             label="Protetor solar"
             value={showSingle(a?.sunscreenUsage, SUNSCREEN_LABELS)}
             onClick={() => edit("sunscreenUsage")}
           />
           <Divider />
           <PrefRow
-            icon={<Heart size={15} className="text-violet-500" />}
+            icon={<Heart size={15} style={{ color: "var(--primary)" }} />}
             label="Condições de pele"
             value={showMulti(a?.skinConditions, CONDITION_LABELS)}
             onClick={() => edit("skinConditions")}
           />
           <Divider />
           <PrefRow
-            icon={<Target size={15} className="text-violet-500" />}
+            icon={<Target size={15} style={{ color: "var(--primary)" }} />}
             label="Condições hormonais"
             value={showMulti(a?.hormonalConditions, HORMONAL_LABELS)}
             onClick={() => edit("hormonalConditions")}
           />
           <Divider />
           <PrefRow
-            icon={<Target size={15} className="text-violet-500" />}
+            icon={<Target size={15} style={{ color: "var(--primary)" }} />}
             label="Preocupações"
             value={showMulti(allConcerns, CONCERN_LABELS)}
             onClick={() => edit("primaryConcern")}
