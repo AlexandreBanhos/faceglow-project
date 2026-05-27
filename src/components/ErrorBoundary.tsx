@@ -54,14 +54,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl max-w-sm w-full p-8 text-center space-y-5">
           <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
             style={{ background: "linear-gradient(135deg,rgba(221,182,147,0.15),rgba(239,143,184,0.18))" }}>
-            <div style={{
-              width: 36, height: 36,
-              WebkitMaskImage: `url("${brokenUrl}")`, maskImage: `url("${brokenUrl}")`,
-              WebkitMaskSize: "contain", maskSize: "contain",
-              WebkitMaskPosition: "center", maskPosition: "center",
-              WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-              background: "linear-gradient(135deg,#ddb693 0%,#e8a9c2 55%,#ef8fb8 100%)",
-            }} />
+            <img src={brokenUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} />
           </div>
           <div>
             <h2 className="text-lg font-bold text-foreground">Algo deu errado</h2>

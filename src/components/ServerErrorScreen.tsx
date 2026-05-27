@@ -24,14 +24,7 @@ export const ServerErrorScreen = ({ message, onRetry }: ServerErrorProps) => {
           className="w-20 h-20 rounded-full flex items-center justify-center"
           style={{ background: "linear-gradient(135deg,rgba(221,182,147,0.12),rgba(239,143,184,0.18))", border: "1.5px solid rgba(232,169,194,0.3)" }}
         >
-          <div style={{
-            width: 44, height: 44,
-            WebkitMaskImage: `url("${brokenUrl}")`, maskImage: `url("${brokenUrl}")`,
-            WebkitMaskSize: "contain", maskSize: "contain",
-            WebkitMaskPosition: "center", maskPosition: "center",
-            WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
-            background: "linear-gradient(135deg,#ddb693 0%,#e8a9c2 55%,#ef8fb8 100%)",
-          }} />
+          <img src={brokenUrl} alt="" style={{ width: 48, height: 48, objectFit: "contain" }} />
         </motion.div>
 
         {/* Título */}
