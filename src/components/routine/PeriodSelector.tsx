@@ -6,7 +6,7 @@ export type Period = "morning" | "night" | "both";
 interface Props {
   value: Period;
   onChange: (p: Period) => void;
-  locked?: boolean;
+  locked?: "morning" | "night" | boolean;
   lockedReason?: string;
   /** "lg" = cards (padrão) | "sm" = pill compacto para cards de produto */
   size?: "lg" | "sm";
@@ -66,8 +66,20 @@ const LockedNight = ({ reason }: { reason?: string }) => (
       <Moon size={18} className="text-white" />
     </div>
     <div>
-      <p className="text-sm font-bold text-indigo-800">Somente noite</p>
+      <p className="text-sm font-bold text-indigo-800">Somente à noite</p>
       {reason && <p className="text-xs text-indigo-500 mt-0.5">{reason}</p>}
+    </div>
+  </div>
+);
+
+const LockedMorning = ({ reason }: { reason?: string }) => (
+  <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl border border-amber-200 bg-amber-50">
+    <div className="w-9 h-9 rounded-xl bg-amber-400 flex items-center justify-center flex-shrink-0 shadow-sm">
+      <Sun size={18} className="text-white" />
+    </div>
+    <div>
+      <p className="text-sm font-bold text-amber-800">Somente de manhã</p>
+      {reason && <p className="text-xs text-amber-600 mt-0.5">{reason}</p>}
     </div>
   </div>
 );
@@ -154,6 +166,7 @@ export const PeriodSelector = ({
   size = "lg",
   className = "",
 }: Props) => {
+  if (locked === "morning") return <LockedMorning reason={lockedReason} />;
   if (locked) return <LockedNight reason={lockedReason} />;
 
   return (

@@ -818,11 +818,19 @@ export default function MeusProdutos() {
                 value={form.defaultPeriod}
                 onChange={(p) => setForm((f) => ({ ...f, defaultPeriod: p }))}
                 locked={
-                  form.category.toLowerCase().includes("retinol") ||
-                  form.category.toLowerCase().includes("ácido") ||
-                  form.category.toLowerCase().includes("acido")
+                  form.category.toLowerCase().includes("protetor")
+                    ? "morning"
+                    : (form.category.toLowerCase().includes("retinol") ||
+                       form.category.toLowerCase().includes("ácido") ||
+                       form.category.toLowerCase().includes("acido"))
+                    ? "night"
+                    : undefined
                 }
-                lockedReason="Retinol e ácidos são de uso noturno"
+                lockedReason={
+                  form.category.toLowerCase().includes("protetor")
+                    ? "Protetor solar protege contra raios UV — use somente durante o dia."
+                    : "Retinol e ácidos aumentam a fotossensibilidade — use somente à noite."
+                }
               />
             </div>
 

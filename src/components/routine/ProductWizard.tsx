@@ -11,7 +11,7 @@ import {
   faArrowRightArrowLeft, faWandMagicSparkles, faToggleOn, faToggleOff,
   faCalendarDays, faTag, faBuilding, faArrowsRotate, faPenToSquare,
 } from "@fortawesome/free-solid-svg-icons";
-import { Loader2, Sun, Moon, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { fetchCatalogProducts, type CatalogProduct } from "@/lib/analysisClient";
 import { fetchMyProducts, createMyProduct, updateMyProduct } from "@/lib/userProducts";
 import type { UserCatalogProduct } from "@/lib/userProducts";
@@ -92,6 +92,24 @@ export const WIZARD_CATEGORIES = [
   { key: "spot_treatment", label: "Tratamento Pontual" },
   { key: "makeup_remover", label: "Removedor de Maquiagem" },
 ];
+
+const CATEGORY_PERIOD_LOCK: Record<string, { period: WizardPeriod; lockedAs: "morning" | "night"; reason: string }> = {
+  sunscreen: {
+    period: "morning",
+    lockedAs: "morning",
+    reason: "Protetor solar protege contra raios UV — use somente durante o dia.",
+  },
+  retinoid: {
+    period: "night",
+    lockedAs: "night",
+    reason: "Retinol é fotossensível — use somente à noite para evitar irritações.",
+  },
+  acid: {
+    period: "night",
+    lockedAs: "night",
+    reason: "Ácidos como AHA/BHA aumentam a fotossensibilidade — use somente à noite.",
+  },
+};
 
 const WEEK_DAYS = [
   { key: "mon", label: "Seg" },
@@ -181,6 +199,12 @@ export function ProductWizard({
   const [period, setPeriod]                     = useState<WizardPeriod>(
     initialPeriod === "morning" ? "morning" : initialPeriod === "night" ? "night" : "both"
   );
+
+  // Auto-lock period por categoria
+  useEffect(() => {
+    const lock = CATEGORY_PERIOD_LOCK[selectedCategory?.key ?? ""];
+    if (lock) setPeriod(lock.period);
+  }, [selectedCategory?.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Catálogo
   const [catalogQuery, setCatalogQuery]         = useState("");
@@ -605,7 +629,13 @@ export function ProductWizard({
                   {/* Período */}
                   <div>
                     <p className="text-xs font-bold text-slate-700 mb-3">Para qual rotina?</p>
-                    <PeriodSelector size="sm" value={period} onChange={(v) => setPeriod(v)} />
+                    <PeriodSelector
+                      size="sm"
+                      value={period}
+                      onChange={(v) => setPeriod(v)}
+                      locked={CATEGORY_PERIOD_LOCK[selectedCategory?.key ?? ""]?.lockedAs}
+                      lockedReason={CATEGORY_PERIOD_LOCK[selectedCategory?.key ?? ""]?.reason}
+                    />
                   </div>
 
                   {/* Toggle diário */}
@@ -1208,30 +1238,13 @@ export function ProductWizard({
 
                   <div>
                     <p className="text-xs font-bold text-slate-700 mb-3">Aplicar em qual rotina?</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { key: "morning" as const, label: "Manhã",  Icon: Sun,      activeGrad: "linear-gradient(135deg,#fde68a 0%,#fdba74 100%)", iconColor: "#92400e" },
-                        { key: "night"   as const, label: "Noite",  Icon: Moon,     activeGrad: "linear-gradient(135deg,#c7d2fe 0%,#ddd6fe 100%)", iconColor: "#3730a3" },
-                        { key: "both"    as const, label: "Ambos",  Icon: Sparkles, activeGrad: "linear-gradient(135deg,#fde68a 0%,#f9a8d4 45%,#c4b5fd 100%)", iconColor: "#6d28d9" },
-                      ]).map(p => {
-                        const isActive = period === p.key;
-                        return (
-                          <button
-                            key={p.key}
-                            onClick={() => setPeriod(p.key)}
-                            className="flex flex-col items-center gap-1.5 py-4 rounded-2xl border-2 transition-all"
-                            style={isActive ? {
-                              background: p.activeGrad,
-                              borderColor: "transparent",
-                              boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-                            } : { background: "rgba(255,255,255,0.8)", borderColor: "#e2e8f0" }}
-                          >
-                            <p.Icon size={20} style={{ color: p.iconColor }} />
-                            <span className="text-xs font-bold text-slate-700">{p.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <PeriodSelector
+                      value={period}
+                      onChange={setPeriod}
+                      locked={CATEGORY_PERIOD_LOCK[selectedCategory?.key ?? ""]?.lockedAs}
+                      lockedReason={CATEGORY_PERIOD_LOCK[selectedCategory?.key ?? ""]?.reason}
+                      size="sm"
+                    />
                   </div>
 
                   {/* Quando usar */}
