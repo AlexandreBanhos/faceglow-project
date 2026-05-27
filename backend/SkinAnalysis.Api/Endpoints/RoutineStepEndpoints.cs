@@ -94,8 +94,6 @@ public static class RoutineStepEndpoints
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.AnalysisId == id && p.UserId == userId, ct);
 
-        if (profile is null) return Results.Ok(Array.Empty<object>());
-
         var includeSteps = (IQueryable<UserRoutineStep> q) => q
             .Include(s => s.Routine)
             .Include(s => s.Slots)
@@ -106,17 +104,26 @@ public static class RoutineStepEndpoints
             .OrderBy(s => s.Routine.Period)
             .ThenBy(s => s.StepOrder);
 
-        // Primary: steps tied to this analysis's profile
-        var steps = await includeSteps(db.RoutineSteps
-            .AsNoTracking()
-            .Where(s => s.Routine.SkinProfileId == profile.Id
-                     && s.Routine.UserId == userId
-                     && s.Routine.IsActive
-                     && s.IsActive))
-            .ToListAsync(ct);
+        List<UserRoutineStep> steps;
 
-        // Fallback: new analysis in "suggestions mode" — no routine generated for new profile yet.
-        // Show the user's current active routine so the page isn't blank.
+        if (profile is not null)
+        {
+            // Primary: steps tied to this analysis's profile
+            steps = await includeSteps(db.RoutineSteps
+                .AsNoTracking()
+                .Where(s => s.Routine.SkinProfileId == profile.Id
+                         && s.Routine.UserId == userId
+                         && s.Routine.IsActive
+                         && s.IsActive))
+                .ToListAsync(ct);
+        }
+        else
+        {
+            steps = new List<UserRoutineStep>();
+        }
+
+        // Fallback: perfil sem AnalysisId linkado (conta antiga) ou rotina ainda não gerada.
+        // Mostra a rotina ativa atual do usuário para não deixar a tela em branco.
         if (steps.Count == 0)
         {
             steps = await includeSteps(db.RoutineSteps

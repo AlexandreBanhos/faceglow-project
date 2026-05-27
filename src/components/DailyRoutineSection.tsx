@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Sun, Moon, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { type AnalysisResponse } from "@/lib/analysis";
+import { useIsPremium } from "@/hooks/useIsPremium";
 
 interface DailyRoutineSectionProps {
   analysis: AnalysisResponse | null;
@@ -49,6 +50,7 @@ const DailyRoutineSection = ({
   delay = 0.45,
 }: DailyRoutineSectionProps) => {
   const navigate = useNavigate();
+  const { isPremium } = useIsPremium();
   const periodGradient = PERIOD_GRADIENTS[currentPeriod];
 
   // isPremiumBlocked: exibe os passos da rotina (sem produtos), sem banner de upsell
@@ -182,33 +184,44 @@ const DailyRoutineSection = ({
           </motion.div>
         ))}
 
-        {!isLoading && routineSummary.items.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="lg-surface p-6 rounded-2xl flex flex-col items-center text-center gap-3"
-          >
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #FEF3C7, #FED7AA)" }}
+        {!isLoading && routineSummary.items.length === 0 && (() => {
+          // Usuário premium com análise mas rotina ainda não carregada/gerada
+          const hasAnalysis = Boolean(analysis);
+          const isPremiumWithAnalysis = isPremium && hasAnalysis;
+          return (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="lg-surface p-6 rounded-2xl flex flex-col items-center text-center gap-3"
             >
-              <span className="text-2xl">✨</span>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[var(--fg-ink)] mb-1">Sua rotina vai aparecer aqui</p>
-              <p className="text-xs text-[var(--fg-ink-3)] leading-relaxed">
-                Faça uma análise facial para receber uma rotina personalizada para o seu tipo de pele.
-              </p>
-            </div>
-            <button
-              onClick={() => navigate("/analyze")}
-              className="mt-1 px-4 py-2 rounded-xl text-xs font-bold text-white"
-              style={{ background: "var(--grad-coral)" }}
-            >
-              Fazer análise agora
-            </button>
-          </motion.div>
-        )}
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: isPremiumWithAnalysis
+                  ? "linear-gradient(135deg, #F3E8FF, #E0D7FF)"
+                  : "linear-gradient(135deg, #FEF3C7, #FED7AA)" }}
+              >
+                <span className="text-2xl">{isPremiumWithAnalysis ? "🌙" : "✨"}</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[var(--fg-ink)] mb-1">
+                  {isPremiumWithAnalysis ? "Sua rotina vai aparecer aqui" : "Sua rotina vai aparecer aqui"}
+                </p>
+                <p className="text-xs text-[var(--fg-ink-3)] leading-relaxed">
+                  {isPremiumWithAnalysis
+                    ? "Seus passos de rotina estão sendo carregados. Toque em Ver tudo para acessar."
+                    : "Faça uma análise facial para receber uma rotina personalizada para o seu tipo de pele."}
+                </p>
+              </div>
+              <button
+                onClick={() => isPremiumWithAnalysis ? navigate("/routine", { state: { analysis } }) : navigate("/analyze")}
+                className="mt-1 px-4 py-2 rounded-xl text-xs font-bold text-white"
+                style={{ background: "var(--grad-coral)" }}
+              >
+                {isPremiumWithAnalysis ? "Ver rotina" : "Fazer análise agora"}
+              </button>
+            </motion.div>
+          );
+        })()}
       </div>
         </div>
       </div>

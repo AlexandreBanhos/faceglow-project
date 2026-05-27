@@ -268,21 +268,31 @@ export const fetchDashboardSummary = async (forceRefresh = false): Promise<Dashb
     return dashboardCache.data;
   }
 
-  // Cache persistente entre sessões — retorna imediatamente enquanto revalida em background
+  // Cache persistente entre sessões: só retorna direto se o dado for recente (< ANALYSES_CACHE_TTL_MS).
+  // Dados com 3-10 min de idade ainda ficam no localStorage como fallback de erro, mas
+  // não impedem o fetch de rede — garante que "nova tentativa bem-sucedida" atualize a UI.
+  let storageData: DashboardSummary | null = null;
   if (!forceRefresh) {
-    const fromStorage = loadDashboardFromStorage();
-    if (fromStorage) {
-      dashboardCache = { cachedAt: Date.now(), data: fromStorage };
-      return fromStorage;
-    }
+    try {
+      const raw = localStorage.getItem(DASHBOARD_LS_KEY);
+      if (raw) {
+        const { ts, data } = JSON.parse(raw) as { ts: number; data: DashboardSummary };
+        if (Date.now() - ts <= DASHBOARD_LS_TTL_MS) {
+          storageData = data; // mantém como fallback de erro
+          if (Date.now() - ts <= ANALYSES_CACHE_TTL_MS) {
+            // Dado fresco — retorna imediatamente sem bater na rede
+            dashboardCache = { cachedAt: ts, data };
+            return data;
+          }
+          // Dado stale (3-10min) — usa como fallback mas bate na rede abaixo
+        }
+      }
+    } catch { /* ignora erros de storage */ }
   }
 
   const token = await getTokenOrWait();
   if (!token) {
-    return {
-      latest: null,
-      previousOverallScore: null,
-    };
+    return storageData ?? { latest: null, previousOverallScore: null };
   }
 
   const attemptFetch = () =>
@@ -294,27 +304,27 @@ export const fetchDashboardSummary = async (forceRefresh = false): Promise<Dashb
 
   let response: Response;
   let lastError: Error | null = null;
-  
-  // Try up to 2 times with 500ms delay (faster than 2.5s cold-start delay)
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       response = await attemptFetch();
-      break; // Success - exit retry loop
+      break;
     } catch (error) {
       lastError = error as Error;
       if (attempt === 0) {
-        // Only wait if retrying
         await new Promise<void>((resolve) => window.setTimeout(resolve, 500));
       }
     }
   }
 
-  if (!response || !response.ok) {
+  if (!response! || !response!.ok) {
+    // Rede falhou — usa dado stale do storage como fallback para não bloquear o usuário
+    if (storageData) return storageData;
     if (lastError) throw lastError;
     throw new Error(`Falha ao carregar dashboard (HTTP ${response?.status ?? 'unknown'}).`);
   }
 
-  const payload = (await response.json()) as {
+  const payload = (await response!.json()) as {
     latest?: unknown;
     previous?: { overallScore?: number } | null;
   };
@@ -324,10 +334,7 @@ export const fetchDashboardSummary = async (forceRefresh = false): Promise<Dashb
     previousOverallScore: typeof payload.previous?.overallScore === "number" ? payload.previous.overallScore : null,
   };
 
-  dashboardCache = {
-    cachedAt: Date.now(),
-    data,
-  };
+  dashboardCache = { cachedAt: Date.now(), data };
   saveDashboardToStorage(data);
 
   return data;

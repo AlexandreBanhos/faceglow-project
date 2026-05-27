@@ -582,7 +582,7 @@ public static class AnalysisEndpoints
                 var now = DateTime.UtcNow;
                 var isPremium = await bgDb.Subscriptions.AnyAsync(
                     s => s.UserId == authenticatedUserId.Value
-                        && (s.PlanKey == "monthly" || s.PlanKey == "annual" || s.PlanKey == "quarterly")
+                        && (s.PlanKey == "monthly" || s.PlanKey == "annual" || s.PlanKey == "quarterly" || s.PlanKey == "test")
                         && s.Status == "active"
                         && (s.ExpiresAtUtc == null || s.ExpiresAtUtc > now),
                     CancellationToken.None);

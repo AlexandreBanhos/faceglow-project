@@ -14,7 +14,6 @@ import { fetchDashboardSummary, fetchRoutineSteps, readDashboardCache, type Rout
 import { getCurrentUser, getTokenOrWait } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
 import { useIsPremium } from "@/hooks/useIsPremium";
-import { staleWhileRevalidate } from "@/shared/services/cache/CacheService";
 import { getFreeStepsForDay } from "@/lib/freeRoutine";
 import { AuroraBackdrop, FGScoreOrb } from "@/components/shared";
 import { LearnCard } from "@/components/LearnCard";
@@ -289,14 +288,10 @@ const Dashboard = () => {
 
     const loadAnalyses = async () => {
       try {
-        // staleWhileRevalidate: retorna cache imediatamente (in-memory ou localStorage),
-        // revalida em background se stale. Não força re-fetch a cada navegação.
-        const summary = await staleWhileRevalidate(
-          'dashboard-summary',
-          () => fetchDashboardSummary(false),
-          false
-        );
-
+        // fetchDashboardSummary: retorna do cache in-memory (<3min) imediatamente;
+        // se dado do localStorage tiver 3-10min, bate na rede para garantir dados frescos.
+        // "nova tentativa bem-sucedida" sempre atualiza o estado React.
+        const summary = await fetchDashboardSummary(false);
         if (!mounted) return;
         setLatestAnalysis(summary.latest);
         setPreviousOverallScore(summary.previousOverallScore);
@@ -311,7 +306,7 @@ const Dashboard = () => {
     loadAnalyses();
 
     return () => { mounted = false; };
-  }, []); // sem location.pathname — staleWhileRevalidate gerencia revalidação em background
+  }, []);
 
   // Premium status é lido diretamente do UserContext (já hidratado pelo RequireAuth)
 
