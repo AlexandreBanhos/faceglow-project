@@ -1998,14 +1998,14 @@ const Routine = () => {
       {/* Banner de transição manhã → noite */}
       {isAdvancingToNight && (
         <motion.div
-          initial={{ opacity: 0, y: -16 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -16 }}
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl shadow-lg"
-          style={{ background: "linear-gradient(135deg, #9aa8dc, #6366f1)", color: "white" }}
+          exit={{ opacity: 0, y: 24 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-5 py-3 rounded-full shadow-xl"
+          style={{ background: "linear-gradient(135deg, #6366f1, #9aa8dc)", color: "white", whiteSpace: "nowrap" }}
         >
           <Moon size={15} />
-          <span className="text-sm font-semibold">Ótimo! Partindo para a rotina da noite…</span>
+          <span className="text-sm font-bold">Ótimo! Partindo para a rotina da noite…</span>
         </motion.div>
       )}
 
