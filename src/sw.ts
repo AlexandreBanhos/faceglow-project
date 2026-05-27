@@ -1,24 +1,14 @@
 /// <reference lib="webworker" />
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
-import { NavigationRoute, registerRoute } from "workbox-routing";
-import { NetworkFirst } from "workbox-strategies";
 
 declare const self: ServiceWorkerGlobalScope;
 
-// Precache assets gerados pelo Vite
+// Precache assets JS/CSS/fonts gerados pelo Vite
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Navegação SPA: NetworkFirst (3s timeout) com fallback para cache
-// Evita servir index.html stale após novos deploys
-registerRoute(
-  new NavigationRoute(
-    new NetworkFirst({
-      cacheName: "pages-cache",
-      networkTimeoutSeconds: 3,
-    })
-  )
-);
+// Sem rota de navegação — index.html vai sempre direto para a rede
+// evita servir HTML stale com hashes de chunks desatualizados
 
 // ── Push notifications ────────────────────────────────────────────────────────
 
@@ -65,7 +55,6 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
-        // Foca janela existente se possível
         const existing = clientList.find(
           (c) => c.url.startsWith(self.location.origin) && "focus" in c
         );
@@ -77,22 +66,28 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
-// Ativa imediatamente sem esperar as abas fecharem — evita chunks stale no PWA
 self.addEventListener("install", (event: ExtendableEvent) => {
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event: ExtendableEvent) => {
   event.waitUntil(
-    self.clients.claim().then(() =>
-      self.clients.matchAll({ type: "window" }).then((clients) =>
-        clients.forEach((c) => c.postMessage({ type: "SW_UPDATED" }))
+    // Limpa caches antigos antes de assumir o controle
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys
+          .filter((k) => !k.startsWith("workbox-precache"))
+          .map((k) => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+      .then(() =>
+        self.clients.matchAll({ type: "window" }).then((clients) =>
+          clients.forEach((c) => c.postMessage({ type: "SW_UPDATED" }))
+        )
       )
-    )
   );
 });
 
-// Protocolo VitePWA: permite que o app force o skip waiting via postMessage
 self.addEventListener("message", (event: ExtendableMessageEvent) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
