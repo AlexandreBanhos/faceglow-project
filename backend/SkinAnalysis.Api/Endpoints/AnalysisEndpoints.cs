@@ -235,33 +235,35 @@ public static class AnalysisEndpoints
         var nightSteps = new List<string>();
         try
         {
-            var activeProfile = await dbContext.SkinProfiles
+            // Projeção leve: não carrega entidades completas nem product_images.
+            // Busca por userId (sem filtro de SkinProfileId) para evitar falso negativo
+            // quando o perfil não está linkado à rotina ativa.
+            var stepProjections = await dbContext.RoutineSteps
                 .AsNoTracking()
-                .Where(p => p.UserId == parsedUserId.Value && p.IsCurrent)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (activeProfile is not null)
-            {
-                var routineSteps = await dbContext.RoutineSteps
-                    .AsNoTracking()
-                    .Where(s => s.Routine.SkinProfileId == activeProfile.Id
-                             && s.Routine.UserId == parsedUserId.Value
-                             && s.Routine.IsActive
-                             && s.IsActive)
-                    .Include(s => s.Routine)
-                    .Include(s => s.Slots).ThenInclude(sl => sl.Product)
-                    .OrderBy(s => s.Routine.Period).ThenBy(s => s.StepOrder)
-                    .ToListAsync(cancellationToken);
-
-                foreach (var step in routineSteps)
+                .Where(s => s.Routine.UserId == parsedUserId.Value
+                         && s.Routine.IsActive
+                         && s.IsActive)
+                .OrderBy(s => s.Routine.Period).ThenBy(s => s.StepOrder)
+                .Select(s => new
                 {
-                    var selected = step.Slots.FirstOrDefault(sl => sl.IsSelected);
-                    var displayName = StepDisplayNames.Get(step.StepTypeKey);
-                    var productName = selected?.Product?.Name ?? step.StepTypeKey;
-                    var line = $"{displayName}: {productName}";
-                    if (step.Routine.Period == "morning") morningSteps.Add(line);
-                    else nightSteps.Add(line);
-                }
+                    Period = s.Routine.Period,
+                    TypeKey = s.StepTypeKey,
+                    ProductName = s.Slots
+                        .Where(sl => sl.IsSelected)
+                        .Select(sl => sl.Product != null
+                            ? sl.Product.Name
+                            : sl.UserProduct != null ? sl.UserProduct.CustomName : null)
+                        .FirstOrDefault(),
+                })
+                .ToListAsync(cancellationToken);
+
+            foreach (var step in stepProjections)
+            {
+                var displayName = StepDisplayNames.Get(step.TypeKey);
+                var productName = step.ProductName ?? step.TypeKey;
+                var line = $"{displayName}: {productName}";
+                if (step.Period == "morning") morningSteps.Add(line);
+                else nightSteps.Add(line);
             }
         }
         catch { /* best-effort — don't fail dashboard */ }

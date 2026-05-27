@@ -94,54 +94,65 @@ public static class RoutineStepEndpoints
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.AnalysisId == id && p.UserId == userId, ct);
 
-        var includeSteps = (IQueryable<UserRoutineStep> q) => q
-            .Include(s => s.Routine)
-            .Include(s => s.Slots)
-                .ThenInclude(sl => sl.Product)
-                    .ThenInclude(p => p!.Images)
-            .Include(s => s.Slots)
-                .ThenInclude(sl => sl.UserProduct)
+        // Projeção direta: evita Include(Images) pesado — PrimaryImageUrl era computed de Images.
+        // Usa subquery SQL (OrderBy+First) que aproveita idx_product_images_product.
+        var projectSteps = (IQueryable<UserRoutineStep> q) => q
             .OrderBy(s => s.Routine.Period)
-            .ThenBy(s => s.StepOrder);
+            .ThenBy(s => s.StepOrder)
+            .Select(s => new
+            {
+                s.Id,
+                s.RoutineId,
+                Period = s.Routine.Period,
+                s.StepOrder,
+                s.StepTypeKey,
+                s.Recurrence,
+                s.IsUserAdded,
+                s.ScheduleDays,
+                Slots = s.Slots.Select(sl => new
+                {
+                    sl.Id,
+                    sl.Tier,
+                    sl.IsSelected,
+                    sl.ProductId,
+                    sl.RecommendationReason,
+                    Score = sl.ScoreAtGeneration,
+                    ProductName = sl.Product != null ? sl.Product.Name : null,
+                    ProductImageUrl = sl.Product != null
+                        ? sl.Product.Images.OrderBy(i => i.Position).Select(i => i.PublicUrl).FirstOrDefault()
+                        : null,
+                    UserProductName = sl.UserProduct != null
+                        ? (sl.UserProduct.CustomName ?? (sl.UserProduct.CatalogProduct != null ? sl.UserProduct.CatalogProduct.Name : null))
+                        : null,
+                    UserProductImageUrl = sl.UserProduct != null ? sl.UserProduct.CustomImageUrl : null,
+                }).ToList(),
+            });
 
-        List<UserRoutineStep> steps;
-
-        if (profile is not null)
-        {
-            // Primary: steps tied to this analysis's profile
-            steps = await includeSteps(db.RoutineSteps
-                .AsNoTracking()
+        var baseWhere = profile is not null
+            ? db.RoutineSteps.AsNoTracking()
                 .Where(s => s.Routine.SkinProfileId == profile.Id
                          && s.Routine.UserId == userId
-                         && s.Routine.IsActive
-                         && s.IsActive))
-                .ToListAsync(ct);
-        }
-        else
-        {
-            steps = new List<UserRoutineStep>();
-        }
+                         && s.Routine.IsActive && s.IsActive)
+            : db.RoutineSteps.AsNoTracking()
+                .Where(s => false); // empty — fallback will run
+
+        var steps = await projectSteps(baseWhere).ToListAsync(ct);
 
         // Fallback: perfil sem AnalysisId linkado (conta antiga) ou rotina ainda não gerada.
-        // Mostra a rotina ativa atual do usuário para não deixar a tela em branco.
         if (steps.Count == 0)
         {
-            steps = await includeSteps(db.RoutineSteps
-                .AsNoTracking()
-                .Where(s => s.Routine.UserId == userId
-                         && s.Routine.IsActive
-                         && s.IsActive))
+            steps = await projectSteps(
+                db.RoutineSteps.AsNoTracking()
+                    .Where(s => s.Routine.UserId == userId
+                             && s.Routine.IsActive && s.IsActive))
                 .ToListAsync(ct);
         }
 
         var dto = steps.Select(s =>
         {
             var selected = s.Slots.FirstOrDefault(sl => sl.IsSelected);
-            var productName = selected?.Product?.Name
-                ?? selected?.UserProduct?.DisplayName
-                ?? string.Empty;
-            var imageUrl = selected?.Product?.PrimaryImageUrl
-                ?? selected?.UserProduct?.DisplayImageUrl;
+            var productName = selected?.ProductName ?? selected?.UserProductName ?? string.Empty;
+            var imageUrl = selected?.ProductImageUrl ?? selected?.UserProductImageUrl;
             var scheduleDays = s.ScheduleDays.Length > 0
                 ? JsonSerializer.Serialize(MapDaysToNames(s.ScheduleDays))
                 : "[\"mon\",\"tue\",\"wed\",\"thu\",\"fri\",\"sat\",\"sun\"]";
@@ -150,7 +161,7 @@ public static class RoutineStepEndpoints
             {
                 s.Id,
                 AnalysisId = id,
-                Period = s.Routine.Period,
+                Period = s.Period,
                 StepOrder = s.StepOrder,
                 Category = s.StepTypeKey,
                 CategoryDisplayName = StepDisplayName(s.StepTypeKey),
@@ -164,7 +175,6 @@ public static class RoutineStepEndpoints
                 OverrideProductName = (string?)null,
                 OverrideImageUrl = (string?)null,
                 scheduleDays,
-                // Extra v2 fields
                 RoutineId = s.RoutineId,
                 StepTypeKey = s.StepTypeKey,
                 Slots = s.Slots.Select(sl => new
@@ -173,10 +183,10 @@ public static class RoutineStepEndpoints
                     sl.Tier,
                     sl.IsSelected,
                     ProductId = sl.ProductId,
-                    ProductName = sl.Product?.Name ?? sl.UserProduct?.DisplayName,
-                    ImageUrl = sl.Product?.PrimaryImageUrl ?? sl.UserProduct?.DisplayImageUrl,
+                    ProductName = sl.ProductName ?? sl.UserProductName,
+                    ImageUrl = sl.ProductImageUrl ?? sl.UserProductImageUrl,
                     sl.RecommendationReason,
-                    Score = sl.ScoreAtGeneration,
+                    Score = sl.Score,
                 }).ToList()
             };
         }).ToList();
