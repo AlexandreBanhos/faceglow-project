@@ -32,10 +32,10 @@ export const useUserStatus = (enabled = true) => {
         return;
       }
 
-      // 8s por request, até 3 tentativas — cobre cold start do backend (503/timeout)
+      // 20s por request, 2 tentativas — cobre cold start do backend (~10s); ping em main.tsx adianta wake-up
       const [billingRes, creditsRes] = await Promise.allSettled([
-        apiClient.get<BillingStatusResponse>("/billing/status", { timeout: 8000, retries: 3 }),
-        apiClient.get<CreditsResponse>("/analysis/credits", { timeout: 8000, retries: 3 }),
+        apiClient.get<BillingStatusResponse>("/billing/status", { timeout: 20000, retries: 2 }),
+        apiClient.get<CreditsResponse>("/analysis/credits", { timeout: 20000, retries: 2 }),
       ]);
 
       const billingOk = billingRes.status === "fulfilled" && billingRes.value?.ok === true;

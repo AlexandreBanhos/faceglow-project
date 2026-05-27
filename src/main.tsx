@@ -8,6 +8,10 @@ import "./index.css";
 import { captureReferralFromUrl } from "@/lib/affiliate";
 import { reportWebVitals } from "@/lib/webVitals";
 import { toast } from "@/components/ui/sonner";
+import { apiBaseUrl } from "@/lib/api";
+
+// Wake-up ping — acorda o backend antes do auth para reduzir cold start nas chamadas de status/credits
+fetch(`${apiBaseUrl}/health`, { signal: AbortSignal.timeout(30_000) }).catch(() => {});
 
 captureReferralFromUrl();
 
