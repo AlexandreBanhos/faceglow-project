@@ -2,10 +2,10 @@ import serumUrl from "@/assets/icones/serum-svg.svg";
 import cleanserUrl from "@/assets/icones/limpezador.svg";
 import moisturizerUrl from "@/assets/icones/hidratante.svg";
 import maskUrl from "@/assets/icones/mascara.svg";
-import exfoliantUrl from "@/assets/icones/Esfoliante.svg";
-import eyeUrl from "@/assets/icones/Contorno dos Olhos.svg";
-import acidUrl from "@/assets/icones/Ácido.svg";
-import demaquilanteUrl from "@/assets/icones/Demaquilante.svg";
+import exfoliantUrl from "@/assets/icones/esfoliante.svg";
+import eyeUrl from "@/assets/icones/contorno-olhos.svg";
+import acidUrl from "@/assets/icones/acido.svg";
+import demaquilanteUrl from "@/assets/icones/demaquilante.svg";
 import treatmentUrl from "@/assets/icones/tratamento.svg";
 import tonerUrl from "@/assets/icones/limpeza.svg";
 import productUrl from "@/assets/icones/produto.svg";
@@ -37,8 +37,8 @@ const ICON_MAP: Record<string, string> = {
 const GRAD = "linear-gradient(135deg, #ddb693 0%, #e8a9c2 55%, #ef8fb8 100%)";
 
 const maskStyle = (url: string) => ({
-  WebkitMaskImage: `url(${url})`,
-  maskImage: `url(${url})`,
+  WebkitMaskImage: `url("${url}")`,
+  maskImage: `url("${url}")`,
   WebkitMaskSize: "contain",
   maskSize: "contain",
   WebkitMaskPosition: "center",
