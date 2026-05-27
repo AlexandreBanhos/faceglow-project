@@ -55,7 +55,7 @@ export const AnalysisInfoPage = ({ onStart, onClose, noCredits, creditsRemaining
 
     {/* Header */}
     <div className="flex items-center justify-between px-5 pt-6 pb-4">
-      <img src={logoFaceglow} alt="FaceGlow" style={{ height: 28 }} />
+      <div />
       <button
         onClick={onClose}
         className="w-9 h-9 rounded-full flex items-center justify-center transition-opacity active:opacity-60"
@@ -85,13 +85,7 @@ export const AnalysisInfoPage = ({ onStart, onClose, noCredits, creditsRemaining
         className="text-center mb-2"
         style={{ fontWeight: 800, fontSize: 26, color: "#1A1A1A", lineHeight: 1.2, letterSpacing: "-0.5px" }}
       >
-        Análise de Pele com{" "}
-        <span style={{
-          background: "linear-gradient(135deg, #E8748A 0%, #F4A8C7 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
-        }}>IA</span>
+        Análise seu rosto
       </motion.h1>
       <motion.p {...fadeUp(0.12)}
         className="text-center mb-6"

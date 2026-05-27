@@ -817,10 +817,7 @@ function DashboardWelcome({ navigate }: { navigate: ReturnType<typeof useNavigat
       <AuroraBackdrop tone="warm" className="-z-10" />
       <div className="flex flex-col items-center justify-center flex-1 px-6 pt-16 pb-8">
 
-        {/* Logo */}
-        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-          <img src={logoUrl} alt="FaceGlow" className="h-9 object-contain" />
-        </motion.div>
+
 
         {/* Orb vazio / placeholder */}
         <motion.div
@@ -849,9 +846,9 @@ function DashboardWelcome({ navigate }: { navigate: ReturnType<typeof useNavigat
           transition={{ delay: 0.18 }}
           className="text-center mb-2"
         >
-          <h1 className="text-2xl font-black text-foreground">Bem-vindo ao FaceGlow</h1>
+          <h1 className="text-2xl font-black text-foreground">Análise seu rosto</h1>
           <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto leading-relaxed">
-            Faça sua primeira análise de pele para desbloquear uma rotina personalizada com produtos ideais para você.
+            Descubra o estado real da sua pele em segundos
           </p>
         </motion.div>
 

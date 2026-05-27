@@ -1,5 +1,9 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Lightbulb } from "lucide-react";
+import limpezaFacial from "@/assets/instrucao/limpeza-facial.png";
+import rostoVisivel from "@/assets/instrucao/rosto-visivel.png";
+import posicione from "@/assets/instrucao/posicione.png";
+import analise from "@/assets/instrucao/analise.png";
 
 interface Props {
   onContinue: () => void;
@@ -11,25 +15,25 @@ const STEPS = [
     number: "1",
     title: "Rosto limpo, sem maquiagem",
     sub: "Remova maquiagem, base e protetor solar. Para resultados mais precisos, faça a análise 30 min após lavar o rosto",
-    emoji: "🧴",
+    image: limpezaFacial,
   },
   {
     number: "2",
     title: "Remova os óculos",
     sub: "E encontre um ambiente bem iluminado",
-    emoji: "👓",
+    image: rostoVisivel,
   },
   {
     number: "3",
     title: "Posicione seu rosto",
     sub: "Centralize no enquadramento e mantenha a cabeça reta",
-    emoji: "🧍",
+    image: posicione,
   },
   {
     number: "4",
-    title: "Fique parado",
+    title: "Fique parado e analise",
     sub: "Aguarde a IA processar sua pele — leva menos de 5 segundos",
-    emoji: "🤳",
+    image: analise,
   },
 ];
 
@@ -105,8 +109,27 @@ export const ScanInstructionsPage = ({ onContinue, onBack }: Props) => (
               <div style={{ fontSize: 12, color: "#6B6B6B", lineHeight: 1.4 }}>{step.sub}</div>
             </div>
 
-            {/* Emoji */}
-            <span style={{ fontSize: 26, flexShrink: 0 }}>{step.emoji}</span>
+            {/* Image */}
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: "linear-gradient(135deg,rgba(232,116,138,0.08) 0%,rgba(244,168,199,0.08) 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                border: "1.5px solid rgba(232,116,138,0.15)",
+                overflow: "hidden",
+              }}
+            >
+              <img 
+                src={step.image} 
+                alt={step.title} 
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+              />
+            </div>
           </motion.div>
         ))}
       </div>
@@ -117,7 +140,7 @@ export const ScanInstructionsPage = ({ onContinue, onBack }: Props) => (
         className="flex items-start gap-3 p-4 rounded-2xl"
         style={{ background: "linear-gradient(135deg,rgba(244,168,199,0.12) 0%,rgba(232,196,160,0.12) 100%)", border: "1px solid rgba(244,168,199,0.25)" }}
       >
-        <span style={{ fontSize: 20 }}>💡</span>
+        <Lightbulb size={18} style={{ color: "#E8748A", flexShrink: 0, marginTop: 2 }} />
         <div>
           <span style={{ fontWeight: 700, fontSize: 13, color: "#E8748A" }}>Dica: </span>
           <span style={{ fontSize: 13, color: "#6B6B6B", lineHeight: 1.5 }}>
