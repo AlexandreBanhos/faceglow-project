@@ -196,7 +196,10 @@ const Profile = () => {
     fetchQuizAnswers().then((remote) => {
       if (remote) {
         setQuizAnswers(remote);
-        try { localStorage.setItem("faceglow-quiz-answers", JSON.stringify(remote)); } catch { /* quota */ }
+        try {
+          localStorage.setItem("faceglow-quiz-answers", JSON.stringify(remote));
+          localStorage.setItem("faceglow-quiz-completed", "1");
+        } catch { /* quota */ }
       }
     });
   }, []);

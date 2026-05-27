@@ -43,14 +43,24 @@ export function NotificationSettings() {
         {!loading && !isDenied && (
           <button
             onClick={isActive ? disable : enable}
+            aria-label={isActive ? "Desativar notificações" : "Ativar notificações"}
             style={{
-              padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 700,
-              cursor: "pointer", border: "none",
-              background: isActive ? "rgba(232,116,138,0.1)" : "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)",
-              color: isActive ? "#E8748A" : "white",
+              width: 42, height: 24, borderRadius: 99, border: "none",
+              cursor: "pointer", flexShrink: 0,
+              background: isActive
+                ? "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)"
+                : "rgba(203,213,225,0.8)",
+              position: "relative", transition: "background 0.2s",
             }}
           >
-            {isActive ? "Desativar" : "Ativar"}
+            <span style={{
+              position: "absolute", top: 3,
+              left: isActive ? 20 : 3,
+              width: 18, height: 18, borderRadius: "50%",
+              background: "white",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              transition: "left 0.2s",
+            }} />
           </button>
         )}
       </div>

@@ -37,14 +37,12 @@ function advanceToLifestyleOrInstructions(
   setLifestyleAnswers: (a: LifestyleAnswers) => void,
 ) {
   const done = localStorage.getItem(QUIZ_COMPLETED_KEY);
-  if (done) {
-    try {
-      const saved = JSON.parse(localStorage.getItem(QUIZ_ANSWERS_KEY) ?? "null") as LifestyleAnswers | null;
-      if (saved) setLifestyleAnswers(saved);
-    } catch { /* usa perfil salvo no backend */ }
-    setPhase("instructions"); // retornando: pula quiz direto para câmera
+  const savedAnswers = localStorage.getItem(QUIZ_ANSWERS_KEY);
+  if (done || savedAnswers) {
+    if (savedAnswers) { try { setLifestyleAnswers(JSON.parse(savedAnswers)); } catch { /* usa perfil salvo no backend */ } }
+    setPhase("instructions");
   } else {
-    setPhase("lifestyle_pre"); // primeira vez: começa pelo quiz pré-análise
+    setPhase("lifestyle_pre");
   }
 }
 
@@ -435,7 +433,9 @@ const Analyze = () => {
         onComplete={(raw) => {
           const answers = quizToLifestyle(raw);
           setPreAnswers(answers);
-          setLifestyleAnswers(answers); // compatibilidade
+          setLifestyleAnswers(answers);
+          localStorage.setItem(QUIZ_COMPLETED_KEY, "1");
+          localStorage.setItem(QUIZ_ANSWERS_KEY, JSON.stringify(answers));
           setPhase("instructions");
         }}
         onBack={() => setPhase("info")}

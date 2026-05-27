@@ -426,6 +426,7 @@ const Routine = () => {
   // Animação de conclusão da rotina
   const [showCompletionAnimation, setShowCompletionAnimation] = useState(false);
   const [completionAnimPeriod, setCompletionAnimPeriod] = useState<"morning" | "night">("morning");
+  const [showNightWizard, setShowNightWizard] = useState(false);
   // Free user: simple add-step form
   const [freeAddStepOpen, setFreeAddStepOpen] = useState(false);
   const [freeStepName, setFreeStepName] = useState("");
@@ -1697,25 +1698,24 @@ const Routine = () => {
   // Mascot float animation for the completion overlay
   useFloatAnimation();
 
-  // Dispara animação de conclusão uma vez por período/dia.
-  // Animação de conclusão: dispara apenas 1× por dia (persiste em localStorage).
-  const COMPLETION_ANIM_KEY = "faceglow-completion-anim-shown-date";
+  // Dispara animação de conclusão uma vez por período/dia (chaves separadas por período).
   const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!isRoutineComplete || selectedDay !== todayStr) return;
-    // Verifica se já foi exibida hoje (persistência cross-reload)
-    const shownDate = localStorage.getItem(COMPLETION_ANIM_KEY);
-    if (shownDate === todayStr) return;
-    // Marca como exibida hoje antes de mostrar
-    localStorage.setItem(COMPLETION_ANIM_KEY, todayStr);
-    setCompletionAnimPeriod(selectedPeriod);
-    setShowCompletionAnimation(true);
-    if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
-    completionTimerRef.current = setTimeout(() => {
-      setShowCompletionAnimation(false);
-      completionTimerRef.current = null;
-    }, 1800);
-    // Sem return de cleanup — o timer não deve ser cancelado por re-render
+    const animKey = `faceglow-completion-anim-${selectedPeriod}-${todayStr}`;
+    if (localStorage.getItem(animKey)) return;
+    localStorage.setItem(animKey, "1");
+    if (selectedPeriod === "night") {
+      setShowNightWizard(true);
+    } else {
+      setCompletionAnimPeriod(selectedPeriod);
+      setShowCompletionAnimation(true);
+      if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+      completionTimerRef.current = setTimeout(() => {
+        setShowCompletionAnimation(false);
+        completionTimerRef.current = null;
+      }, 1800);
+    }
   }, [isRoutineComplete, selectedDay, selectedPeriod, todayStr]);
   // Limpa o timer apenas no unmount do componente
   useEffect(() => () => { if (completionTimerRef.current) clearTimeout(completionTimerRef.current); }, []);
@@ -4031,6 +4031,47 @@ const Routine = () => {
                   }}
                 />
               ))}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Wizard de conclusão noturna — bottom-sheet dismissível */}
+      <AnimatePresence>
+        {showNightWizard && (
+          <motion.div
+            key="night-wizard-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ position: "fixed", inset: 0, zIndex: 9991, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 16px 24px" }}
+            onClick={() => setShowNightWizard(false)}
+          >
+            <motion.div
+              key="night-wizard-sheet"
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              style={{ width: "100%", maxWidth: 420, borderRadius: 28, background: "linear-gradient(160deg,#fce7f3 0%,#fdf0f8 60%,#fff0fc 100%)", padding: "28px 24px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Mascot mood="happy" size={88} />
+              <div style={{ textAlign: "center" }}>
+                <p style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 800, color: "#1A1A1A", letterSpacing: "-0.4px" }}>
+                  Dia completo! 🌙
+                </p>
+                <p style={{ margin: 0, fontSize: 14, color: "#6B6B6B", lineHeight: 1.55 }}>
+                  Você cuidou da sua pele de manhã e à noite.{"\n"}Descanse bem — até amanhã!
+                </p>
+              </div>
+              <button
+                onClick={() => setShowNightWizard(false)}
+                style={{ marginTop: 4, height: 44, paddingInline: 40, borderRadius: 99, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 15, color: "white", background: "linear-gradient(135deg,#E8748A 0%,#F4A8C7 100%)", boxShadow: "0 4px 16px rgba(232,116,138,0.35)" }}
+              >
+                Fechar
+              </button>
             </motion.div>
           </motion.div>
         )}
