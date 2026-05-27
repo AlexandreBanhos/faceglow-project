@@ -88,10 +88,19 @@ const formatDate = (s?: string) => {
   } catch { return s; }
 };
 
-const getPaymentLabel = (gateway?: string) => {
+const isAdminGranted = (planKey?: string, gateway?: string) =>
+  planKey === "test" || !gateway || gateway === "admin";
+
+const getPaymentLabel = (planKey?: string, gateway?: string) => {
+  if (isAdminGranted(planKey, gateway)) return "Autorizado";
   if (gateway?.includes("pix")) return "PIX";
   if (gateway?.includes("stripe")) return "Cartão de Crédito";
   return gateway ?? "—";
+};
+
+const getPlanName = (planKey?: string, planName?: string, gateway?: string) => {
+  if (isAdminGranted(planKey, gateway)) return "Cortesia";
+  return planName ?? "—";
 };
 
 const ACTIVE_PLAN_FEATURES: Record<BillingPlanKey, string[]> = {
@@ -242,7 +251,7 @@ const Premium = () => {
                       : "text-muted-foreground"
                   }`}
                 >
-                  {t === "subscription" ? "✨ Acesso Premium" : "⚡ Análise Avulsa"}
+                  {t === "subscription" ? "Acesso Premium" : "Análise Avulsa"}
                 </button>
               ))}
             </div>
@@ -288,7 +297,7 @@ const Premium = () => {
                           <div>
                             <p className="font-extrabold text-foreground text-sm">{p.name}</p>
                             {p.savings && (
-                              <p className="text-[11px] text-green-600 font-semibold mt-0.5">{p.savings}</p>
+                              <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#7dcfc9" }}>{p.savings}</p>
                             )}
                           </div>
                           <div className="text-right flex-shrink-0">
@@ -339,8 +348,8 @@ const Premium = () => {
                       <p className="text-[10px] text-muted-foreground">por análise</p>
                     </div>
                   </div>
-                  <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 font-medium">
-                    ℹ️ Inclui análise completa, mas não dá acesso à rotina personalizada nem ao histórico.
+                  <div className="text-xs rounded-xl px-3 py-2 font-medium" style={{ background: "#fdf8f0", color: "#c0a060", border: "1px solid rgba(245,217,160,0.5)" }}>
+                    Inclui análise completa, mas não dá acesso à rotina personalizada nem ao histórico.
                   </div>
                 </motion.div>
               )}
@@ -422,7 +431,7 @@ const Premium = () => {
               <motion.p
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3"
+                className="text-sm rounded-xl px-4 py-3" style={{ color: "#c87090", background: "#fdf0f4", border: "1px solid #f5c0d0" }}
               >
                 {error}
               </motion.p>
@@ -456,7 +465,7 @@ const Premium = () => {
             {/* Rodapé legal */}
             <div className="text-center space-y-1.5 pb-4">
               <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                <ShieldCheck size={12} className="text-emerald-500" />
+                <ShieldCheck size={12} style={{ color: "#7dcfc9" }} className="" />
                 <span>Pagamento único · Sem renovação automática · Sem cobranças futuras</span>
               </div>
               <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground flex-wrap">
@@ -479,7 +488,8 @@ const FeatureTick = ({ ok, highlight }: { ok: boolean; highlight?: boolean }) =>
     {ok ? (
       <CheckCircle2
         size={16}
-        className={highlight ? "text-primary" : "text-green-500"}
+        className={highlight ? "text-primary" : ""}
+        style={!highlight ? { color: "#7dcfc9" } : undefined}
         style={highlight ? { filter: "drop-shadow(0 0 4px rgba(220,100,140,0.4))" } : undefined}
       />
     ) : (
@@ -530,13 +540,30 @@ const ActivePremiumView = ({
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
       {/* Header */}
       <div className="text-center">
-        <div
-          className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
-          style={{ background: "var(--grad-coral)", boxShadow: "0 8px 28px -4px rgba(220,100,140,0.5)" }}
-        >
-          <FontAwesomeIcon icon={faCrown} className="text-white text-3xl" />
+        <div className="relative w-20 h-20 mx-auto mb-4">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, #f5e6a0, #c8a060)",
+              boxShadow: "0 8px 28px -4px rgba(200,160,96,0.5)",
+            }}
+          >
+            <span style={{ fontSize: 46, fontWeight: 900, color: "white", lineHeight: 1, fontFamily: "system-ui, sans-serif", letterSpacing: -2 }}>
+              F
+            </span>
+          </div>
+          <div
+            className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full flex items-center justify-center"
+            style={{
+              background: "linear-gradient(135deg, #2D1B2E, #3d2440)",
+              border: "2px solid rgba(245,230,160,0.5)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+            }}
+          >
+            <FontAwesomeIcon icon={faCrown} style={{ fontSize: 11, color: "#f5d9a0" }} />
+          </div>
         </div>
-        <h1 className="text-2xl font-black text-foreground mb-1">Você é Premium! 🎉</h1>
+        <h1 className="text-2xl font-black text-foreground mb-1">Você é Premium!</h1>
         <p className="text-sm text-muted-foreground">Explore todos os recursos do seu plano</p>
       </div>
 
@@ -546,8 +573,8 @@ const ActivePremiumView = ({
         style={{ border: "1px solid var(--primary, #e8a9c2)" }}
       >
         <div className="grid grid-cols-2 gap-4">
-          <InfoCell label="Plano Ativo" value={billingStatus.planName} />
-          <InfoCell label="Pagamento" value={getPaymentLabel(billingStatus.gateway)} />
+          <InfoCell label="Plano Ativo" value={getPlanName(billingStatus.planKey, billingStatus.planName, billingStatus.gateway)} />
+          <InfoCell label="Pagamento" value={getPaymentLabel(billingStatus.planKey, billingStatus.gateway)} />
           <InfoCell label="Ativado em" value={formatDate(billingStatus.activatedAtUtc)} small />
           <InfoCell label="Acesso válido até" value={formatDate(billingStatus.expiresAtUtc)} small />
         </div>
@@ -578,7 +605,7 @@ const ActivePremiumView = ({
               transition={{ delay: 0.1 + i * 0.04 }}
               className="flex items-center gap-3 p-3 rounded-xl lg-surface"
             >
-              <CheckCircle2 size={16} className="text-green-500 flex-shrink-0" />
+              <CheckCircle2 size={16} className="flex-shrink-0" style={{ color: "#7dcfc9" }} />
               <span className="text-sm font-medium text-foreground">{feat}</span>
             </motion.div>
           ))}
@@ -599,7 +626,7 @@ const ActivePremiumView = ({
         <button
           onClick={handleCancel}
           disabled={canceling}
-          className="text-xs text-rose-500 font-semibold underline disabled:opacity-50"
+          className="text-xs font-semibold underline disabled:opacity-50" style={{ color: "#e8829a" }}
         >
           {canceling ? "Cancelando..." : "Encerrar acesso antecipadamente"}
         </button>

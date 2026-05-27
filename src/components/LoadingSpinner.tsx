@@ -3,7 +3,6 @@ interface SpinnerProps {
   className?: string;
 }
 
-/** Spinner minimalista com gradiente coral da identidade visual */
 export const GradientSpinner = ({ size = 32, className = "" }: SpinnerProps) => (
   <>
     <style>{`
@@ -16,8 +15,8 @@ export const GradientSpinner = ({ size = 32, className = "" }: SpinnerProps) => 
         height: size,
         borderRadius: "50%",
         border: `${Math.max(2, size / 10)}px solid transparent`,
-        borderTopColor: "#FF6B6B",
-        borderRightColor: "#FF8E53",
+        borderTopColor: "#E8748A",
+        borderRightColor: "#E8A882",
         animation: "fgSpin 0.7s linear infinite",
         flexShrink: 0,
       }}
@@ -49,7 +48,7 @@ export const LoadingSpinner = ({
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "linear-gradient(135deg, #22c55e, #16a34a)",
+          background: "linear-gradient(135deg, #afe1dc, #7dcfc9)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -78,7 +77,7 @@ export const LoadingSpinner = ({
             className="h-full rounded-full transition-all duration-300"
             style={{
               width: `${Math.min(progress, 100)}%`,
-              background: "linear-gradient(90deg, #FF6B6B, #FF8E53)",
+              background: "linear-gradient(90deg, #E8748A, #E8A882)",
             }}
           />
         </div>
@@ -92,7 +91,10 @@ export const LoadingSpinnerFullScreen = ({
   progress,
   progressLabel,
 }: Omit<LoadingSpinnerProps, "size" | "containerClassName">) => (
-  <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+  <div
+    className="flex min-h-screen flex-col items-center justify-center px-4"
+    style={{ background: "var(--grad-aurora)" }}
+  >
     <LoadingSpinner size={48} message={message} progress={progress} progressLabel={progressLabel} />
   </div>
 );
