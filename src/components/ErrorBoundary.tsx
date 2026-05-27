@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
-import { RefreshCw, AlertTriangle } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import brokenUrl from "@/assets/icones/produto-quebrado.svg";
 
 interface Props {
   children: ReactNode;
@@ -51,8 +52,16 @@ export class ErrorBoundary extends Component<Props, State> {
       <div className="min-h-screen flex items-center justify-center p-6"
         style={{ background: "var(--grad-aurora)" }}>
         <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl max-w-sm w-full p-8 text-center space-y-5">
-          <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
-            <AlertTriangle size={26} className="text-destructive" />
+          <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg,rgba(221,182,147,0.15),rgba(239,143,184,0.18))" }}>
+            <div style={{
+              width: 36, height: 36,
+              WebkitMaskImage: `url("${brokenUrl}")`, maskImage: `url("${brokenUrl}")`,
+              WebkitMaskSize: "contain", maskSize: "contain",
+              WebkitMaskPosition: "center", maskPosition: "center",
+              WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+              background: "linear-gradient(135deg,#ddb693 0%,#e8a9c2 55%,#ef8fb8 100%)",
+            }} />
           </div>
           <div>
             <h2 className="text-lg font-bold text-foreground">Algo deu errado</h2>
