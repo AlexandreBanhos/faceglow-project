@@ -9,6 +9,7 @@ import {
   faChevronRight, faCrown, faCheckDouble,
 } from "@fortawesome/free-solid-svg-icons";
 import logoFaceglow from "@/assets/logos/logo-faceglow-escrito-escura.webp";
+import logoIcon from "@/assets/logos/logo-faceglow.svg";
 import { createBillingCheckout, type BillingPlanKey, type BillingStatusResponse, fetchBillingStatus } from "@/lib/billing";
 import { apiClient } from "@/shared/services/api/ApiClient";
 import { getCurrentUser } from "@/lib/auth";
@@ -540,18 +541,17 @@ const ActivePremiumView = ({
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
       {/* Header */}
       <div className="text-center">
-        <div className="relative w-20 h-20 mx-auto mb-4">
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center"
+        <div className="relative w-24 h-24 mx-auto mb-4">
+          <img
+            src={logoIcon}
+            alt="FaceGlow Premium"
             style={{
-              background: "linear-gradient(135deg, #f5e6a0, #c8a060)",
-              boxShadow: "0 8px 28px -4px rgba(200,160,96,0.5)",
+              width: 96,
+              height: 96,
+              objectFit: "contain",
+              filter: "sepia(1) saturate(3.5) hue-rotate(350deg) brightness(1.15) drop-shadow(0 6px 18px rgba(200,160,60,0.45))",
             }}
-          >
-            <span style={{ fontSize: 46, fontWeight: 900, color: "white", lineHeight: 1, fontFamily: "system-ui, sans-serif", letterSpacing: -2 }}>
-              F
-            </span>
-          </div>
+          />
           <div
             className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full flex items-center justify-center"
             style={{
