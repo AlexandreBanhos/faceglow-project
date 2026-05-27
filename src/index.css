@@ -186,6 +186,7 @@
   }
 }
 
+@layer base {
   /* Prevent iOS Safari auto-zoom on input focus (requires font-size >= 16px) */
   input, textarea, select {
     font-size: max(16px, 1em);
