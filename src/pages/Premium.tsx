@@ -490,8 +490,7 @@ const FeatureTick = ({ ok, highlight }: { ok: boolean; highlight?: boolean }) =>
       <CheckCircle2
         size={16}
         className={highlight ? "text-primary" : ""}
-        style={!highlight ? { color: "#81c1a7" } : undefined}
-        style={highlight ? { filter: "drop-shadow(0 0 4px rgba(220,100,140,0.4))" } : undefined}
+        style={highlight ? { filter: "drop-shadow(0 0 4px rgba(220,100,140,0.4))" } : { color: "#81c1a7" }}
       />
     ) : (
       <XCircle size={16} className="text-muted-foreground opacity-30" />
