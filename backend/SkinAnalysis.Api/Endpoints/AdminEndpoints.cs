@@ -69,6 +69,24 @@ public static class AdminEndpoints
             .WithName("GetAdminUserProducts")
             .WithDescription("Get a user's custom products")
             .RequireAuthorization();
+
+        group.MapPatch("/users/{targetUserId:guid}/steps/{stepId:guid}", UpdateRoutineStepHandler)
+            .WithName("UpdateAdminRoutineStep").RequireAuthorization();
+
+        group.MapPatch("/users/{targetUserId:guid}/steps/{stepId:guid}/order", ReorderRoutineStepHandler)
+            .WithName("ReorderAdminRoutineStep").RequireAuthorization();
+
+        group.MapPatch("/users/{targetUserId:guid}/steps/{stepId:guid}/period", MoveStepPeriodHandler)
+            .WithName("MoveAdminRoutineStepPeriod").RequireAuthorization();
+
+        group.MapPatch("/users/{targetUserId:guid}/steps/{stepId:guid}/product", AssignStepProductHandler)
+            .WithName("AssignAdminStepProduct").RequireAuthorization();
+
+        group.MapPost("/users/{targetUserId:guid}/steps", AddRoutineStepHandler)
+            .WithName("AddAdminRoutineStep").RequireAuthorization();
+
+        group.MapDelete("/users/{targetUserId:guid}/steps/{stepId:guid}", DeleteRoutineStepHandler)
+            .WithName("DeleteAdminRoutineStep").RequireAuthorization();
     }
 
     private static async Task<IResult> CheckAdminStatusHandler(
@@ -537,6 +555,250 @@ public static class AdminEndpoints
         }
     }
 
+    private static async Task<IResult> UpdateRoutineStepHandler(
+        Guid targetUserId, Guid stepId,
+        UpdateStepRequest body,
+        ClaimsPrincipal user, AppDbContext db,
+        AdminService adminService, ILogger<AdminService> logger, CancellationToken ct)
+    {
+        var requesterId = AdminService.ExtractUserIdFromClaims(user);
+        if (requesterId is null) return Results.Unauthorized();
+        if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .FirstOrDefaultAsync(s => s.Id == stepId && s.Routine.UserId == targetUserId, ct);
+
+        if (step is null) return Results.NotFound();
+
+        if (!string.IsNullOrWhiteSpace(body.StepTypeKey)) step.StepTypeKey = body.StepTypeKey;
+        if (!string.IsNullOrWhiteSpace(body.Recurrence)) step.Recurrence = body.Recurrence;
+        step.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { stepId, step.StepTypeKey, step.Recurrence });
+    }
+
+    private static async Task<IResult> ReorderRoutineStepHandler(
+        Guid targetUserId, Guid stepId,
+        ReorderStepRequest body,
+        ClaimsPrincipal user, AppDbContext db,
+        AdminService adminService, ILogger<AdminService> logger, CancellationToken ct)
+    {
+        var requesterId = AdminService.ExtractUserIdFromClaims(user);
+        if (requesterId is null) return Results.Unauthorized();
+        if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .FirstOrDefaultAsync(s => s.Id == stepId && s.Routine.UserId == targetUserId, ct);
+
+        if (step is null) return Results.NotFound();
+
+        var siblings = await db.RoutineSteps
+            .Where(s => s.RoutineId == step.RoutineId)
+            .OrderBy(s => s.StepOrder)
+            .ToListAsync(ct);
+
+        var idx = siblings.FindIndex(s => s.Id == stepId);
+        var swapIdx = body.Direction == "up" ? idx - 1 : idx + 1;
+
+        if (swapIdx < 0 || swapIdx >= siblings.Count)
+            return Results.BadRequest(new { error = "Já está no limite" });
+
+        (siblings[idx].StepOrder, siblings[swapIdx].StepOrder) = (siblings[swapIdx].StepOrder, siblings[idx].StepOrder);
+        siblings[idx].UpdatedAt = siblings[swapIdx].UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { stepId, newOrder = step.StepOrder });
+    }
+
+    private static async Task<IResult> MoveStepPeriodHandler(
+        Guid targetUserId, Guid stepId,
+        ClaimsPrincipal user, AppDbContext db,
+        AdminService adminService, ILogger<AdminService> logger, CancellationToken ct)
+    {
+        var requesterId = AdminService.ExtractUserIdFromClaims(user);
+        if (requesterId is null) return Results.Unauthorized();
+        if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .FirstOrDefaultAsync(s => s.Id == stepId && s.Routine.UserId == targetUserId, ct);
+
+        if (step is null) return Results.NotFound();
+
+        var targetPeriod = step.Routine.Period == "morning" ? "night" : "morning";
+
+        var targetRoutine = await db.Routines
+            .FirstOrDefaultAsync(r => r.UserId == targetUserId && r.Period == targetPeriod && r.IsActive, ct);
+
+        if (targetRoutine is null)
+            return Results.BadRequest(new { error = $"Usuário não possui rotina de {targetPeriod}" });
+
+        var maxOrder = await db.RoutineSteps
+            .Where(s => s.RoutineId == targetRoutine.Id)
+            .MaxAsync(s => (int?)s.StepOrder, ct) ?? 0;
+
+        step.RoutineId = targetRoutine.Id;
+        step.StepOrder = maxOrder + 1;
+        step.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { stepId, newPeriod = targetPeriod });
+    }
+
+    private static async Task<IResult> AssignStepProductHandler(
+        Guid targetUserId, Guid stepId,
+        AssignProductRequest body,
+        ClaimsPrincipal user, AppDbContext db,
+        AdminService adminService, ILogger<AdminService> logger, CancellationToken ct)
+    {
+        var requesterId = AdminService.ExtractUserIdFromClaims(user);
+        if (requesterId is null) return Results.Unauthorized();
+        if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .Include(s => s.Slots)
+            .FirstOrDefaultAsync(s => s.Id == stepId && s.Routine.UserId == targetUserId, ct);
+
+        if (step is null) return Results.NotFound();
+
+        db.StepProductSlots.RemoveRange(step.Slots);
+
+        string? productName = null, productBrand = null, productImage = null;
+
+        if (body.ProductId.HasValue)
+        {
+            db.StepProductSlots.Add(new StepProductSlot
+            {
+                StepId = step.Id,
+                Tier = "primary",
+                ProductId = body.ProductId,
+                IsSelected = true,
+            });
+
+            var product = await db.Products.AsNoTracking()
+                .Include(p => p.Images)
+                .FirstOrDefaultAsync(p => p.Id == body.ProductId.Value, ct);
+
+            if (product is not null)
+            {
+                productName = product.Name;
+                productBrand = product.Brand;
+                productImage = product.Images.OrderBy(i => i.Position).FirstOrDefault()?.PublicUrl;
+            }
+        }
+
+        step.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return Results.Ok(new { stepId, productId = body.ProductId, productName, productBrand, productImage });
+    }
+
+    private static async Task<IResult> AddRoutineStepHandler(
+        Guid targetUserId,
+        AddStepRequest body,
+        ClaimsPrincipal user, AppDbContext db,
+        AdminService adminService, ILogger<AdminService> logger, CancellationToken ct)
+    {
+        var requesterId = AdminService.ExtractUserIdFromClaims(user);
+        if (requesterId is null) return Results.Unauthorized();
+        if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+        if (string.IsNullOrWhiteSpace(body.StepTypeKey))
+            return Results.BadRequest(new { error = "stepTypeKey é obrigatório" });
+        if (body.Period is not "morning" and not "night")
+            return Results.BadRequest(new { error = "period deve ser 'morning' ou 'night'" });
+
+        var routine = await db.Routines
+            .FirstOrDefaultAsync(r => r.UserId == targetUserId && r.Period == body.Period && r.IsActive, ct);
+
+        if (routine is null)
+            return Results.BadRequest(new { error = $"Usuário não possui rotina de {body.Period}" });
+
+        var maxOrder = await db.RoutineSteps
+            .Where(s => s.RoutineId == routine.Id)
+            .MaxAsync(s => (int?)s.StepOrder, ct) ?? 0;
+
+        var step = new UserRoutineStep
+        {
+            RoutineId = routine.Id,
+            StepTypeKey = body.StepTypeKey.Trim(),
+            StepOrder = maxOrder + 1,
+            IsActive = true,
+            IsUserAdded = true,
+            Recurrence = "daily",
+        };
+
+        db.RoutineSteps.Add(step);
+        await db.SaveChangesAsync(ct);
+
+        string? productName = null, productBrand = null, productImage = null;
+
+        if (body.ProductId.HasValue)
+        {
+            db.StepProductSlots.Add(new StepProductSlot
+            {
+                StepId = step.Id,
+                Tier = "primary",
+                ProductId = body.ProductId,
+                IsSelected = true,
+            });
+            await db.SaveChangesAsync(ct);
+
+            var product = await db.Products.AsNoTracking()
+                .Include(p => p.Images)
+                .FirstOrDefaultAsync(p => p.Id == body.ProductId.Value, ct);
+
+            if (product is not null)
+            {
+                productName = product.Name;
+                productBrand = product.Brand;
+                productImage = product.Images.OrderBy(i => i.Position).FirstOrDefault()?.PublicUrl;
+            }
+        }
+
+        logger.LogInformation("[AdminEndpoints] Admin {Admin} added step {Type} to {Period} routine of user {User}", requesterId, step.StepTypeKey, body.Period, targetUserId);
+
+        return Results.Ok(new
+        {
+            stepId = step.Id,
+            stepTypeKey = step.StepTypeKey,
+            stepOrder = step.StepOrder,
+            isActive = step.IsActive,
+            isSkipped = step.IsSkipped,
+            recurrence = step.Recurrence,
+            productName,
+            productBrand,
+            productImage,
+            routineId = routine.Id,
+        });
+    }
+
+    private static async Task<IResult> DeleteRoutineStepHandler(
+        Guid targetUserId, Guid stepId,
+        ClaimsPrincipal user, AppDbContext db,
+        AdminService adminService, ILogger<AdminService> logger, CancellationToken ct)
+    {
+        var requesterId = AdminService.ExtractUserIdFromClaims(user);
+        if (requesterId is null) return Results.Unauthorized();
+        if (!await adminService.IsUserAdminAsync(requesterId.Value, ct)) return Results.Forbid();
+
+        var step = await db.RoutineSteps
+            .Include(s => s.Routine)
+            .FirstOrDefaultAsync(s => s.Id == stepId && s.Routine.UserId == targetUserId, ct);
+
+        if (step is null) return Results.NotFound();
+
+        db.RoutineSteps.Remove(step);
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("[AdminEndpoints] Admin {Admin} deleted step {Step} from user {User}", requesterId, stepId, targetUserId);
+        return Results.Ok(new { stepId, deleted = true });
+    }
+
     private static async Task<IResult> GetUserProductsHandler(
         Guid targetUserId,
         ClaimsPrincipal user,
@@ -593,3 +855,7 @@ record AdminUserRow(
 
 record AddCreditsRequest(int Amount);
 record ActivatePremiumRequest(string PlanKey, int Days);
+record UpdateStepRequest(string? StepTypeKey, string? Recurrence);
+record ReorderStepRequest(string Direction);
+record AssignProductRequest(Guid? ProductId);
+record AddStepRequest(string StepTypeKey, string Period, Guid? ProductId);

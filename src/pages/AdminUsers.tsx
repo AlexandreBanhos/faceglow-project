@@ -19,10 +19,19 @@ import {
   toggleRoutineStep,
   regenerateUserRoutine,
   fetchAdminUserProducts,
+  searchCatalogProducts,
+  updateRoutineStepType,
+  reorderRoutineStep,
+  moveRoutineStepPeriod,
+  assignStepProduct,
+  addRoutineStep,
+  deleteRoutineStep,
   type AdminUserRow,
   type AdminRoutineStep,
   type AdminRoutineResponse,
+  type AdminRoutinePeriod,
   type AdminUserProduct,
+  type CatalogProduct,
 } from "@/lib/admin-users";
 
 const PAGE_SIZE = 20;
@@ -40,14 +49,16 @@ const stepTypeLabel: Record<string, string> = {
   serum: "Sérum",
   moisturizer: "Hidratante",
   sunscreen: "Protetor Solar",
-  eye_cream: "Creme para Olhos",
+  eye_cream: "Creme p/ Olhos",
   retinoid: "Retinol",
   acid: "Ácido",
-  spot_treatment: "Tratamento Pontual",
+  spot_treatment: "Trat. Pontual",
   oil: "Óleo Facial",
   mask: "Máscara",
   exfoliant: "Esfoliante",
 };
+
+const STEP_TYPE_KEYS = Object.keys(stepTypeLabel);
 
 function fmtDate(iso?: string) {
   if (!iso) return "—";
@@ -72,59 +83,250 @@ function statusBadge(row: AdminUserRow) {
   );
 }
 
-// ── Routine step row ─────────────────────────────────────────────────────────
-function RoutineStepRow({
-  step,
-  userId,
-  onToggle,
+// ── Product picker dialog ─────────────────────────────────────────────────────
+function ProductPickerDialog({
+  open,
+  stepTypeKey,
+  onClose,
+  onSelect,
 }: {
-  step: AdminRoutineStep;
-  userId: string;
-  onToggle: (stepId: string, newActive: boolean) => void;
+  open: boolean;
+  stepTypeKey: string;
+  onClose: () => void;
+  onSelect: (product: CatalogProduct | null) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [filterByType, setFilterByType] = useState(true);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (!open) { setQuery(""); setProducts([]); return; }
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const results = await searchCatalogProducts(query || undefined, filterByType ? stepTypeKey : undefined);
+        setProducts(results);
+      } catch {
+        toast({ title: "Erro ao buscar produtos", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    }, query ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [query, open, stepTypeKey, filterByType, toast]);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Escolher produto</DialogTitle></DialogHeader>
+        <Input
+          placeholder="Buscar por nome ou marca..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+        />
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={filterByType}
+            onChange={(e) => setFilterByType(e.target.checked)}
+            className="rounded"
+          />
+          Filtrar por tipo ({stepTypeLabel[stepTypeKey] ?? stepTypeKey})
+        </label>
+        <div className="max-h-56 overflow-y-auto space-y-1">
+          {loading && <p className="text-xs text-muted-foreground text-center py-4">Buscando...</p>}
+          {!loading && products.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">Nenhum produto</p>
+          )}
+          {products.map((p) => (
+            <button
+              key={p.id}
+              className="w-full flex items-center gap-2 p-2 hover:bg-muted rounded-lg text-left"
+              onClick={() => onSelect(p)}
+            >
+              {p.imageUrl ? (
+                <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 rounded bg-muted flex-shrink-0" />
+              )}
+              <div className="min-w-0">
+                <p className="text-xs font-medium truncate">{p.name}</p>
+                <p className="text-[10px] text-muted-foreground truncate">
+                  {p.brand}{!filterByType ? ` · ${stepTypeLabel[p.stepTypeKey] ?? p.stepTypeKey}` : ""}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => onSelect(null)}>Remover produto</Button>
+          <Button size="sm" variant="ghost" className="flex-1" onClick={onClose}>Cancelar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Add step form ─────────────────────────────────────────────────────────────
+function AddStepForm({
+  period,
+  userId,
+  onDone,
+  onCancel,
+}: {
+  period: "morning" | "night";
+  userId: string;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [typeKey, setTypeKey] = useState("cleanser");
+  const [product, setProduct] = useState<CatalogProduct | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  async function handleAdd() {
+    setSaving(true);
+    try {
+      await addRoutineStep(userId, { period, stepTypeKey: typeKey, productId: product?.id });
+      onDone();
+    } catch (e: unknown) {
+      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg border border-dashed mt-2">
+        <select
+          className="text-xs bg-muted rounded px-2 py-1 outline-none cursor-pointer"
+          value={typeKey}
+          onChange={(e) => setTypeKey(e.target.value)}
+        >
+          {STEP_TYPE_KEYS.map((k) => <option key={k} value={k}>{stepTypeLabel[k] ?? k}</option>)}
+        </select>
+        <button
+          className="text-xs text-blue-600 hover:underline"
+          onClick={() => setPickerOpen(true)}
+        >
+          {product ? `${product.name} (trocar)` : "Escolher produto"}
+        </button>
+        <div className="flex-1" />
+        <Button size="sm" className="h-7 text-xs" disabled={saving} onClick={handleAdd}>
+          {saving ? "..." : "Adicionar"}
+        </Button>
+        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onCancel}>Cancelar</Button>
+      </div>
+      <ProductPickerDialog
+        open={pickerOpen}
+        stepTypeKey={typeKey}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(p) => { setProduct(p); setPickerOpen(false); }}
+      />
+    </>
+  );
+}
+
+// ── Routine step row ──────────────────────────────────────────────────────────
+function RoutineStepRow({
+  step, userId, period, isFirst, isLast,
+  onToggle, onReorder, onMovePeriod, onDelete, onOpenProductPicker, onTypeChange,
+}: {
+  step: AdminRoutineStep;
+  userId: string;
+  period: "morning" | "night";
+  isFirst: boolean;
+  isLast: boolean;
+  onToggle: (stepId: string, newActive: boolean) => void;
+  onReorder: (direction: "up" | "down") => void;
+  onMovePeriod: () => void;
+  onDelete: () => void;
+  onOpenProductPicker: () => void;
+  onTypeChange: (type: string) => void;
+}) {
+  const [toggling, setToggling] = useState(false);
+  const { toast } = useToast();
+
   async function handleToggle() {
-    setLoading(true);
+    setToggling(true);
     try {
       const res = await toggleRoutineStep(userId, step.stepId);
       onToggle(step.stepId, res.isActive);
     } catch {
       toast({ title: "Erro ao alterar step", variant: "destructive" });
     } finally {
-      setLoading(false);
+      setToggling(false);
     }
   }
 
+  const otherPeriodLabel = period === "morning" ? "Noite" : "Manhã";
+
   return (
-    <div className={`flex items-center gap-3 p-2 rounded-lg border ${step.isActive ? "" : "opacity-50"}`}>
-      {step.productImage ? (
-        <img src={step.productImage} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />
-      ) : (
-        <div className="w-10 h-10 rounded bg-muted flex-shrink-0" />
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate">{step.productName ?? "—"}</p>
-        <p className="text-[10px] text-muted-foreground truncate">
-          {stepTypeLabel[step.stepTypeKey] ?? step.stepTypeKey}
-          {step.productBrand ? ` · ${step.productBrand}` : ""}
-        </p>
+    <div className={`flex flex-col gap-1.5 p-2 rounded-lg border ${step.isActive ? "" : "opacity-50"}`}>
+      {/* Line 1: image + name + action buttons */}
+      <div className="flex items-center gap-2">
+        {step.productImage ? (
+          <img src={step.productImage} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0" />
+        ) : (
+          <div className="w-9 h-9 rounded bg-muted flex-shrink-0" />
+        )}
+        <p className="flex-1 text-xs font-medium truncate min-w-0">{step.productName ?? "—"}</p>
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <Button
+            size="icon" variant="ghost" className="h-6 w-6 text-base"
+            disabled={isFirst} title="Subir" onClick={() => onReorder("up")}
+          >↑</Button>
+          <Button
+            size="icon" variant="ghost" className="h-6 w-6 text-base"
+            disabled={isLast} title="Descer" onClick={() => onReorder("down")}
+          >↓</Button>
+          <Button
+            size="icon" variant="ghost" className="h-6 w-6 text-xs text-muted-foreground"
+            title={`Mover para ${otherPeriodLabel}`} onClick={onMovePeriod}
+          >⇄</Button>
+          <Button
+            size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive text-xs"
+            title="Remover" onClick={onDelete}
+          >✕</Button>
+        </div>
       </div>
-      <Button
-        size="sm"
-        variant={step.isActive ? "outline" : "ghost"}
-        className="text-xs h-7 flex-shrink-0"
-        disabled={loading}
-        onClick={handleToggle}
-      >
-        {step.isActive ? "Desativar" : "Ativar"}
-      </Button>
+
+      {/* Line 2: type selector + product + toggle */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          className="text-[10px] bg-muted rounded px-1.5 py-0.5 outline-none cursor-pointer border-0"
+          value={step.stepTypeKey}
+          onChange={(e) => onTypeChange(e.target.value)}
+        >
+          {STEP_TYPE_KEYS.map((k) => <option key={k} value={k}>{stepTypeLabel[k] ?? k}</option>)}
+        </select>
+        {step.productBrand && (
+          <span className="text-[10px] text-muted-foreground truncate">{step.productBrand}</span>
+        )}
+        <button
+          className="text-[10px] text-blue-600 hover:underline flex-shrink-0"
+          onClick={onOpenProductPicker}
+        >
+          {step.productName ? "Trocar produto" : "+ Produto"}
+        </button>
+        <div className="flex-1" />
+        <Button
+          size="sm" variant={step.isActive ? "outline" : "ghost"}
+          className="text-xs h-6 flex-shrink-0" disabled={toggling} onClick={handleToggle}
+        >
+          {step.isActive ? "Desativar" : "Ativar"}
+        </Button>
+      </div>
     </div>
   );
 }
 
-// ── Product row with enrich ──────────────────────────────────────────────────
+// ── Product row with enrich ───────────────────────────────────────────────────
 function UserProductRow({ product }: { product: AdminUserProduct }) {
   const [enrichResult, setEnrichResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -181,7 +383,7 @@ function UserProductRow({ product }: { product: AdminUserProduct }) {
   );
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminUsers() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -215,6 +417,11 @@ export default function AdminUsers() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
+  // Routine editing state
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [productPickerStep, setProductPickerStep] = useState<{ stepId: string; stepTypeKey: string } | null>(null);
+  const [addingStepPeriod, setAddingStepPeriod] = useState<"morning" | "night" | null>(null);
+
   useEffect(() => {
     checkAdminAccess().then((result) => { if (!result.isAdmin) navigate("/dashboard"); });
   }, [navigate]);
@@ -246,18 +453,40 @@ export default function AdminUsers() {
     }).finally(() => setDetailLoading(false));
   }, [detailUser]);
 
-  function handleSearch() {
-    setSearch(searchInput);
-    setPage(1);
-  }
+  function handleSearch() { setSearch(searchInput); setPage(1); }
 
-  function handleStepToggle(stepId: string, newActive: boolean) {
+  // ── Routine state helpers ──────────────────────────────────────────────────
+  function updateStepInState(stepId: string, updates: Partial<AdminRoutineStep>) {
     setRoutine((prev) => {
       if (!prev) return prev;
-      const updatePeriod = (period?: { routineId: string; steps: AdminRoutineStep[] }) =>
-        period ? { ...period, steps: period.steps.map((s) => s.stepId === stepId ? { ...s, isActive: newActive } : s) } : period;
-      return { ...prev, routine: { morning: updatePeriod(prev.routine.morning), night: updatePeriod(prev.routine.night) } };
+      const upd = (p?: AdminRoutinePeriod) =>
+        p ? { ...p, steps: p.steps.map((s) => s.stepId === stepId ? { ...s, ...updates } : s) } : p;
+      return { ...prev, routine: { morning: upd(prev.routine.morning), night: upd(prev.routine.night) } };
     });
+  }
+
+  function removeStepFromState(stepId: string) {
+    setRoutine((prev) => {
+      if (!prev) return prev;
+      const rm = (p?: AdminRoutinePeriod) =>
+        p ? { ...p, steps: p.steps.filter((s) => s.stepId !== stepId) } : p;
+      return { ...prev, routine: { morning: rm(prev.routine.morning), night: rm(prev.routine.night) } };
+    });
+  }
+
+  async function reloadRoutine() {
+    if (!detailUser) return;
+    try {
+      const r = await fetchAdminUserRoutine(detailUser.id);
+      setRoutine(r);
+    } catch {
+      toast({ title: "Erro ao recarregar rotina", variant: "destructive" });
+    }
+  }
+
+  // ── Routine handlers ───────────────────────────────────────────────────────
+  function handleStepToggle(stepId: string, newActive: boolean) {
+    updateStepInState(stepId, { isActive: newActive });
   }
 
   async function handleRegenerate() {
@@ -273,6 +502,72 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleTypeChange(stepId: string, newTypeKey: string) {
+    if (!detailUser) return;
+    try {
+      await updateRoutineStepType(detailUser.id, stepId, newTypeKey);
+      updateStepInState(stepId, { stepTypeKey: newTypeKey });
+    } catch (e: unknown) {
+      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+    }
+  }
+
+  async function handleReorder(stepId: string, direction: "up" | "down") {
+    if (!detailUser) return;
+    try {
+      await reorderRoutineStep(detailUser.id, stepId, direction);
+      await reloadRoutine();
+    } catch (e: unknown) {
+      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+    }
+  }
+
+  async function handleMovePeriod(stepId: string) {
+    if (!detailUser) return;
+    try {
+      await moveRoutineStepPeriod(detailUser.id, stepId);
+      await reloadRoutine();
+      toast({ title: "Step movido de período" });
+    } catch (e: unknown) {
+      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+    }
+  }
+
+  async function handleDeleteStep(stepId: string) {
+    if (!detailUser) return;
+    try {
+      await deleteRoutineStep(detailUser.id, stepId);
+      removeStepFromState(stepId);
+      toast({ title: "Step removido" });
+    } catch (e: unknown) {
+      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+    }
+  }
+
+  function openProductPicker(stepId: string, stepTypeKey: string) {
+    setProductPickerStep({ stepId, stepTypeKey });
+    setProductPickerOpen(true);
+  }
+
+  async function handleProductSelected(product: CatalogProduct | null) {
+    setProductPickerOpen(false);
+    if (!productPickerStep || !detailUser) { setProductPickerStep(null); return; }
+    const { stepId } = productPickerStep;
+    setProductPickerStep(null);
+    try {
+      const result = await assignStepProduct(detailUser.id, stepId, product?.id ?? null);
+      updateStepInState(stepId, {
+        productName: result.productName ?? undefined,
+        productBrand: result.productBrand ?? undefined,
+        productImage: result.productImage ?? undefined,
+      });
+      toast({ title: product ? "Produto atualizado" : "Produto removido" });
+    } catch (e: unknown) {
+      toast({ title: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+    }
+  }
+
+  // ── Billing handlers ───────────────────────────────────────────────────────
   async function handleAddCredits() {
     if (!creditsTarget) return;
     const amount = parseInt(creditsAmount, 10);
@@ -449,27 +744,57 @@ export default function AdminUsers() {
                     <p className="text-sm text-muted-foreground text-center py-8">Nenhuma rotina ativa</p>
                   )}
 
-                  {routine?.routine.morning && (
-                    <div>
-                      <h3 className="text-sm font-semibold mb-2">Manhã</h3>
-                      <div className="space-y-2">
-                        {routine.routine.morning.steps.map((s) => (
-                          <RoutineStepRow key={s.stepId} step={s} userId={detailUser.id} onToggle={handleStepToggle} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {(["morning", "night"] as const).map((period) => {
+                    const periodData = routine?.routine[period];
+                    if (!periodData) return null;
+                    return (
+                      <div key={period}>
+                        <h3 className="text-sm font-semibold mb-2">{period === "morning" ? "Manhã" : "Noite"}</h3>
+                        <div className="space-y-2">
+                          {periodData.steps.map((s, idx) => (
+                            <RoutineStepRow
+                              key={s.stepId}
+                              step={s}
+                              userId={detailUser.id}
+                              period={period}
+                              isFirst={idx === 0}
+                              isLast={idx === periodData.steps.length - 1}
+                              onToggle={handleStepToggle}
+                              onReorder={(dir) => handleReorder(s.stepId, dir)}
+                              onMovePeriod={() => handleMovePeriod(s.stepId)}
+                              onDelete={() => handleDeleteStep(s.stepId)}
+                              onOpenProductPicker={() => openProductPicker(s.stepId, s.stepTypeKey)}
+                              onTypeChange={(type) => handleTypeChange(s.stepId, type)}
+                            />
+                          ))}
+                        </div>
 
-                  {routine?.routine.night && (
-                    <div>
-                      <h3 className="text-sm font-semibold mb-2">Noite</h3>
-                      <div className="space-y-2">
-                        {routine.routine.night.steps.map((s) => (
-                          <RoutineStepRow key={s.stepId} step={s} userId={detailUser.id} onToggle={handleStepToggle} />
-                        ))}
+                        {addingStepPeriod === period ? (
+                          <AddStepForm
+                            period={period}
+                            userId={detailUser.id}
+                            onDone={async () => { await reloadRoutine(); setAddingStepPeriod(null); }}
+                            onCancel={() => setAddingStepPeriod(null)}
+                          />
+                        ) : (
+                          <Button
+                            size="sm" variant="ghost"
+                            className="text-xs mt-2 text-muted-foreground w-full border border-dashed h-8"
+                            onClick={() => setAddingStepPeriod(period)}
+                          >
+                            + Adicionar step
+                          </Button>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
+
+                  <ProductPickerDialog
+                    open={productPickerOpen}
+                    stepTypeKey={productPickerStep?.stepTypeKey ?? ""}
+                    onClose={() => { setProductPickerOpen(false); setProductPickerStep(null); }}
+                    onSelect={handleProductSelected}
+                  />
                 </TabsContent>
 
                 {/* ── Produtos tab ──────────────────────────────────────────── */}

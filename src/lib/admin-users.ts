@@ -156,3 +156,98 @@ export async function fetchAdminUserProducts(userId: string): Promise<AdminUserP
   if (!res.ok) throw new Error(`Erro ao carregar produtos: ${res.status}`);
   return res.json();
 }
+
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  brand: string;
+  stepTypeKey: string;
+  imageUrl?: string;
+}
+
+export async function searchCatalogProducts(query?: string, stepType?: string): Promise<CatalogProduct[]> {
+  const headers = await getHeaders();
+  const params = new URLSearchParams();
+  if (query?.trim()) params.set("search", query.trim());
+  if (stepType?.trim()) params.set("stepType", stepType.trim());
+  const res = await fetch(`${apiBaseUrl}/products/catalog?${params}`, { headers });
+  if (!res.ok) throw new Error(`Erro ao buscar produtos: ${res.status}`);
+  return res.json();
+}
+
+export async function updateRoutineStepType(userId: string, stepId: string, stepTypeKey: string): Promise<void> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/steps/${stepId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ stepTypeKey }),
+  });
+  if (!res.ok) throw new Error(`Erro ao atualizar step: ${res.status}`);
+}
+
+export async function reorderRoutineStep(userId: string, stepId: string, direction: "up" | "down"): Promise<void> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/steps/${stepId}/order`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ direction }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Erro ao reordenar: ${res.status}`);
+  }
+}
+
+export async function moveRoutineStepPeriod(userId: string, stepId: string): Promise<{ newPeriod: string }> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/steps/${stepId}/period`, {
+    method: "PATCH",
+    headers,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Erro ao mover período: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function assignStepProduct(
+  userId: string,
+  stepId: string,
+  productId: string | null
+): Promise<{ productName?: string; productBrand?: string; productImage?: string }> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/steps/${stepId}/product`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ productId }),
+  });
+  if (!res.ok) throw new Error(`Erro ao atribuir produto: ${res.status}`);
+  return res.json();
+}
+
+export async function addRoutineStep(
+  userId: string,
+  body: { stepTypeKey: string; period: string; productId?: string }
+): Promise<AdminRoutineStep & { routineId: string }> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/steps`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Erro ao adicionar step: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteRoutineStep(userId: string, stepId: string): Promise<void> {
+  const headers = await getHeaders();
+  const res = await fetch(`${base}/${userId}/steps/${stepId}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(`Erro ao remover step: ${res.status}`);
+}
