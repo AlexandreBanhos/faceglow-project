@@ -2001,7 +2001,7 @@ const Routine = () => {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-5 py-3 rounded-full shadow-xl"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2.5 px-5 py-3 rounded-full shadow-xl"
           style={{ background: "linear-gradient(135deg, #6366f1, #9aa8dc)", color: "white", whiteSpace: "nowrap" }}
         >
           <Moon size={15} />
