@@ -6,7 +6,7 @@ import { useIsPremium } from "@/hooks/useIsPremium";
 import { type AnalysisResponse } from "@/lib/analysis";
 import { fetchRoutineSteps, fetchCatalogProducts, type RoutineStep as ApiRoutineStep } from "@/lib/analysisClient";
 import { PremiumUnlockModal } from "@/components/PremiumUnlockModal";
-import SerumSvg from "@/assets/icones/serum-svg.svg";
+import TratamentoSvg from "@/assets/icones/tratamento.svg";
 
 interface RoutineSummaryCardProps {
   analysis: AnalysisResponse;
@@ -87,8 +87,8 @@ const ProductSlotCircle = ({
             width: "62%",
             height: "62%",
             background: "linear-gradient(135deg, #E8547A 0%, #E8A882 100%)",
-            WebkitMaskImage: `url(${SerumSvg})`,
-            maskImage: `url(${SerumSvg})`,
+            WebkitMaskImage: `url(${TratamentoSvg})`,
+            maskImage: `url(${TratamentoSvg})`,
             WebkitMaskSize: "contain",
             maskSize: "contain",
             WebkitMaskPosition: "center",

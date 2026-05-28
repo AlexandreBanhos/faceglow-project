@@ -664,7 +664,7 @@ const Dashboard = () => {
                       transition={{ duration: 0.2 }}
                       style={{ margin: "2px 0 0", fontSize: 52, fontWeight: 800, color: "white", lineHeight: 1, letterSpacing: "-2px" }}
                     >
-                      {activeMet.value}
+                      {activeMet.value}{activeMetricKey !== "overall" ? "%" : ""}
                     </motion.p>
                     {activeMetricKey === "overall" && scoreChange !== null && (
                       <p style={{ margin: "5px 0 0", fontSize: 12, color: "rgba(255,255,255,0.78)", fontWeight: 600 }}>
