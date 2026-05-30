@@ -370,7 +370,7 @@ app.UseRateLimiter();
 
 // â”€â”€ Health â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok", utc = DateTime.UtcNow }))
+app.MapMethods("/health", new[] { "GET", "HEAD" }, () => Results.Ok(new { status = "ok", utc = DateTime.UtcNow }))
 .WithName("Health")
 .WithOpenApi();
 
