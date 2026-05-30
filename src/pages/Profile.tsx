@@ -18,6 +18,7 @@ import { AuroraBackdrop } from "@/components/shared";
 import type { AnalysisResponse } from "@/lib/analysis";
 import type { LifestyleAnswers } from "@/components/analyze/LifestyleQuestionnaire";
 import { NotificationSettings } from "@/components/profile/NotificationSettings";
+import { DeleteAccountModal } from "@/components/profile/DeleteAccountModal";
 import { CarteirinhaEditModal } from "@/components/profile/CarteirinhaEditModal";
 import { StatsRow } from "@/components/profile/StatsRow";
 import { UserProfileModal } from "@/components/profile/UserProfileModal";
@@ -132,6 +133,7 @@ const Profile = () => {
   const [showOutrasRespostas, setShowOutrasRespostas] = useState(false);
   const [showNotifications, setShowNotifications]       = useState(false);
   const [showCarteirinhaEdit, setShowCarteirinhaEdit]   = useState(false);
+  const [showDeleteModal, setShowDeleteModal]           = useState(false);
   const [shareToast, setShareToast]                   = useState(false);
   const [cancelLoading, setCancelLoading]             = useState(false);
 
@@ -649,7 +651,7 @@ const Profile = () => {
         {/* ── Excluir conta ── */}
         <div className="flex justify-center pb-2">
           <button
-            onClick={() => navigate("/profile/delete")}
+            onClick={() => setShowDeleteModal(true)}
             className="text-xs text-muted-foreground/40 font-medium flex items-center gap-1.5 active:opacity-70 transition-opacity"
           >
             <Trash2 size={11} />
@@ -731,6 +733,11 @@ const Profile = () => {
       <CarteirinhaEditModal
         isOpen={showCarteirinhaEdit}
         onClose={() => setShowCarteirinhaEdit(false)}
+      />
+
+      <DeleteAccountModal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
       />
 
       <BottomNav />
