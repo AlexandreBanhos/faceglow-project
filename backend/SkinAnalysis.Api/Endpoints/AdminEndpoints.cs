@@ -15,7 +15,8 @@ public static class AdminEndpoints
     {
         var group = app.MapGroup("/admin")
             .WithTags("Admin")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireRateLimiting("admin");
 
         group.MapGet("/me", CheckAdminStatusHandler)
             .WithName("CheckAdminStatus")

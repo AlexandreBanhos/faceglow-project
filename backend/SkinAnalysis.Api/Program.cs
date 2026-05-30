@@ -113,6 +113,19 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddRateLimiter(options =>
 {
+    // Limiter global por IP — fallback para qualquer rota não coberta por política nomeada.
+    // Em produção com reverse proxy (Render/Vercel), configurar X-Forwarded-For corretamente.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 300,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    // Análise de pele — operação cara (IA + DB)
     options.AddPolicy("analysis", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User.FindFirst("sub")?.Value
@@ -125,6 +138,7 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 2,
             }));
 
+    // Billing checkout — evita spam de ordens
     options.AddPolicy("billing", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User.FindFirst("sub")?.Value
@@ -137,6 +151,55 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
             }));
 
+    // Polling de status — endpoints consultados a cada 2s pelo frontend
+    options.AddPolicy("polling", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirst("sub")?.Value
+                ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    // Ação destrutiva de conta — sliding window para impedir reenvio em loop
+    options.AddPolicy("account", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: httpContext.User.FindFirst("sub")?.Value
+                ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromHours(1),
+                SegmentsPerWindow = 4,
+                QueueLimit = 0,
+            }));
+
+    // Admin — operações sensíveis com limite apertado
+    options.AddPolicy("admin", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirst("sub")?.Value
+                ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    // Webhooks externos — assinatura já valida autenticidade; limita flood por IP
+    options.AddPolicy("webhook", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
+
+    // Rotas públicas sem auth (affiliates, landing)
     options.AddPolicy("public", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
@@ -151,6 +214,8 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
         await context.HttpContext.Response.WriteAsJsonAsync(
             new { error = "Muitas requisições. Tente novamente em alguns instantes." }, token);
     };
@@ -562,7 +627,7 @@ app.MapPost("/account/delete", async (
     }
 
     return Results.Ok(new { deleted = true });
-}).RequireAuthorization();
+}).RequireAuthorization().RequireRateLimiting("account");
 
 app.Run();
 

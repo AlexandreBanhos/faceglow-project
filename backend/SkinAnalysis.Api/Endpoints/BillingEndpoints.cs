@@ -34,16 +34,20 @@ public static class BillingEndpoints
             .RequireRateLimiting("billing");
 
         app.MapGet("/billing/status", GetStatusHandler)
-            .WithName("GetBillingStatus").WithOpenApi().RequireAuthorization();
+            .WithName("GetBillingStatus").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("polling");
 
         app.MapPost("/billing/cancel", CancelHandler)
-            .WithName("CancelBilling").WithOpenApi().RequireAuthorization();
+            .WithName("CancelBilling").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("billing");
 
         app.MapPost("/billing/webhook/mercadopago", MercadoPagoWebhookHandler)
-            .WithName("MercadoPagoWebhook").WithOpenApi();
+            .WithName("MercadoPagoWebhook").WithOpenApi()
+            .RequireRateLimiting("webhook");
 
         app.MapPost("/billing/webhook/stripe", StripeWebhookHandler)
-            .WithName("StripeWebhook").WithOpenApi();
+            .WithName("StripeWebhook").WithOpenApi()
+            .RequireRateLimiting("webhook");
     }
 
     private static async Task<IResult> CheckoutHandler(

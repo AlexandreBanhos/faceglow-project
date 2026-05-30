@@ -15,23 +15,29 @@ public static class AnalysisEndpoints
     {
         // Stats & credits
         app.MapGet("/analysis/stats", GetStatsHandler)
-            .WithName("GetAnalysisStats").WithOpenApi().RequireAuthorization();
+            .WithName("GetAnalysisStats").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("polling");
 
         app.MapGet("/analysis/credits", GetCreditsHandler)
-            .WithName("GetAnalysisCredits").WithOpenApi().RequireAuthorization();
+            .WithName("GetAnalysisCredits").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("polling");
 
         app.MapGet("/analysis/profile-summary", GetProfileSummaryHandler)
-            .WithName("GetProfileSummary").WithOpenApi();
+            .WithName("GetProfileSummary").WithOpenApi()
+            .RequireRateLimiting("polling");
 
         app.MapGet("/analysis/dashboard", GetDashboardHandler)
-            .WithName("GetDashboardSummary").WithOpenApi().RequireAuthorization();
+            .WithName("GetDashboardSummary").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("polling");
 
         app.MapGet("/analysis/summary", GetSummaryHandler)
-            .WithName("GetAnalysisSummary").WithOpenApi().RequireAuthorization();
+            .WithName("GetAnalysisSummary").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("polling");
 
         // Single analysis
         app.MapGet("/analysis/{id:guid}/status", GetStatusHandler)
-            .WithName("GetAnalysisJobStatus").WithOpenApi().RequireAuthorization();
+            .WithName("GetAnalysisJobStatus").WithOpenApi().RequireAuthorization()
+            .RequireRateLimiting("polling");
 
         // Deprecated stubs
         app.MapPost("/analysis/{id:guid}/routine/save", () =>
