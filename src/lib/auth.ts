@@ -165,13 +165,13 @@ export const signInWithApple = async (redirectTo?: string) => {
   });
 };
 
-/** Desativa a conta no backend (soft-delete). O logout deve ser chamado em seguida. */
-export const deactivateAccount = async (): Promise<{ ok: boolean; error?: string }> => {
+/** Exclui permanentemente a conta. O logout deve ser chamado em seguida. */
+export const deleteAccount = async (): Promise<{ ok: boolean; error?: string }> => {
   const token = await getAccessToken();
   if (!token) return { ok: false, error: "Sessão expirada." };
 
   try {
-    const res = await fetch(`${apiBaseUrl}/account/deactivate`, {
+    const res = await fetch(`${apiBaseUrl}/account/delete`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });

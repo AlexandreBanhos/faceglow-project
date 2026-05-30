@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, AlertTriangle, Trash2, ShieldAlert, X } from "lucide-react";
-import { deactivateAccount, signOut } from "@/lib/auth";
+import { deleteAccount, signOut } from "@/lib/auth";
 import { invalidateAnalysisCache } from "@/lib/analysisClient";
 
 const CONFIRM_WORD = "EXCLUIR";
@@ -28,7 +28,7 @@ const DeleteAccount = () => {
     setDeleting(true);
     setError(null);
 
-    const result = await deactivateAccount();
+    const result = await deleteAccount();
     if (!result.ok) {
       setError(result.error ?? "Não foi possível excluir a conta.");
       setDeleting(false);

@@ -22,7 +22,7 @@ public class AffiliateConversion
 {
     public Guid    Id             { get; set; } = Guid.NewGuid();
     public Guid    AffiliateId    { get; set; }
-    public Guid    UserId         { get; set; }
+    public Guid?   UserId         { get; set; }
     public Guid?   SubscriptionId { get; set; }
     public string  PlanKey        { get; set; } = "";
     public int     AmountCents    { get; set; }

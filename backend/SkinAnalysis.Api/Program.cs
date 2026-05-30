@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
+using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using Dapper;
 using SkinAnalysis.Api.Data;
@@ -435,21 +437,131 @@ app.MapGet("/profile/lifestyle", async (
 }).RequireAuthorization();
 
 // ── Account management ───────────────────────────────────────────────────────
-app.MapPost("/account/deactivate", async (
+app.MapPost("/account/delete", async (
     HttpContext ctx,
     AppDbContext db,
+    IConfiguration config,
+    IHttpClientFactory httpClientFactory,
+    ILoggerFactory loggerFactory,
     CancellationToken ct) =>
 {
+    var logger = loggerFactory.CreateLogger("AccountDelete");
     var userId = EndpointHelpers.GetAuthenticatedUserId(ctx.User);
     if (userId is null) return Results.Unauthorized();
 
     var user = await db.Users.FindAsync([userId.Value], ct);
     if (user is null) return Results.NotFound(new { detail = "Usuário não encontrado." });
 
-    user.DeactivatedAt = DateTime.UtcNow;
+    // 1. Anula comissões de afiliado vinculadas a pagamentos reembolsados
+    var stripeKey = config["Stripe:SecretKey"]?.Trim();
+    var pendingConversions = await db.AffiliateConversions
+        .Where(c => c.UserId == userId.Value && c.Status == "pending")
+        .ToListAsync(ct);
+
+    if (pendingConversions.Count > 0)
+    {
+        var subIds = pendingConversions
+            .Where(c => c.SubscriptionId.HasValue)
+            .Select(c => c.SubscriptionId!.Value)
+            .ToList();
+
+        var subscriptions = await db.Subscriptions
+            .Where(s => subIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, ct);
+
+        var stripeClient = httpClientFactory.CreateClient("Stripe");
+        if (!string.IsNullOrWhiteSpace(stripeKey))
+            stripeClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", stripeKey);
+
+        foreach (var conv in pendingConversions)
+        {
+            if (!conv.SubscriptionId.HasValue) continue;
+            if (!subscriptions.TryGetValue(conv.SubscriptionId.Value, out var sub)) continue;
+
+            bool refunded;
+            if (sub.Provider.Equals("stripe", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(stripeKey)
+                && !string.IsNullOrWhiteSpace(sub.ExternalId))
+            {
+                try
+                {
+                    var resp = await stripeClient.GetAsync(
+                        $"https://api.stripe.com/v1/checkout/sessions/{Uri.EscapeDataString(sub.ExternalId)}?expand[]=payment_intent.latest_charge",
+                        ct);
+                    refunded = false;
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var body = await resp.Content.ReadAsStringAsync(ct);
+                        using var doc = JsonDocument.Parse(body);
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("payment_intent", out var pi) &&
+                            pi.TryGetProperty("latest_charge", out var charge))
+                        {
+                            refunded = (charge.TryGetProperty("refunded", out var rp) && rp.GetBoolean())
+                                    || (charge.TryGetProperty("amount_refunded", out var ar) && ar.GetInt64() > 0);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "[AccountDelete] Stripe refund check falhou para sessão {Id}", sub.ExternalId);
+                    refunded = false;
+                }
+            }
+            else
+            {
+                // MercadoPago: webhook já atualiza status para "canceled" em caso de reembolso/chargeback
+                refunded = !sub.Status.Equals("active", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (refunded)
+            {
+                conv.Status = "voided";
+                logger.LogInformation("[AccountDelete] Comissão {ConvId} anulada — pagamento reembolsado (sub {SubId})",
+                    conv.Id, sub.Id);
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    // 2. Exclui public.users → cascata apaga todos os dados do usuário;
+    //    affiliate_conversions.user_id fica NULL (histórico preservado)
+    db.Users.Remove(user);
     await db.SaveChangesAsync(ct);
 
-    return Results.Ok(new { success = true, deactivatedAt = user.DeactivatedAt });
+    // 3. Exclui auth.users via Supabase Admin API → invalida login imediatamente
+    var supabaseUrl = config["Supabase:Url"]?.Trim().TrimEnd('/');
+    var serviceRoleKey = config["Supabase:ServiceRoleKey"]?.Trim();
+    if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(serviceRoleKey))
+    {
+        try
+        {
+            var adminClient = httpClientFactory.CreateClient();
+            adminClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {serviceRoleKey}");
+            adminClient.DefaultRequestHeaders.Add("apikey", serviceRoleKey);
+            var authResp = await adminClient.DeleteAsync(
+                $"{supabaseUrl}/auth/v1/admin/users/{userId.Value}", ct);
+            if (!authResp.IsSuccessStatusCode)
+            {
+                var errBody = await authResp.Content.ReadAsStringAsync(ct);
+                logger.LogError("[AccountDelete] Falha ao deletar auth.users {UserId}: {Status} {Body}",
+                    userId.Value, authResp.StatusCode, errBody);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AccountDelete] Exceção ao deletar auth.users {UserId}", userId.Value);
+        }
+    }
+    else
+    {
+        logger.LogWarning("[AccountDelete] Supabase:ServiceRoleKey não configurado — auth.users não deletado para {UserId}",
+            userId.Value);
+    }
+
+    return Results.Ok(new { deleted = true });
 }).RequireAuthorization();
 
 app.Run();

@@ -649,11 +649,7 @@ const Profile = () => {
         {/* ── Excluir conta ── */}
         <div className="flex justify-center pb-2">
           <button
-            onClick={() => {
-              if (window.confirm("Excluir sua conta é irreversível. Todos os seus dados serão apagados permanentemente. Tem certeza?")) {
-                window.open("mailto:contato@faceglow-soora.me?subject=Excluir minha conta&body=Olá, solicito a exclusão permanente da minha conta.", "_blank");
-              }
-            }}
+            onClick={() => navigate("/profile/delete")}
             className="text-xs text-muted-foreground/40 font-medium flex items-center gap-1.5 active:opacity-70 transition-opacity"
           >
             <Trash2 size={11} />
