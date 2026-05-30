@@ -13,6 +13,8 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
     private const decimal StaffPickBonus = 10m;
     private const decimal StrengthPenaltyStrong = 35m;
     private const decimal StrengthPenaltyModerate = 15m;
+    private const decimal FirstGenLowBonus = 25m;
+    private const decimal FirstGenMediumBonus = 10m;
 
     public async Task GenerateForProfileAsync(SkinProfile profile, CancellationToken ct = default)
     {
@@ -63,7 +65,7 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
                 db.RoutineSteps.Add(step);
                 await db.SaveChangesAsync(ct);
 
-                await PopulateSlotsAsync(step, stepKey, period, profile, ct);
+                await PopulateSlotsAsync(step, stepKey, period, profile, ct, firstGen: true);
             }
 
             // Save initial version snapshot
@@ -103,13 +105,13 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
     // ── Slot population ────────────────────────────────────────────────────
     private async Task PopulateSlotsAsync(
         UserRoutineStep step, string stepKey, string period,
-        SkinProfile profile, CancellationToken ct)
+        SkinProfile profile, CancellationToken ct, bool firstGen = false)
     {
         var candidates = await GetCandidatesAsync(stepKey, period, profile, ct);
         if (candidates.Count == 0) return;
 
         var scored = candidates
-            .Select(p => (product: p, score: ScoreProduct(p, profile, period)))
+            .Select(p => (product: p, score: ScoreProduct(p, profile, period, firstGen)))
             .OrderByDescending(x => x.score)
             .ToList();
 
@@ -198,7 +200,7 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
     }
 
     // ── Scoring ────────────────────────────────────────────────────────────
-    private static decimal ScoreProduct(Product p, SkinProfile profile, string period)
+    private static decimal ScoreProduct(Product p, SkinProfile profile, string period, bool firstGen = false)
     {
         var score = (decimal)p.CurationScore;
 
@@ -225,6 +227,13 @@ public sealed class RoutineGeneratorService(AppDbContext db, ILogger<RoutineGene
         // Period match: prefer products that explicitly target this period
         if (p.SuitablePeriods.Length == 1 && p.SuitablePeriods[0] == period)
             score += 5m;
+
+        // First routine: boost affordable products so users start with accessible options
+        if (firstGen)
+        {
+            if (p.PriceRange == "low") score += FirstGenLowBonus;
+            else if (p.PriceRange == "medium") score += FirstGenMediumBonus;
+        }
 
         return score;
     }
