@@ -372,7 +372,7 @@ app.UseRateLimiter();
 
 app.MapMethods("/health", new[] { "GET", "HEAD" }, () => Results.Ok(new { status = "ok", utc = DateTime.UtcNow }))
 .WithName("Health")
-.WithOpenApi();
+.ExcludeFromDescription();
 
 app.MapGet("/health/db", async (ClaimsPrincipal user, AppDbContext dbContext, CancellationToken cancellationToken) =>
 {
