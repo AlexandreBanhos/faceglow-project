@@ -364,7 +364,7 @@ public class BillingService : IBillingService
 
         var planDescription = plan.Key switch
         {
-            "credits" => "1 análise facial completa com diagnóstico de pele e rotina personalizada.",
+            "credits" => "1 análise facial completa com diagnóstico de pele. Incrementa seu histórico e mantém sua rotina atual — passos diários (free) ou acesso total aos produtos (premium).",
             "monthly" => "Acesso premium por 30 dias: 6 créditos de análise + rotina personalizada com produtos.",
             "annual"  => "Acesso premium por 365 dias: créditos de análise ilimitados + rotina personalizada.",
             _         => "Acesso ao FaceGlow Premium.",
