@@ -191,7 +191,22 @@ public static class BillingEndpoints
             }
         }
 
-        if (subscription is null) return Results.NotFound();
+        if (subscription is null) return Results.Ok(new
+        {
+            provider = (string?)null,
+            gateway = (string?)null,
+            planKey = (string?)null,
+            planName = (string?)null,
+            status = "none",
+            isActive = false,
+            isPremium = false,
+            amountCents = 0,
+            currency = "BRL",
+            activatedAtUtc = (DateTime?)null,
+            expiresAtUtc = (DateTime?)null,
+            externalReference = (string?)null,
+            externalId = (string?)null,
+        });
 
         var isSubscriptionPlan = subscription.PlanKey is "monthly" or "annual" or "quarterly";
         var isPaymentValid = subscription.Status.Equals("active", StringComparison.OrdinalIgnoreCase)
