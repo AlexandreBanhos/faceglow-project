@@ -26,32 +26,65 @@ const ScanningView = ({ onBack, onCapture, onGalleryFile }: ScanningViewProps) =
     const startCamera = async () => {
       try {
         setStreamError(null);
-        
-        const constraints = {
-          video: {
-            facingMode,
-            width: { min: 720, ideal: 1280, max: 1920 },
-            height: { min: 720, ideal: 1280, max: 1920 },
+
+        const constraintsProgressive = [
+          {
+            video: {
+              facingMode,
+              width: { min: 720, ideal: 1280, max: 1920 },
+              height: { min: 720, ideal: 1280, max: 1920 },
+            },
+            audio: false,
           },
-          audio: false,
-        };
+          {
+            video: {
+              facingMode,
+              width: { min: 480, ideal: 720, max: 1920 },
+              height: { min: 480, ideal: 720, max: 1920 },
+            },
+            audio: false,
+          },
+          {
+            video: { facingMode },
+            audio: false,
+          },
+        ];
 
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        let lastError: Error | null = null;
 
-        if (!mounted || !videoRef.current) return;
+        for (const constraints of constraintsProgressive) {
+          try {
+            localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (localStream && mounted && videoRef.current) {
+              videoRef.current.srcObject = localStream;
+              await videoRef.current.play();
+              return;
+            }
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+            continue;
+          }
+        }
 
-        videoRef.current.srcObject = localStream;
-        await videoRef.current.play();
+        if (mounted && lastError) {
+          const errorName = (lastError as DOMException).name;
+          if (errorName === 'NotAllowedError' || errorName === 'PermissionDenied') {
+            setStreamError("Permissão de câmera negada. Verifique as configurações do seu navegador e tente novamente.");
+          } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+            setStreamError("Câmera não encontrada. Use a galeria para continuar.");
+          } else {
+            setStreamError("Não foi possível acessar a câmera. Use a galeria para continuar.");
+          }
+        }
       } catch {
         if (mounted) {
-          setStreamError("Não foi possível acessar a câmera. Use a galeria para continuar.");
+          setStreamError("Erro ao acessar câmera. Use a galeria para continuar.");
         }
       }
     };
 
     startCamera();
 
-    // Listener para mudança de orientação
     const handleOrientationChange = () => {
       localStream?.getTracks().forEach((track) => track.stop());
       startCamera();
@@ -194,7 +227,12 @@ const ScanningView = ({ onBack, onCapture, onGalleryFile }: ScanningViewProps) =
         <motion.button
           whileHover={{ scale: 1.15 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            const input = fileInputRef.current;
+            if (!input) return;
+            input.click();
+            input.focus();
+          }}
           className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-xl text-white flex items-center justify-center hover:bg-white/30 transition-colors shadow-lg"
           aria-label="Abrir galeria"
         >
@@ -250,6 +288,7 @@ const ScanningView = ({ onBack, onCapture, onGalleryFile }: ScanningViewProps) =
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        capture="environment"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
@@ -257,6 +296,10 @@ const ScanningView = ({ onBack, onCapture, onGalleryFile }: ScanningViewProps) =
             onGalleryFile(file);
           }
           event.currentTarget.value = "";
+        }}
+        onClick={(e) => {
+          const input = e.currentTarget;
+          input.value = "";
         }}
       />
 
