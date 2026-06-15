@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0-noble AS build
+FROM debian:bookworm-slim AS build
+RUN apt-get update && apt-get install -y dotnet-sdk-8.0 && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 
 COPY backend/SkinAnalysis.Api/SkinAnalysis.Api.csproj ./
@@ -7,7 +8,8 @@ RUN dotnet restore ./SkinAnalysis.Api.csproj
 COPY backend/SkinAnalysis.Api ./
 RUN dotnet publish SkinAnalysis.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-noble AS final
+FROM debian:bookworm-slim AS final
+RUN apt-get update && apt-get install -y dotnet-runtime-8.0 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://0.0.0.0:10000
 EXPOSE 10000
