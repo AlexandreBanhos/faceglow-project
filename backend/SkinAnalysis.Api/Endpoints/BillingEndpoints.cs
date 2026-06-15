@@ -240,6 +240,7 @@ public static class BillingEndpoints
         HttpRequest request, AppDbContext dbContext, IHttpClientFactory httpClientFactory,
         IBillingService billingService, IMemoryCache cache,
         SkinAnalysis.Api.Services.AffiliateService affiliateService,
+        PremiumNotificationService notificationService,
         IServiceScopeFactory scopeFactory,
         ILoggerFactory loggerFactory, CancellationToken cancellationToken)
     {
@@ -327,6 +328,14 @@ public static class BillingEndpoints
             await EndpointHelpers.GrantCreditsAsync(dbContext, subscription.UserId, subscription.PlanKey, cancellationToken);
             await affiliateService.RecordConversionAsync(subscription.Id, subscription.UserId, subscription.PlanKey, subscription.AmountCents, cancellationToken);
             _ = TriggerRoutineGenerationAsync(scopeFactory, subscription.UserId, loggerFactory);
+
+            var user = await dbContext.Users.Where(u => u.Id == subscription.UserId).FirstOrDefaultAsync(cancellationToken);
+            if (user is not null)
+            {
+                _ = notificationService.NotifyAdminNewPremiumUserAsync(
+                    subscription.UserId, user.Email, user.FullName, subscription.PlanName,
+                    subscription.Gateway, subscription.AmountCents, cancellationToken);
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -339,6 +348,7 @@ public static class BillingEndpoints
     private static async Task<IResult> StripeWebhookHandler(
         HttpRequest request, AppDbContext dbContext, IConfiguration configuration,
         IMemoryCache cache, SkinAnalysis.Api.Services.AffiliateService affiliateService,
+        PremiumNotificationService notificationService,
         IServiceScopeFactory scopeFactory,
         ILoggerFactory loggerFactory, CancellationToken cancellationToken)
     {
@@ -408,6 +418,14 @@ public static class BillingEndpoints
                 await EndpointHelpers.GrantCreditsAsync(dbContext, subscription.UserId, subscription.PlanKey, cancellationToken);
                 await affiliateService.RecordConversionAsync(subscription.Id, subscription.UserId, subscription.PlanKey, subscription.AmountCents, cancellationToken);
                 _ = TriggerRoutineGenerationAsync(scopeFactory, subscription.UserId, loggerFactory);
+
+                var user = await dbContext.Users.Where(u => u.Id == subscription.UserId).FirstOrDefaultAsync(cancellationToken);
+                if (user is not null)
+                {
+                    _ = notificationService.NotifyAdminNewPremiumUserAsync(
+                        subscription.UserId, user.Email, user.FullName, subscription.PlanName,
+                        subscription.Gateway, subscription.AmountCents, cancellationToken);
+                }
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);

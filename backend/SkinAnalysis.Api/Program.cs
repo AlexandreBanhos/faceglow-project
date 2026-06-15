@@ -261,6 +261,7 @@ builder.Services.AddScoped<IAnalysisService, AnalysisService>();
 builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<ProductEnrichmentService>();
 builder.Services.AddScoped<PushNotificationService>();
+builder.Services.AddScoped<PremiumNotificationService>();
 builder.Services.AddScoped<AffiliateService>();
 builder.Services.AddHostedService<NotificationSchedulerService>();
 
