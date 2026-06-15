@@ -333,7 +333,7 @@ public static class BillingEndpoints
             if (user is not null)
             {
                 _ = notificationService.NotifyAdminNewPremiumUserAsync(
-                    subscription.UserId, user.Email, user.FullName, subscription.PlanName,
+                    subscription.UserId, user.Email, null, subscription.PlanName,
                     subscription.Gateway, subscription.AmountCents, cancellationToken);
             }
         }
@@ -423,7 +423,7 @@ public static class BillingEndpoints
                 if (user is not null)
                 {
                     _ = notificationService.NotifyAdminNewPremiumUserAsync(
-                        subscription.UserId, user.Email, user.FullName, subscription.PlanName,
+                        subscription.UserId, user.Email, null, subscription.PlanName,
                         subscription.Gateway, subscription.AmountCents, cancellationToken);
                 }
             }
