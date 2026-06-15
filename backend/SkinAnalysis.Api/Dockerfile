@@ -1,5 +1,5 @@
 FROM debian:bookworm-slim AS build
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y wget ca-certificates libicu72 libssl3 zlib1g && rm -rf /var/lib/apt/lists/*
 RUN wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && chmod +x dotnet-install.sh
 RUN ./dotnet-install.sh --channel 8.0 --install-dir /usr/local/dotnet
 ENV PATH="/usr/local/dotnet:${PATH}"
@@ -12,7 +12,7 @@ COPY backend/SkinAnalysis.Api ./
 RUN dotnet publish SkinAnalysis.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM debian:bookworm-slim AS final
-RUN apt-get update && apt-get install -y wget ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y wget ca-certificates libicu72 libssl3 zlib1g && rm -rf /var/lib/apt/lists/*
 RUN wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && chmod +x dotnet-install.sh
 RUN ./dotnet-install.sh --channel 8.0 --install-dir /usr/local/dotnet --runtime aspnetcore
 ENV PATH="/usr/local/dotnet:${PATH}"
