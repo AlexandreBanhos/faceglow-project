@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ChevronLeft, ImagePlus, Plus, Trash2, X, Loader2 } from "lucide-react";
+import { ChevronLeft, ImagePlus, Plus, Trash2, Loader2 } from "lucide-react";
 import { AuroraBackdrop } from "@/components/shared";
 import {
   createPedido, getPedido, updatePedido, uploadCinemaImage,
-  LOCAIS, IDIOMAS, idiomaDaTag, type Idioma,
+  LOCAIS, IDIOMAS, SALAS, TAG_3D, idiomaDaTag, salaDaTag, is3D, type Idioma, type Sala,
 } from "@/lib/cinema";
 import { getCurrentUser } from "@/lib/auth";
 import logoIcon from "@/assets/logos/logo-faceglow.svg";
@@ -20,6 +20,12 @@ interface TicketDraft {
 
 const inputClass =
   "w-full mt-1.5 px-3.5 py-3 rounded-xl bg-muted/40 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 transition";
+
+const LOCAL_OUTRO = "__outro__";
+
+function isLocalPadrao(local: string) {
+  return (LOCAIS as readonly string[]).includes(local);
+}
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -67,12 +73,16 @@ export default function CinemaNew() {
 
   const [titulo, setTitulo] = useState("");
   const [local, setLocal] = useState<string>(LOCAIS[0]);
+  // Caso excepcional: local fora da lista padrão, digitado à mão
+  const [localManual, setLocalManual] = useState(false);
   const [sala, setSala] = useState("");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("");
   const [idioma, setIdioma] = useState<Idioma>("DUB");
-  const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [tem3D, setTem3D] = useState(false);
+  const [salaTipo, setSalaTipo] = useState<Sala | null>(null);
+  // Tags antigas fora do padrão (ex: "IMAX" digitado à mão) são preservadas ao salvar
+  const [tagsLegadas, setTagsLegadas] = useState<string[]>([]);
   const [tickets, setTickets] = useState<TicketDraft[]>([{ tipo: "", assento: "" }]);
   const [imagemAtual, setImagemAtual] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -93,11 +103,14 @@ export default function CinemaNew() {
         const idiomaSalvo = p.tags.map(idiomaDaTag).find(Boolean);
         setTitulo(p.titulo);
         setLocal(p.local || LOCAIS[0]);
+        setLocalManual(!!p.local && !isLocalPadrao(p.local));
         setSala(p.sala ?? "");
         setData(dh.data);
         setHora(dh.hora);
         if (idiomaSalvo) setIdioma(idiomaSalvo);
-        setTags(p.tags.filter((t) => !idiomaDaTag(t)));
+        setTem3D(p.tags.some(is3D));
+        setSalaTipo(p.tags.map(salaDaTag).find(Boolean) ?? null);
+        setTagsLegadas(p.tags.filter((t) => !idiomaDaTag(t) && !is3D(t) && !salaDaTag(t)));
         setImagemAtual(p.imagem_url);
         setImagePreview(p.imagem_url);
         const ings = p.ingressos ?? [];
@@ -110,24 +123,21 @@ export default function CinemaNew() {
     return () => { mounted = false; };
   }, [pedidoId]);
 
-  // Pedidos antigos podem ter um local digitado à mão: mantém como opção para não perder o valor
-  const opcoesLocal: string[] = (LOCAIS as readonly string[]).includes(local) ? [...LOCAIS] : [...LOCAIS, local];
+  function handleLocalSelect(value: string) {
+    if (value === LOCAL_OUTRO) {
+      setLocalManual(true);
+      setLocal("");
+    } else {
+      setLocalManual(false);
+      setLocal(value);
+    }
+  }
 
   function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
-  }
-
-  function addTag() {
-    const t = tagInput.trim();
-    if (t && !idiomaDaTag(t) && !tags.includes(t)) setTags((prev) => [...prev, t]);
-    setTagInput("");
-  }
-
-  function removeTag(t: string) {
-    setTags((prev) => prev.filter((x) => x !== t));
   }
 
   function addTicket() {
@@ -147,6 +157,7 @@ export default function CinemaNew() {
     if (!titulo.trim()) errs.titulo = "Título obrigatório.";
     if (!data) errs.data = "Data obrigatória.";
     if (!hora) errs.hora = "Hora obrigatória.";
+    if (localManual && !local.trim()) errs.local = "Informe o local.";
     tickets.forEach((t, i) => {
       if (!t.tipo.trim()) errs[`ticket_tipo_${i}`] = "Tipo obrigatório.";
     });
@@ -168,10 +179,10 @@ export default function CinemaNew() {
 
       const base = {
         titulo: titulo.trim(),
-        local,
+        local: local.trim(),
         sala: sala.trim(),
         data_hora: new Date(`${data}T${hora}`).toISOString(),
-        tags: [idioma, ...tags],
+        tags: [idioma, ...(tem3D ? [TAG_3D] : []), ...(salaTipo ? [salaTipo] : []), ...tagsLegadas],
         imagem_url,
       };
       const ingressos = tickets
@@ -254,9 +265,28 @@ export default function CinemaNew() {
           </div>
           <div>
             <label htmlFor="local" className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Local</label>
-            <select id="local" value={local} onChange={(e) => setLocal(e.target.value)} className={inputClass}>
-              {opcoesLocal.map((l) => <option key={l} value={l}>{l}</option>)}
+            <select
+              id="local"
+              value={localManual ? LOCAL_OUTRO : local}
+              onChange={(e) => handleLocalSelect(e.target.value)}
+              className={inputClass}
+            >
+              {LOCAIS.map((l) => <option key={l} value={l}>{l}</option>)}
+              <option value={LOCAL_OUTRO}>Outro local…</option>
             </select>
+            {localManual && (
+              <>
+                <input
+                  value={local}
+                  onChange={(e) => setLocal(e.target.value)}
+                  placeholder="Nome do cinema ou shopping"
+                  aria-label="Outro local"
+                  autoFocus
+                  className={inputClass}
+                />
+                <FieldError msg={errors.local} />
+              </>
+            )}
           </div>
           <LabeledInput id="sala" label="Sala" value={sala} onChange={setSala} placeholder="ex: Sala 3" />
           <div className="grid grid-cols-2 gap-3">
@@ -271,7 +301,7 @@ export default function CinemaNew() {
           </div>
         </div>
 
-        {/* Idioma + outras tags */}
+        {/* Idioma, sessão e sala */}
         <div className="lg-surface rounded-2xl p-4 space-y-4">
           <div>
             <p id="idioma-label" className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Idioma</p>
@@ -298,36 +328,42 @@ export default function CinemaNew() {
           </div>
 
           <div>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Outras tags</p>
-            <div className="flex gap-2">
-              <input
-                id="tag-input"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                placeholder="ex: 3D, IMAX…"
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                aria-label="Adicionar tag"
-              />
-              <button
-                type="button" onClick={addTag}
-                className="px-3.5 py-2.5 rounded-xl gradient-primary text-white text-xs font-bold active:scale-95 transition-transform"
-              >
-                Add
-              </button>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Sessão</p>
+            <button
+              type="button"
+              aria-pressed={tem3D}
+              onClick={() => setTem3D((v) => !v)}
+              className="px-5 py-2.5 rounded-xl text-sm font-extrabold tracking-wide transition-colors"
+              style={tem3D
+                ? { background: "#0C1960", color: "#fff" }
+                : { background: "hsl(var(--muted) / 0.4)", color: "hsl(var(--muted-foreground))" }}
+            >
+              3D
+            </button>
+          </div>
+
+          <div>
+            <p id="sala-label" className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Sala</p>
+            <div role="radiogroup" aria-labelledby="sala-label" className="grid grid-cols-3 gap-2">
+              {([null, ...SALAS] as (Sala | null)[]).map((op) => {
+                const ativo = salaTipo === op;
+                return (
+                  <button
+                    key={op ?? "padrao"}
+                    type="button"
+                    role="radio"
+                    aria-checked={ativo}
+                    onClick={() => setSalaTipo(op)}
+                    className="py-2.5 rounded-xl text-sm font-extrabold tracking-wide transition-colors"
+                    style={ativo
+                      ? { background: "hsl(var(--foreground))", color: "hsl(var(--background))" }
+                      : { background: "hsl(var(--muted) / 0.4)", color: "hsl(var(--muted-foreground))" }}
+                  >
+                    {op ?? "Padrão"}
+                  </button>
+                );
+              })}
             </div>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {tags.map((t) => (
-                  <span key={t} className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-muted/60 text-foreground">
-                    {t}
-                    <button onClick={() => removeTag(t)} aria-label={`Remover tag ${t}`}>
-                      <X size={11} className="text-muted-foreground" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 

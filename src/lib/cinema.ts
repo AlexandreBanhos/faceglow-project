@@ -47,6 +47,10 @@ export const LOCAIS = ["Shopping Vila Velha", "Shopping Vitória"] as const;
 export const IDIOMAS = ["DUB", "LEG", "ORIG"] as const;
 export type Idioma = (typeof IDIOMAS)[number];
 
+export const SALAS = ["XD", "D-BOX"] as const;
+export type Sala = (typeof SALAS)[number];
+export const TAG_3D = "3D";
+
 // Aceita as grafias antigas digitadas à mão (ex: "Dublado")
 export function idiomaDaTag(tag: string): Idioma | null {
   const t = tag.trim().toUpperCase();
@@ -54,6 +58,17 @@ export function idiomaDaTag(tag: string): Idioma | null {
   if (t === "LEG" || t === "LEGENDADO") return "LEG";
   if (t === "ORIG" || t === "ORIGINAL") return "ORIG";
   return null;
+}
+
+export function salaDaTag(tag: string): Sala | null {
+  const t = tag.trim().toUpperCase().replace(/[\s-]/g, "");
+  if (t === "XD") return "XD";
+  if (t === "DBOX") return "D-BOX";
+  return null;
+}
+
+export function is3D(tag: string) {
+  return tag.trim().toUpperCase() === TAG_3D;
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────

@@ -9,9 +9,13 @@ import { PopcornIllustration } from "@/components/cinema/PopcornIllustration";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { BackIcon, CheckIcon, ClubIcon, FilmsIcon, OrdersIcon, SnackIcon } from "@/components/cinema/CinemaIcons";
 import {
-  getPedido, deletePedido, resgataIngresso, idiomaDaTag,
-  type CinemaPedido, type CinemaIngresso,
+  getPedido, deletePedido, resgataIngresso, idiomaDaTag, salaDaTag,
+  type CinemaPedido, type CinemaIngresso, type Sala,
 } from "@/lib/cinema";
+import salaXdUrl from "@/assets/icones/sala-xd.webp";
+import salaDboxUrl from "@/assets/icones/sala-dbox.webp";
+
+const SALA_LOGOS: Record<Sala, string> = { "XD": salaXdUrl, "D-BOX": salaDboxUrl };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -696,7 +700,8 @@ export default function CinemaDetail() {
   const [exitState, setExitState] = useState<ExitState>("none");
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useThemeColor(PAGE_BG);
+  // A página já soma env(safe-area-inset-top) no header, botão de suporte e tela de erro
+  useThemeColor(PAGE_BG, { edgeToEdge: true });
 
   useEffect(() => () => { if (exitTimer.current) clearTimeout(exitTimer.current); }, []);
 
@@ -847,6 +852,18 @@ export default function CinemaDetail() {
             {pedido.tags.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
                 {pedido.tags.map((tag) => {
+                  const sala = salaDaTag(tag);
+                  if (sala) {
+                    // Salas especiais: etiqueta branca com o logo, como na referência
+                    return (
+                      <span key={tag} style={{
+                        display: "inline-flex", alignItems: "center",
+                        height: 24, padding: "0 8px", borderRadius: 6, background: "#FFFFFF",
+                      }}>
+                        <img src={SALA_LOGOS[sala]} alt={sala} style={{ height: sala === "XD" ? 14 : 11, display: "block" }} />
+                      </span>
+                    );
+                  }
                   const s = tagStyle(tag);
                   return (
                     <span key={tag} style={{
