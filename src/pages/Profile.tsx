@@ -6,7 +6,7 @@ import {
   Mail, Instagram, Globe, ChevronRight, Bell,
   MessageCircle, FileText, Share2, Trash2,
   ScanFace, Settings2, BookOpen, ClipboardList,
-  Coins, Sparkles, CreditCard, Settings, Copy, Check, XCircle, IdCard,
+  Coins, Sparkles, CreditCard, Settings, Copy, Check, XCircle, IdCard, Ticket,
 } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { getCurrentUser, signOut } from "@/lib/auth";
@@ -426,6 +426,12 @@ const Profile = () => {
               label: "Editar dados da carteirinha",
               sub: "Instituição, curso, CPF, foto e mais",
               onClick: () => setShowCarteirinhaEdit(true),
+            },
+            {
+              icon: <Ticket size={15} className="text-foreground" />,
+              label: "Meus ingressos",
+              sub: "Cinema, shows e eventos",
+              onClick: () => navigate("/cinema"),
             },
           ]} />
         </div>

@@ -52,6 +52,9 @@ const AuthCallback   = lazy(() => import("./pages/AuthCallback"));
 const AdminAfiliados = lazy(() => import("./pages/AdminAfiliados"));
 const ValidarCarteirinha = lazy(() => import("./pages/ValidarCarteirinha"));
 const Carteirinha        = lazy(() => import("./pages/Carteirinha"));
+const CinemaList         = lazy(() => import("./pages/CinemaList"));
+const CinemaNew          = lazy(() => import("./pages/CinemaNew"));
+const CinemaDetail       = lazy(() => import("./pages/CinemaDetail"));
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
@@ -126,6 +129,9 @@ const App = () => (
                     <Route path="/premium"           element={<Premium />} />
                     <Route path="/aprenda"           element={<SkincareLearn />} />
                     <Route path="/carteirinha"       element={<Carteirinha />} />
+                    <Route path="/cinema"            element={<CinemaList />} />
+                    <Route path="/cinema/novo"       element={<CinemaNew />} />
+                    <Route path="/cinema/:pedidoId"  element={<CinemaDetail />} />
                     <Route element={<RequireAdmin />}>
                       <Route path="/admin/users"      element={<AdminUsers />} />
                       <Route path="/admin/products"   element={<AdminProducts />} />
