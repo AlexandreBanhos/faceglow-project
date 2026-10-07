@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Plus, Ticket, MapPin, CalendarDays, AlertCircle } from "lucide-react";
+import { ChevronLeft, Plus, Ticket, MapPin, CalendarDays, AlertCircle, Pencil } from "lucide-react";
 import { AuroraBackdrop } from "@/components/shared";
 import BottomNav from "@/components/BottomNav";
 import { listPedidos, type CinemaPedido } from "@/lib/cinema";
@@ -13,15 +13,18 @@ function fmtDataHora(iso: string) {
     + " · " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function PedidoCard({ pedido, onClick }: { pedido: CinemaPedido; onClick: () => void }) {
+function PedidoCard({ pedido, onClick, onEdit }: { pedido: CinemaPedido; onClick: () => void; onEdit: () => void }) {
   const total = pedido.ingressos?.length ?? 0;
 
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      className="w-full lg-surface rounded-2xl overflow-hidden flex items-stretch"
+    >
+    <button
       onClick={onClick}
-      className="w-full text-left lg-surface rounded-2xl overflow-hidden flex gap-0 active:scale-[0.98] transition-transform"
+      className="flex-1 min-w-0 text-left flex gap-0 active:scale-[0.98] transition-transform"
     >
       {/* Faixa de imagem */}
       <div className="w-20 h-20 flex-shrink-0 bg-muted/40 overflow-hidden">
@@ -57,10 +60,16 @@ function PedidoCard({ pedido, onClick }: { pedido: CinemaPedido; onClick: () => 
         </div>
       </div>
 
-      <div className="flex items-center pr-3">
-        <ChevronLeft size={14} className="text-muted-foreground/40 rotate-180" />
-      </div>
-    </motion.button>
+    </button>
+
+      <button
+        onClick={onEdit}
+        className="w-11 flex items-center justify-center border-l border-border/30 active:bg-muted/40 transition-colors flex-shrink-0"
+        aria-label={`Editar pedido ${pedido.titulo}`}
+      >
+        <Pencil size={15} className="text-muted-foreground" />
+      </button>
+    </motion.div>
   );
 }
 
@@ -150,7 +159,12 @@ export default function CinemaList() {
 
         {/* Lista */}
         {!loading && !error && pedidos.map((p) => (
-          <PedidoCard key={p.id} pedido={p} onClick={() => navigate(`/cinema/${p.id}`)} />
+          <PedidoCard
+            key={p.id}
+            pedido={p}
+            onClick={() => navigate(`/cinema/${p.id}`)}
+            onEdit={() => navigate(`/cinema/${p.id}/editar`)}
+          />
         ))}
       </div>
 

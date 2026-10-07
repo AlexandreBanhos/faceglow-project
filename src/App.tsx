@@ -132,6 +132,7 @@ const App = () => (
                     <Route path="/cinema"            element={<CinemaList />} />
                     <Route path="/cinema/novo"       element={<CinemaNew />} />
                     <Route path="/cinema/:pedidoId"  element={<CinemaDetail />} />
+                    <Route path="/cinema/:pedidoId/editar" element={<CinemaNew />} />
                     <Route element={<RequireAdmin />}>
                       <Route path="/admin/users"      element={<AdminUsers />} />
                       <Route path="/admin/products"   element={<AdminProducts />} />

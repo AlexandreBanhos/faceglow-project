@@ -36,6 +36,26 @@ export interface NovoPedidoPayload {
   ingressos: { tipo: string; assento: string }[];
 }
 
+// Na edição, ingressos com `id` são atualizados (mantendo token e resgate); sem `id` são criados.
+export interface EditPedidoPayload extends Omit<NovoPedidoPayload, "ingressos"> {
+  ingressos: { id?: string; tipo: string; assento: string }[];
+}
+
+// ── Opções padrão ─────────────────────────────────────────────────────────────
+
+export const LOCAIS = ["Shopping Vila Velha", "Shopping Vitória"] as const;
+export const IDIOMAS = ["DUB", "LEG", "ORIG"] as const;
+export type Idioma = (typeof IDIOMAS)[number];
+
+// Aceita as grafias antigas digitadas à mão (ex: "Dublado")
+export function idiomaDaTag(tag: string): Idioma | null {
+  const t = tag.trim().toUpperCase();
+  if (t === "DUB" || t === "DUBLADO") return "DUB";
+  if (t === "LEG" || t === "LEGENDADO") return "LEG";
+  if (t === "ORIG" || t === "ORIGINAL") return "ORIG";
+  return null;
+}
+
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export async function listPedidos(): Promise<CinemaPedido[]> {
@@ -99,6 +119,54 @@ export async function createPedido(payload: NovoPedidoPayload): Promise<CinemaPe
   }
 
   return getPedido((pedido as CinemaPedido).id);
+}
+
+export async function updatePedido(id: string, payload: EditPedidoPayload): Promise<CinemaPedido> {
+  const sb = assertSupabaseConfigured();
+
+  const { error: pedidoErr } = await sb
+    .from("cinema_pedidos")
+    .update({
+      titulo: payload.titulo,
+      local: payload.local,
+      sala: payload.sala,
+      data_hora: payload.data_hora,
+      tags: payload.tags,
+      imagem_url: payload.imagem_url,
+    })
+    .eq("id", id);
+  if (pedidoErr) throw pedidoErr;
+
+  const { data: atuais, error: listErr } = await sb
+    .from("cinema_ingressos")
+    .select("id")
+    .eq("pedido_id", id);
+  if (listErr) throw listErr;
+
+  const manter = new Set(payload.ingressos.filter((i) => i.id).map((i) => i.id!));
+  const remover = (atuais ?? []).map((i) => i.id as string).filter((iid) => !manter.has(iid));
+  if (remover.length > 0) {
+    const { error } = await sb.from("cinema_ingressos").delete().in("id", remover);
+    if (error) throw error;
+  }
+
+  for (const ing of payload.ingressos.filter((i) => i.id)) {
+    const { error } = await sb
+      .from("cinema_ingressos")
+      .update({ tipo: ing.tipo, assento: ing.assento })
+      .eq("id", ing.id!);
+    if (error) throw error;
+  }
+
+  const novos = payload.ingressos.filter((i) => !i.id);
+  if (novos.length > 0) {
+    const { error } = await sb.from("cinema_ingressos").insert(
+      novos.map((ing) => ({ pedido_id: id, tipo: ing.tipo, assento: ing.assento }))
+    );
+    if (error) throw error;
+  }
+
+  return getPedido(id);
 }
 
 export async function deletePedido(id: string): Promise<void> {

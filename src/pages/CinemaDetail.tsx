@@ -6,9 +6,10 @@ import type { PanInfo } from "framer-motion";
 import { Home, Loader2, AlertCircle, X } from "lucide-react";
 import supportIconUrl from "@/assets/icones/icone-conteudo-falado.svg";
 import { PopcornIllustration } from "@/components/cinema/PopcornIllustration";
+import { useThemeColor } from "@/hooks/useThemeColor";
 import { BackIcon, CheckIcon, ClubIcon, FilmsIcon, OrdersIcon, SnackIcon } from "@/components/cinema/CinemaIcons";
 import {
-  getPedido, deletePedido, resgataIngresso,
+  getPedido, deletePedido, resgataIngresso, idiomaDaTag,
   type CinemaPedido, type CinemaIngresso,
 } from "@/lib/cinema";
 
@@ -73,8 +74,7 @@ function numericCode(token: string) {
 
 function tagStyle(tag: string): { bg: string; color: string } {
   const t = tag.toUpperCase();
-  if (t === "DUB" || t === "DUBLADO")   return { bg: "#812627", color: TEXT };
-  if (t === "LEG" || t === "LEGENDADO") return { bg: "#6B3A10", color: TEXT };
+  if (idiomaDaTag(t))                   return { bg: "#812627", color: TEXT }; // DUB / LEG / ORIG
   if (t === "3D")                       return { bg: "#0C1960", color: TEXT };
   if (t === "IMAX")                     return { bg: "#3D0F6B", color: TEXT };
   if (t === "4DX")                      return { bg: "#004D40", color: TEXT };
@@ -695,6 +695,8 @@ export default function CinemaDetail() {
   const [deleting, setDeleting] = useState(false);
   const [exitState, setExitState] = useState<ExitState>("none");
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useThemeColor(PAGE_BG);
 
   useEffect(() => () => { if (exitTimer.current) clearTimeout(exitTimer.current); }, []);
 

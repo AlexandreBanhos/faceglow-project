@@ -1,15 +1,37 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ChevronLeft, ImagePlus, Plus, Trash2, X, Loader2 } from "lucide-react";
 import { AuroraBackdrop } from "@/components/shared";
-import { createPedido, uploadCinemaImage } from "@/lib/cinema";
+import {
+  createPedido, getPedido, updatePedido, uploadCinemaImage,
+  LOCAIS, IDIOMAS, idiomaDaTag, type Idioma,
+} from "@/lib/cinema";
 import { getCurrentUser } from "@/lib/auth";
 import logoIcon from "@/assets/logos/logo-faceglow.svg";
 
+// `id` presente = ingresso já salvo (na edição mantém token e resgate)
 interface TicketDraft {
+  id?: string;
   tipo: string;
   assento: string;
+  resgatado?: boolean;
+}
+
+const inputClass =
+  "w-full mt-1.5 px-3.5 py-3 rounded-xl bg-muted/40 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 transition";
+
+function pad(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+// ISO → valores dos inputs date/time no fuso local
+function splitDataHora(iso: string) {
+  const d = new Date(iso);
+  return {
+    data: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 }
 
 function FieldError({ msg }: { msg?: string }) {
@@ -31,7 +53,7 @@ function LabeledInput({
       <input
         id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full mt-1.5 px-3.5 py-3 rounded-xl bg-muted/40 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+        className={inputClass}
       />
     </div>
   );
@@ -39,33 +61,68 @@ function LabeledInput({
 
 export default function CinemaNew() {
   const navigate = useNavigate();
+  const { pedidoId } = useParams<{ pedidoId: string }>();
+  const isEdit = !!pedidoId;
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [titulo, setTitulo] = useState("");
-  const [local, setLocal] = useState("");
+  const [local, setLocal] = useState<string>(LOCAIS[0]);
   const [sala, setSala] = useState("");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("");
+  const [idioma, setIdioma] = useState<Idioma>("DUB");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tickets, setTickets] = useState<TicketDraft[]>([{ tipo: "", assento: "" }]);
+  const [imagemAtual, setImagemAtual] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loadingPedido, setLoadingPedido] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Edição: preenche o formulário com o pedido salvo
+  useEffect(() => {
+    if (!pedidoId) return;
+    let mounted = true;
+    getPedido(pedidoId)
+      .then((p) => {
+        if (!mounted) return;
+        const dh = splitDataHora(p.data_hora);
+        const idiomaSalvo = p.tags.map(idiomaDaTag).find(Boolean);
+        setTitulo(p.titulo);
+        setLocal(p.local || LOCAIS[0]);
+        setSala(p.sala ?? "");
+        setData(dh.data);
+        setHora(dh.hora);
+        if (idiomaSalvo) setIdioma(idiomaSalvo);
+        setTags(p.tags.filter((t) => !idiomaDaTag(t)));
+        setImagemAtual(p.imagem_url);
+        setImagePreview(p.imagem_url);
+        const ings = p.ingressos ?? [];
+        setTickets(ings.length > 0
+          ? ings.map((i) => ({ id: i.id, tipo: i.tipo, assento: i.assento ?? "", resgatado: !!i.resgatado_em }))
+          : [{ tipo: "", assento: "" }]);
+      })
+      .catch((e: unknown) => { if (mounted) setSaveError(e instanceof Error ? e.message : "Erro ao carregar pedido."); })
+      .finally(() => { if (mounted) setLoadingPedido(false); });
+    return () => { mounted = false; };
+  }, [pedidoId]);
+
+  // Pedidos antigos podem ter um local digitado à mão: mantém como opção para não perder o valor
+  const opcoesLocal: string[] = (LOCAIS as readonly string[]).includes(local) ? [...LOCAIS] : [...LOCAIS, local];
 
   function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
-    const url = URL.createObjectURL(file);
-    setImagePreview(url);
+    setImagePreview(URL.createObjectURL(file));
   }
 
   function addTag() {
     const t = tagInput.trim();
-    if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+    if (t && !idiomaDaTag(t) && !tags.includes(t)) setTags((prev) => [...prev, t]);
     setTagInput("");
   }
 
@@ -81,7 +138,7 @@ export default function CinemaNew() {
     setTickets((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function updateTicket(i: number, field: keyof TicketDraft, val: string) {
+  function updateTicket(i: number, field: "tipo" | "assento", val: string) {
     setTickets((prev) => prev.map((t, idx) => idx === i ? { ...t, [field]: val } : t));
   }
 
@@ -106,22 +163,24 @@ export default function CinemaNew() {
       const user = await getCurrentUser();
       if (!user) throw new Error("Não autenticado.");
 
-      let imagem_url: string | null = null;
-      if (imageFile) {
-        imagem_url = await uploadCinemaImage(imageFile, user.id);
-      }
+      let imagem_url = imagemAtual;
+      if (imageFile) imagem_url = await uploadCinemaImage(imageFile, user.id);
 
-      const data_hora = new Date(`${data}T${hora}`).toISOString();
-
-      const pedido = await createPedido({
+      const base = {
         titulo: titulo.trim(),
-        local: local.trim(),
+        local,
         sala: sala.trim(),
-        data_hora,
-        tags,
+        data_hora: new Date(`${data}T${hora}`).toISOString(),
+        tags: [idioma, ...tags],
         imagem_url,
-        ingressos: tickets.filter((t) => t.tipo.trim()),
-      });
+      };
+      const ingressos = tickets
+        .filter((t) => t.tipo.trim())
+        .map((t) => ({ id: t.id, tipo: t.tipo.trim(), assento: t.assento.trim() }));
+
+      const pedido = isEdit
+        ? await updatePedido(pedidoId!, { ...base, ingressos })
+        : await createPedido({ ...base, ingressos: ingressos.map(({ tipo, assento }) => ({ tipo, assento })) });
 
       navigate(`/cinema/${pedido.id}`, { replace: true });
     } catch (e: unknown) {
@@ -145,11 +204,16 @@ export default function CinemaNew() {
           <ChevronLeft size={18} className="text-foreground" />
         </button>
         <div className="flex-1">
-          <h1 className="font-heading text-xl font-extrabold text-foreground">Novo pedido</h1>
+          <h1 className="font-heading text-xl font-extrabold text-foreground">{isEdit ? "Editar pedido" : "Novo pedido"}</h1>
         </div>
         <img src={logoIcon} alt="FaceGlow" className="h-6 opacity-40" />
       </div>
 
+      {loadingPedido ? (
+        <div className="flex justify-center py-20">
+          <Loader2 size={24} className="animate-spin text-muted-foreground" />
+        </div>
+      ) : (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -162,7 +226,7 @@ export default function CinemaNew() {
             type="button"
             onClick={() => fileRef.current?.click()}
             className="w-full h-44 rounded-2xl overflow-hidden border-2 border-dashed border-border/50 flex items-center justify-center bg-muted/30 active:bg-muted/50 transition-colors relative"
-            aria-label="Selecionar imagem"
+            aria-label={imagePreview ? "Trocar imagem" : "Selecionar imagem"}
           >
             {imagePreview ? (
               <img src={imagePreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
@@ -188,8 +252,13 @@ export default function CinemaNew() {
             />
             <FieldError msg={errors.titulo} />
           </div>
-          <LabeledInput id="local" label="Local" value={local} onChange={setLocal} placeholder="ex: Cinemark" />
-          <LabeledInput id="sala" label="Sala" value={sala} onChange={setSala} placeholder="ex: Sala 3 — IMAX" />
+          <div>
+            <label htmlFor="local" className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Local</label>
+            <select id="local" value={local} onChange={(e) => setLocal(e.target.value)} className={inputClass}>
+              {opcoesLocal.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+          <LabeledInput id="sala" label="Sala" value={sala} onChange={setSala} placeholder="ex: Sala 3" />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <LabeledInput id="data" label="Data" value={data} onChange={setData} type="date" required />
@@ -202,46 +271,75 @@ export default function CinemaNew() {
           </div>
         </div>
 
-        {/* Tags */}
-        <div className="lg-surface rounded-2xl p-4">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Tags</p>
-          <div className="flex gap-2">
-            <input
-              id="tag-input"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-              placeholder="ex: Ação, Dublado…"
-              className="flex-1 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
-              aria-label="Adicionar tag"
-            />
-            <button
-              type="button" onClick={addTag}
-              className="px-3.5 py-2.5 rounded-xl gradient-primary text-white text-xs font-bold active:scale-95 transition-transform"
-            >
-              Add
-            </button>
-          </div>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {tags.map((t) => (
-                <span key={t} className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-muted/60 text-foreground">
-                  {t}
-                  <button onClick={() => removeTag(t)} aria-label={`Remover tag ${t}`}>
-                    <X size={11} className="text-muted-foreground" />
+        {/* Idioma + outras tags */}
+        <div className="lg-surface rounded-2xl p-4 space-y-4">
+          <div>
+            <p id="idioma-label" className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Idioma</p>
+            <div role="radiogroup" aria-labelledby="idioma-label" className="grid grid-cols-3 gap-2">
+              {IDIOMAS.map((op) => {
+                const ativo = idioma === op;
+                return (
+                  <button
+                    key={op}
+                    type="button"
+                    role="radio"
+                    aria-checked={ativo}
+                    onClick={() => setIdioma(op)}
+                    className="py-2.5 rounded-xl text-sm font-extrabold tracking-wide transition-colors"
+                    style={ativo
+                      ? { background: "#812627", color: "#fff" }
+                      : { background: "hsl(var(--muted) / 0.4)", color: "hsl(var(--muted-foreground))" }}
+                  >
+                    {op}
                   </button>
-                </span>
-              ))}
+                );
+              })}
             </div>
-          )}
+          </div>
+
+          <div>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Outras tags</p>
+            <div className="flex gap-2">
+              <input
+                id="tag-input"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+                placeholder="ex: 3D, IMAX…"
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-muted/40 border border-border/40 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                aria-label="Adicionar tag"
+              />
+              <button
+                type="button" onClick={addTag}
+                className="px-3.5 py-2.5 rounded-xl gradient-primary text-white text-xs font-bold active:scale-95 transition-transform"
+              >
+                Add
+              </button>
+            </div>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {tags.map((t) => (
+                  <span key={t} className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-muted/60 text-foreground">
+                    {t}
+                    <button onClick={() => removeTag(t)} aria-label={`Remover tag ${t}`}>
+                      <X size={11} className="text-muted-foreground" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Ingressos */}
         <div className="lg-surface rounded-2xl p-4 space-y-3">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Ingressos</p>
           {tickets.map((t, i) => (
-            <div key={i} className="flex gap-2 items-start">
+            <div key={t.id ?? `novo-${i}`} className="flex gap-2 items-start">
               <div className="flex-1 space-y-1.5">
+                {t.resgatado && (
+                  <p className="text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">Resgatado</p>
+                )}
                 <input
                   value={t.tipo}
                   onChange={(e) => updateTicket(i, "tipo", e.target.value)}
@@ -289,9 +387,10 @@ export default function CinemaNew() {
           disabled={saving}
           className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm coral-button shadow-glow active:scale-[0.98] transition-transform disabled:opacity-60"
         >
-          {saving ? <><Loader2 size={16} className="animate-spin" /> Salvando…</> : "Salvar pedido"}
+          {saving ? <><Loader2 size={16} className="animate-spin" /> Salvando…</> : isEdit ? "Salvar alterações" : "Salvar pedido"}
         </button>
       </motion.div>
+      )}
     </div>
   );
 }
